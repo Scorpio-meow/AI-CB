@@ -1,0 +1,143 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from app.models.database import get_db
+from app.models import User, Conversation, Message, Document
+from typing import List, Dict, Any
+from datetime import datetime, timedelta
+
+router = APIRouter()
+
+@router.get("/users")
+async def get_users(
+    db: Session = Depends(get_db)
+):
+    """獲取所有用戶列表"""
+    users = db.query(User).all()
+    return users
+
+@router.get("/statistics")
+async def get_statistics(
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """獲取系統統計信息"""
+    # 用戶統計
+    total_users = db.query(User).count()
+    active_users = db.query(User).filter(User.is_active == True).count()
+    admin_users = db.query(User).filter(User.is_admin == True).count()
+    
+    # 對話統計
+    total_conversations = db.query(Conversation).count()
+    total_messages = db.query(Message).count()
+    
+    # 最近7天的消息統計
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    recent_messages = db.query(Message).filter(
+        Message.created_at >= seven_days_ago
+    ).count()
+    
+    # 文檔統計
+    total_documents = db.query(Document).count()
+    processed_documents = db.query(Document).filter(
+        Document.is_processed == True
+    ).count()
+    
+    # 每日消息統計 (最近7天)
+    daily_stats = []
+    for i in range(7):
+        date = datetime.utcnow() - timedelta(days=i)
+        start_of_day = date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = date.replace(hour=23, minute=59, second=59, microsecond=999999)
+        
+        daily_count = db.query(Message).filter(
+            Message.created_at >= start_of_day,
+            Message.created_at <= end_of_day
+        ).count()
+        
+        daily_stats.append({
+            "date": start_of_day.strftime("%Y-%m-%d"),
+            "messages": daily_count
+        })
+    
+    return {
+        "users": {
+            "total": total_users,
+            "active": active_users,
+            "admins": admin_users
+        },
+        "conversations": {
+            "total": total_conversations,
+            "total_messages": total_messages,
+            "recent_messages": recent_messages
+        },
+        "documents": {
+            "total": total_documents,
+            "processed": processed_documents
+        },
+        "daily_stats": daily_stats
+    }
+
+@router.get("/conversations")
+async def get_conversations(
+    db: Session = Depends(get_db)
+):
+    """獲取所有對話列表"""
+    conversations = db.query(Conversation).order_by(
+        Conversation.updated_at.desc()
+    ).limit(50).all()
+    
+    return conversations
+
+@router.get("/conversations/{conversation_id}/messages")
+async def get_conversation_messages(
+    conversation_id: int,
+    db: Session = Depends(get_db)
+):
+    """獲取特定對話的消息"""
+    messages = db.query(Message).filter(
+        Message.conversation_id == conversation_id
+    ).order_by(Message.created_at.asc()).all()
+    
+    return messages
+
+@router.delete("/conversations/{conversation_id}")
+async def delete_conversation(
+    conversation_id: int,
+    db: Session = Depends(get_db)
+):
+    """刪除對話"""
+    # 刪除對話中的所有消息
+    db.query(Message).filter(Message.conversation_id == conversation_id).delete()
+    
+    # 刪除對話
+    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+    if not conversation:
+        raise HTTPException(status_code=404, detail="對話不存在")
+    
+    db.delete(conversation)
+    db.commit()
+    
+    return {"message": "對話刪除成功"}
+
+@router.get("/documents")
+async def get_documents(
+    db: Session = Depends(get_db)
+):
+    """獲取所有文檔列表"""
+    documents = db.query(Document).order_by(Document.created_at.desc()).all()
+    return documents
+
+@router.delete("/documents/{document_id}")
+async def delete_document(
+    document_id: int,
+    db: Session = Depends(get_db)
+):
+    """刪除文檔"""
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="文檔不存在")
+    
+    db.delete(document)
+    db.commit()
+    
+    return {"message": "文檔刪除成功"}
