@@ -310,6 +310,44 @@ class ContextualRAG:
             "documents_file_exists": os.path.exists(self.documents_path)
         }
     
+    def remove_document_by_id(self, document_id: int):
+        """Remove a document from the vector store by document_id"""
+        # Find documents to remove
+        docs_to_remove = []
+        indices_to_remove = []
+        
+        for i, doc in enumerate(self.documents):
+            if doc.metadata.get('document_id') == document_id:
+                docs_to_remove.append(doc)
+                indices_to_remove.append(i)
+        
+        if not docs_to_remove:
+            print(f"No documents found with document_id: {document_id}")
+            return
+        
+        # Remove documents from list (in reverse order to maintain indices)
+        for i in sorted(indices_to_remove, reverse=True):
+            del self.documents[i]
+        
+        # Rebuild FAISS index (since FAISS doesn't support efficient deletion)
+        if self.documents:
+            # Re-encode all remaining documents
+            all_texts = [doc.page_content for doc in self.documents]
+            embeddings = self.local_embeddings.encode(all_texts)
+            faiss.normalize_L2(embeddings)
+            
+            # Create new index
+            self.index = faiss.IndexFlatIP(self.embedding_dimension)
+            self.index.add(embeddings)
+        else:
+            # If no documents left, create empty index
+            self.index = faiss.IndexFlatIP(self.embedding_dimension)
+        
+        # Save updated index
+        self._save_vector_store()
+        
+        print(f"Removed {len(docs_to_remove)} documents with ID {document_id}. Index rebuilt with {self.index.ntotal} vectors.")
+    
     def clear_vector_store(self):
         """Clear all vectors and documents from the store"""
         self.index = faiss.IndexFlatIP(self.embedding_dimension)

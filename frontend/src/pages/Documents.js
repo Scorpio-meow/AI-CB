@@ -63,9 +63,9 @@ function Documents() {
         return;
       }
       
-      // 檢查文件大小 (最大 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        setError('文件大小不能超過 10MB');
+      // 檢查文件大小 (最大 50MB)
+      if (file.size > 50 * 1024 * 1024) {
+        setError('文件大小不能超過 50MB');
         return;
       }
       
@@ -106,12 +106,14 @@ function Documents() {
   const handleDelete = async (documentId, filename) => {
     if (window.confirm(`確定要刪除文檔 "${filename}" 嗎？此操作不可逆！`)) {
       try {
-        await axios.delete(`/api/documents/${documentId}`);
+        console.log(`正在刪除文檔 ID: ${documentId}, 文件名: ${filename}`);
+        const response = await axios.delete(`/api/documents/${documentId}`);
+        console.log('刪除響應:', response.data);
         setSuccess('文檔刪除成功');
         loadDocuments();
       } catch (err) {
-        setError('刪除文檔失敗');
-        console.error('Delete error:', err);
+        console.error('刪除文檔錯誤:', err);
+        setError('刪除文檔失敗: ' + (err.response?.data?.detail || err.message));
       }
     }
   };
@@ -289,7 +291,7 @@ function Documents() {
             <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
               支援的文件格式: .txt, .pdf, .docx
               <br />
-              最大文件大小: 10MB
+              最大文件大小: 50MB
             </Typography>
             
             {uploadLoading && (

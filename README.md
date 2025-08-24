@@ -7,16 +7,18 @@
 ### 🤖 智能對話
 - **Contextual RAG**: 基於對話歷史和文件知識庫的上下文感知回答
 - **即時聊天**: 支援 WebSocket 即時通訊
-- **對話管理**: 多對話管理，支援對話歷史保存和搜尋
+- **對話管理**: 多對話管理，支援對話歷史保存
 
 ### 👥 用戶管理
-- **用戶註冊登入**: JWT 身份驗證系統
+- **用戶註冊登入**: JWT 身份驗證系統（前後端代碼已準備，待整合）
 - **權限控制**: 區分一般用戶和管理員權限
 
 ### 📚 知識庫管理
 - **文件上傳**: 支援多種文件格式（PDF, TXT, DOCX）
 - **智能分塊**: 自動將文件分割為語義塊
-- **向量搜尋**: 使用 FAISS 進行高效相似度搜尋
+- **向量搜尋**: 使用 FAISS IndexFlatIP 進行高效相似度搜尋
+- **多編碼支援**: 支援 UTF-8, GBK, Big5 等中文編碼
+- **文檔處理**: PyPDF2 + python-docx 處理多格式文件
 
 ### 🎛️ 後台管理
 - **用戶管理**: 查看、編輯、刪除用戶
@@ -30,9 +32,11 @@
 - **FastAPI**: 高性能 Web 框架
 - **SQLAlchemy**: ORM 數據庫操作
 - **LangChain**: RAG 實現框架
-- **OpenAI GPT**: 大型語言模型
-- **FAISS**: 向量數據庫
-- **PostgreSQL**: 主數據庫
+- **OpenAI/GitHub Models**: 大型語言模型支援
+- **FAISS**: 向量數據庫 (IndexFlatIP)
+- **PyPDF2 + python-docx**: 文檔處理
+- **SQLite/PostgreSQL**: 主數據庫
+- **sentence-transformers**: 多語言嵌入模型
 
 ### 前端
 - **React 18**: 用戶界面框架
@@ -43,9 +47,9 @@
 ## 安裝和運行
 
 ### 環境要求
-- Python 3.8+
+- Python 3.10+
 - Node.js 16+
-- PostgreSQL 13+
+- SQLite (開發) / PostgreSQL (生產)
 
 ### 後端設置
 
@@ -54,34 +58,26 @@
 cd backend
 ```
 
-2. 創建虛擬環境：
+2. 使用現有虛擬環境：
 ```bash
-python -m venv venv
 # Windows
-venv\Scripts\activate
-# Linux/Mac
-source venv/bin/activate
+.\CBvenv\Scripts\Activate.ps1
 ```
 
-3. 安裝依賴：
+3. 安裝依賴（如需要）：
 ```bash
 pip install -r requirements.txt
 ```
 
 4. 配置環境變數：
 ```bash
-cp .env.example .env
+copy .env.example .env
 # 編輯 .env 文件，填入實際配置
 ```
 
-5. 初始化數據庫：
+5. 啟動後端服務：
 ```bash
-python main.py
-```
-
-6. 啟動後端服務：
-```bash
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 ### 前端設置
@@ -107,10 +103,12 @@ npm start
 
 #### 後端 (.env)
 ```env
-# 數據庫連接
-DATABASE_URL=postgresql://username:password@localhost/chatbot_db
+# GitHub Models API (推薦)
+GITHUB_TOKEN=your_github_token_here
+MODEL_NAME=openai/gpt-4o-mini
+GITHUB_API_BASE=https://models.github.ai/inference
 
-# OpenAI API
+# 或 OpenAI API
 OPENAI_API_KEY=your_openai_api_key_here
 
 # JWT 密鑰
@@ -118,28 +116,25 @@ SECRET_KEY=your_jwt_secret_key_here
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 
-# CORS 設置
-ALLOWED_ORIGINS=["http://localhost:3000"]
-
-# 向量數據庫
-VECTOR_DB_PATH=./data/vector_db
-EMBEDDING_MODEL=all-MiniLM-L6-v2
+# 數據庫連接 (SQLite 為默認)
+DATABASE_URL=sqlite:///./chatbot.db
+# DATABASE_URL=postgresql://username:password@localhost/chatbot_db
 
 # RAG 設置
+EMBEDDING_MODEL=paraphrase-multilingual-MiniLM-L12-v2
+SIMILARITY_THRESHOLD=0.3
 CHUNK_SIZE=1000
 CHUNK_OVERLAP=200
-MAX_TOKENS=4000
-TEMPERATURE=0.7
 ```
 
 #### 前端 (.env)
 ```env
-REACT_APP_API_URL=http://localhost:8000/api
+REACT_APP_API_URL=http://127.0.0.1:8000
 ```
 
 ## API 接口
 
-### 身份驗證
+### 身份驗證（未整合）
 - `POST /api/auth/register` - 用戶註冊
 - `POST /api/auth/login` - 用戶登入
 - `GET /api/auth/me` - 獲取當前用戶信息
@@ -151,14 +146,22 @@ REACT_APP_API_URL=http://localhost:8000/api
 - `DELETE /api/chat/conversations/{id}` - 刪除對話
 
 ### 文件管理
-- `POST /api/documents/upload` - 上傳文件
-- `GET /api/documents` - 獲取文件列表
+- `POST /api/documents/upload` - 上傳文件 (支援 TXT, PDF, DOCX)
+- `GET /api/documents/` - 獲取文件列表
 - `DELETE /api/documents/{id}` - 刪除文件
 
 ### 管理功能
 - `GET /api/admin/users` - 獲取用戶列表
 - `GET /api/admin/statistics` - 獲取系統統計
 - `PUT /api/admin/users/{id}` - 更新用戶信息
+- `DELETE /api/admin/users/{id}` - 刪除用戶
+- `GET /api/admin/conversations` - 獲取所有對話
+- `DELETE /api/admin/conversations/{id}` - 刪除對話
+- `GET /api/admin/documents` - 獲取所有文檔
+- `DELETE /api/admin/documents/{id}` - 刪除文檔
+- `GET /api/admin/vector-store/info` - 獲取向量庫信息
+- `GET /api/admin/vector-store/statistics` - 獲取向量庫統計
+- `DELETE /api/admin/vector-store/clear` - 清空向量庫
 
 ## Contextual RAG 實現
 

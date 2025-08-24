@@ -1,4 +1,81 @@
+# Python 虛擬環境
 CBvenv/
+venv/
+env/
+
+# Node.js
 frontend/node_modules/
+frontend/build/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# Python
 __pycache__/
-.vscode/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# VS Code
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+.vscode/.ropeproject
+
+# 數據庫
+*.db
+*.sqlite
+*.sqlite3
+
+# 日誌
+*.log
+logs/
+
+# 環境變數
+.env
+.env.local
+.env.*.local
+
+# 上傳文件
+backend/data/uploads/*
+!backend/data/uploads/.gitkeep
+
+# FAISS 索引文件
+backend/data/faiss_index.bin
+backend/data/documents.pkl
+
+# 測試文件
+backend/test_files/
+backend/simple_test.py
+backend/test_*.py
+
+# 臨時文件
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
