@@ -2,6 +2,8 @@ from typing import List, Dict, Any, Optional
 import os
 import time
 import numpy as np
+import faiss
+import pickle
 from sentence_transformers import SentenceTransformer
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document
@@ -22,12 +24,22 @@ class ContextualRAG:
             )
         
         # Initialize local embeddings for semantic search
-        self.local_embeddings = SentenceTransformer('all-MiniLM-L6-v2')
+        embedding_model = os.getenv("EMBEDDING_MODEL", "paraphrase-multilingual-MiniLM-L12-v2")
+        self.local_embeddings = SentenceTransformer(embedding_model)
+        self.embedding_dimension = 384  # paraphrase-multilingual-MiniLM-L12-v2 dimension
         
-        # Simple in-memory vector store
+        # Configuration from environment
+        self.similarity_threshold = float(os.getenv("SIMILARITY_THRESHOLD", "0.3"))
+        
+        # FAISS vector store setup
+        self.index = faiss.IndexFlatIP(self.embedding_dimension)  # Inner Product (cosine similarity)
         self.documents = []
-        self.embeddings_cache = []
+        self.faiss_index_path = "data/faiss_index.bin"
+        self.documents_path = "data/documents.pkl"
         self.context_memory = {}  # Store conversation context
+        
+        # Load existing index if available
+        self._load_vector_store()
         
         # Text splitter for chunking
         self.text_splitter = RecursiveCharacterTextSplitter(
@@ -36,13 +48,50 @@ class ContextualRAG:
             length_function=len,
         )
         
+    def _load_vector_store(self):
+        """Load existing FAISS index and documents"""
+        try:
+            if os.path.exists(self.faiss_index_path) and os.path.exists(self.documents_path):
+                # Load FAISS index
+                self.index = faiss.read_index(self.faiss_index_path)
+                
+                # Load documents
+                with open(self.documents_path, 'rb') as f:
+                    self.documents = pickle.load(f)
+                    
+                print(f"Loaded FAISS index with {self.index.ntotal} vectors and {len(self.documents)} documents")
+            else:
+                print("No existing FAISS index found, starting with empty index")
+        except Exception as e:
+            print(f"Error loading FAISS index: {e}")
+            # Initialize empty index if loading fails
+            self.index = faiss.IndexFlatIP(self.embedding_dimension)
+            self.documents = []
+    
+    def _save_vector_store(self):
+        """Save FAISS index and documents to disk"""
+        try:
+            # Ensure data directory exists
+            os.makedirs(os.path.dirname(self.faiss_index_path), exist_ok=True)
+            
+            # Save FAISS index
+            faiss.write_index(self.index, self.faiss_index_path)
+            
+            # Save documents
+            with open(self.documents_path, 'wb') as f:
+                pickle.dump(self.documents, f)
+                
+            print(f"Saved FAISS index with {self.index.ntotal} vectors")
+        except Exception as e:
+            print(f"Error saving FAISS index: {e}")
+        
     async def initialize_vector_store(self, documents: List[Document] = None):
         """Initialize or load the vector store"""
         if documents:
             await self.add_documents(documents)
             
     async def add_documents(self, documents: List[Document]):
-        """Add documents to the vector store"""
+        """Add documents to the FAISS vector store"""
         # Chunk documents
         all_chunks = []
         for doc in documents:
@@ -58,55 +107,78 @@ class ContextualRAG:
                 )
                 all_chunks.append(chunk_doc)
         
+        if not all_chunks:
+            return
+            
         # Generate embeddings for chunks
         chunk_texts = [chunk.page_content for chunk in all_chunks]
         embeddings = self.local_embeddings.encode(chunk_texts)
         
-        # Store documents and embeddings
+        # Normalize embeddings for cosine similarity
+        faiss.normalize_L2(embeddings)
+        
+        # Add to FAISS index
+        self.index.add(embeddings)
+        
+        # Store documents
         self.documents.extend(all_chunks)
-        self.embeddings_cache.extend(embeddings.tolist())
+        
+        # Save to disk
+        self._save_vector_store()
+        
+        print(f"Added {len(all_chunks)} chunks to FAISS index. Total: {self.index.ntotal} vectors")
         
     def semantic_search(self, query: str, top_k: int = 5) -> List[Document]:
-        """Perform semantic search using local embeddings"""
-        if not self.documents:
+        """Perform semantic search using FAISS"""
+        if self.index.ntotal == 0:
             return []
             
         # Generate query embedding
         query_embedding = self.local_embeddings.encode([query])
         
-        # Calculate similarities
-        similarities = []
-        for i, doc_embedding in enumerate(self.embeddings_cache):
-            similarity = np.dot(query_embedding[0], doc_embedding) / (
-                np.linalg.norm(query_embedding[0]) * np.linalg.norm(doc_embedding)
-            )
-            similarities.append((similarity, i))
+        # Normalize query embedding for cosine similarity
+        faiss.normalize_L2(query_embedding)
         
-        # Sort by similarity and return top-k
-        similarities.sort(reverse=True)
+        # Search FAISS index
+        similarities, indices = self.index.search(query_embedding, min(top_k, self.index.ntotal))
         
+        # Filter results by similarity threshold and return documents
         relevant_docs = []
-        for similarity, idx in similarities[:top_k]:
-            if similarity > 0.3:  # Threshold for relevance
+        for similarity, idx in zip(similarities[0], indices[0]):
+            if similarity > self.similarity_threshold and idx < len(self.documents):  # Use configurable threshold
                 relevant_docs.append(self.documents[idx])
                 
         return relevant_docs
     
     def rerank_documents(self, query: str, documents: List[Document]) -> List[Document]:
-        """Re-rank documents based on relevance"""
+        """Re-rank documents based on relevance for Traditional Chinese"""
         if not documents:
             return documents
             
-        # Simple keyword-based re-ranking
-        query_terms = set(query.lower().split())
+        # Enhanced keyword-based re-ranking for Traditional Chinese
+        import re
+        
+        # Extract keywords from query (including Chinese characters)
+        query_terms = set(re.findall(r'[\u4e00-\u9fff]+|[a-zA-Z]+', query.lower()))
         scored_docs = []
         
         for doc in documents:
-            doc_terms = set(doc.page_content.lower().split())
+            # Extract terms from document content
+            doc_terms = set(re.findall(r'[\u4e00-\u9fff]+|[a-zA-Z]+', doc.page_content.lower()))
+            
+            # Calculate overlap score
             overlap = len(query_terms.intersection(doc_terms))
-            scored_docs.append((overlap, doc))
+            
+            # Bonus for exact phrase matches
+            phrase_bonus = 0
+            for term in query_terms:
+                if len(term) > 1 and term in doc.page_content.lower():
+                    phrase_bonus += len(term)
+            
+            total_score = overlap + phrase_bonus * 0.5
+            scored_docs.append((total_score, doc))
         
-        # Sort by overlap score
+        # Sort by score
         scored_docs.sort(reverse=True, key=lambda x: x[0])
         return [doc for _, doc in scored_docs]
     
@@ -127,17 +199,24 @@ class ContextualRAG:
             document_context += f"文檔 {i+1} (來源: {source}):\n{doc.page_content}\n\n"
         
         # Build final prompt
-        prompt = f"""你是一個智能助手，請根據提供的上下文信息回答用戶問題。
+        prompt = f"""你是一個專業的繁體中文智能助手，請根據提供的上下文信息回答用戶問題。
 
 對話歷史:
 {conversation_context}
 
-相關文檔:
+相關文檔內容:
 {document_context}
 
 用戶問題: {query}
 
-請基於上述上下文信息提供準確、有用的回答。如果上下文中沒有相關信息，請誠實地說明並提供一般性的幫助。"""
+回答要求：
+1. 請用繁體中文回答
+2. 基於上述文檔內容提供準確、詳細的回答
+3. 如果文檔中沒有相關信息，請誠實說明並提供一般性建議
+4. 回答要條理清晰、易於理解
+5. 可以適當引用文檔來源以增加可信度
+
+請提供回答："""
         
         return prompt
     
@@ -151,7 +230,7 @@ class ContextualRAG:
                 messages=[
                     {
                         "role": "system",
-                        "content": "你是一個智能助手，請用繁體中文回答問題。"
+                        "content": "你是一個專業的繁體中文智能助手。請用繁體中文回答所有問題，提供準確、詳細且有幫助的資訊。回答要條理清晰，易於理解。"
                     },
                     {
                         "role": "user",
@@ -216,5 +295,32 @@ class ContextualRAG:
         return {
             "total_documents": len(self.documents),
             "total_conversations": len(self.context_memory),
-            "total_embeddings": len(self.embeddings_cache)
+            "total_vectors": self.index.ntotal,
+            "embedding_dimension": self.embedding_dimension
         }
+    
+    def get_vector_store_info(self) -> Dict[str, Any]:
+        """Get information about the current vector store"""
+        return {
+            "total_vectors": self.index.ntotal,
+            "total_documents": len(self.documents),
+            "embedding_dimension": self.embedding_dimension,
+            "index_type": "FAISS IndexFlatIP",
+            "index_file_exists": os.path.exists(self.faiss_index_path),
+            "documents_file_exists": os.path.exists(self.documents_path)
+        }
+    
+    def clear_vector_store(self):
+        """Clear all vectors and documents from the store"""
+        self.index = faiss.IndexFlatIP(self.embedding_dimension)
+        self.documents = []
+        
+        # Remove saved files
+        try:
+            if os.path.exists(self.faiss_index_path):
+                os.remove(self.faiss_index_path)
+            if os.path.exists(self.documents_path):
+                os.remove(self.documents_path)
+            print("Vector store cleared successfully")
+        except Exception as e:
+            print(f"Error clearing vector store files: {e}")

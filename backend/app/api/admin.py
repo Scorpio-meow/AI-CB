@@ -3,11 +3,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.models.database import get_db
 from app.models import User, Conversation, Message, Document
+from app.rag.contextual_rag import ContextualRAG
 from typing import List, Dict, Any
 from datetime import datetime, timedelta
 from pydantic import BaseModel
 
 router = APIRouter()
+rag_system = ContextualRAG()
 
 class UserUpdate(BaseModel):
     username: str = None
@@ -213,3 +215,19 @@ async def delete_user(
     db.commit()
     
     return {"message": "用戶刪除成功"}
+
+@router.get("/vector-store/info")
+async def get_vector_store_info():
+    """獲取向量庫信息"""
+    return rag_system.get_vector_store_info()
+
+@router.get("/vector-store/statistics")
+async def get_vector_store_statistics():
+    """獲取向量庫統計信息"""
+    return rag_system.get_statistics()
+
+@router.delete("/vector-store/clear")
+async def clear_vector_store():
+    """清空向量庫"""
+    rag_system.clear_vector_store()
+    return {"message": "向量庫已清空"}
