@@ -1,4 +1,4 @@
 CBvenv/
-frontend/node_modules
-__pycache__
-.vscode
+frontend/node_modules/
+__pycache__/
+.vscode/
