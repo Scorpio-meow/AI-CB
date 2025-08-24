@@ -105,7 +105,7 @@ npm start
 ```env
 # GitHub Models API (推薦)
 GITHUB_TOKEN=your_github_token_here
-MODEL_NAME=openai/gpt-4o-mini
+MODEL_NAME=openai/gpt-5-chat
 GITHUB_API_BASE=https://models.github.ai/inference
 
 # 或 OpenAI API
