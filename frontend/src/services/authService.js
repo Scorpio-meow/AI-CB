@@ -90,6 +90,18 @@ export const documentService = {
     return response.data;
   },
 
+  async uploadDocuments(files) {
+    const formData = new FormData();
+    files.forEach((f) => formData.append('file', f));
+
+    const response = await api.post('/documents/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
   async getDocuments() {
     const response = await api.get('/documents');
     return response.data;
