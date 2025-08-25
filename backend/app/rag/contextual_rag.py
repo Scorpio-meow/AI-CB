@@ -15,13 +15,9 @@ class ContextualRAG:
         self.model_name = os.getenv("MODEL_NAME", "openai/gpt-5-chat")
         self.api_base = os.getenv("GITHUB_API_BASE", "https://models.github.ai/inference")
         
-        # Initialize OpenAI client for GitHub Models
-        self.client = None
-        if self.github_token:
-            self.client = OpenAI(
-                base_url=self.api_base,
-                api_key=self.github_token,
-            )
+        # Initialize OpenAI client for external models
+        import requests
+        self.requests = requests
         
         # Initialize local embeddings for semantic search
         embedding_model = os.getenv("EMBEDDING_MODEL", "paraphrase-multilingual-MiniLM-L12-v2")
@@ -220,33 +216,23 @@ class ContextualRAG:
         
         return prompt
     
-    async def call_github_models_api(self, prompt: str) -> str:
-        """Call GitHub Models API using OpenAI SDK"""
-        if not self.client:
-            return "抱歉，GitHub Models API 未配置。"
-            
+    async def call_llm_api(self, prompt: str) -> str:
+        """Call GPT-oss-20b API with custom payload"""
         try:
-            response = self.client.chat.completions.create(
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "你是一個專業的繁體中文智能助手。請用繁體中文回答所有問題，提供準確、詳細且有幫助的資訊。回答要條理清晰，易於理解。"
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                model=self.model_name,
-                temperature=0.7,
-                max_tokens=1000,
-                top_p=1.0
-            )
-            
-            return response.choices[0].message.content
-                
+            url = f"{self.api_base}/api/generate"
+            payload = {
+                "model": self.model_name,
+                "prompt": prompt,
+                "stream": False
+            }
+            headers = {"Content-Type": "application/json"}
+            resp = self.requests.post(url, json=payload, headers=headers, timeout=60)
+            resp.raise_for_status()
+            data = resp.json()
+            # Ollama 回傳格式為 {"response": "..."}
+            return data.get("response", "抱歉，模型未回應。").strip()
         except Exception as e:
-            print(f"Error calling GitHub Models API: {e}")
+            print(f"Error calling LLM API: {e}")
             return f"抱歉，生成回應時出現錯誤: {str(e)}"
     
     async def generate_response(self, query: str, conversation_id: Optional[int] = None) -> Dict[str, Any]:
@@ -260,8 +246,8 @@ class ContextualRAG:
         # Build context prompt
         context_prompt = self.build_context_prompt(query, reranked_docs, conversation_id)
         
-        # Generate response using GitHub Models
-        answer = await self.call_github_models_api(context_prompt)
+        # Generate response using LLM
+        answer = await self.call_llm_api(context_prompt)
         
         # Update conversation memory
         if conversation_id:
