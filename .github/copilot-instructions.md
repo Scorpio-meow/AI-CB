@@ -2,48 +2,55 @@
 
 # ChatBot 專案概述
 
-此專案是一個具備使用者介面和後台管理介面的 ChatBot 應用程式，使用 Contextual RAG（檢索增強生成）技術。
+此專案是一個具備使用者介面和後台管理介面的 ChatBot 應用程式，使用增強型混合 RAG（檢索增強生成）技術。
 
 ## 專案架構
-- **後端**: FastAPI + SQLAlchemy + LangChain + OpenAI/GitHub Models
+- **後端**: FastAPI + SQLAlchemy + LangChain + Ollama/GitHub Models
 - **前端**: React + Material-UI
 - **數據庫**: SQLite (開發) / PostgreSQL (生產)
-- **向量數據庫**: FAISS IndexFlatIP with 持久化儲存
+- **向量數據庫**: FAISS IndexFlatIP + Whoosh BM25 混合檢索
 - **身份驗證**: JWT
 - **文檔處理**: PyPDF2 + python-docx + 多編碼支援
 
 ## 核心功能
 - [ ] 用戶註冊登入系統（待整合）
-- [x] 智能對話（Contextual RAG）
+- [x] 智能對話（混合 RAG + Cross-Encoder 重新排序）
 - [x] 對話歷史管理
 - [x] 多格式文件上傳 (TXT, PDF, DOCX)
-- [x] FAISS 向量儲存與檢索
+- [x] 混合檢索系統 (FAISS + BM25)
 - [x] 繁體中文優化處理
 - [x] 管理員後台
 - [x] WebSocket 即時通訊
 - [x] 向量庫管理 (重置/清理)
 - [x] 文件管理改進: 流式寫入、多檔上傳、前端 per-file progress/cancel 與批次刪除
+- [x] 自動重建索引 (24小時周期)
+- [x] 評估指標系統 (Recall@k, Precision@k, MRR)
 
 ## 開發設置已完成
 - [x] 後端 API 架構 (FastAPI)
 - [x] 前端 React 應用程式 (Material-UI)
-- [x] Contextual RAG 實現 (FAISS + paraphrase-multilingual-MiniLM-L12-v2)
+- [x] 混合 RAG 實現 (HybridContextualRAG)
 - [x] 數據庫模型 (SQLAlchemy)
 - [ ] 用戶認證系統 (JWT) - 代碼已寫但未整合
 - [x] 文檔處理系統 (DocumentProcessor: TXT/PDF/DOCX)
-- [x] FAISS 向量儲存與持久化
+- [x] 混合向量儲存與持久化 (FAISS + Whoosh)
 - [x] 多編碼支援 (UTF-8, GBK, Big5)
 - [x] Docker 配置
 - [x] VS Code 任務配置
 - [x] 啟動腳本 (PowerShell)
+- [x] Cross-Encoder 重新排序系統
 
 ## 技術細節
-### RAG 系統
+### 混合 RAG 系統
 - **向量模型**: paraphrase-multilingual-MiniLM-L12-v2 (384維)
-- **索引類型**: FAISS IndexFlatIP (內積相似度)
-- **持久化**: data/faiss_index.bin + data/documents.pkl
-- **文檔分塊**: RecursiveCharacterTextSplitter (1000字符, 200重疊)
-- **相似度閾值**: 0.3 (可配置)
+- **重新排序模型**: cross-encoder/ms-marco-MiniLM-L-6-v2
+- **向量索引**: FAISS IndexFlatIP (內積相似度)
+- **BM25 索引**: Whoosh StandardAnalyzer
+- **智能搜尋策略**: 根據查詢特徵自動選擇向量/BM25/混合搜尋
+- **持久化**: data/faiss_index.bin + data/documents.pkl + data/bm25_index/
+- **文檔分塊**: RecursiveCharacterTextSplitter (600字符, 150重疊)
+- **相似度閾值**: 0.25 (可配置)
+- **自動重建**: 24小時周期，支援元數據追蹤
 
 ### 文檔處理
 - **支援格式**: TXT, PDF, DOCX
@@ -60,6 +67,15 @@
 - **位置**: D:\CB\CBvenv
 - **Python版本**: 3.10+
 - **關鍵套件**: FastAPI, SQLAlchemy, FAISS, PyPDF2, python-docx, sentence-transformers
+### 文件管理與刪除
+- 上傳端改為流式寫入 (避免一次性將整個檔案讀入記憶體)。前端支援多檔上傳、每檔進度與取消。
+- 新增 API: `POST /api/documents/bulk_delete` 支援一次傳入多個 id 做批次刪除，後端採批次 DB 刪除並平行處理 RAG/實體檔案移除，回傳每個 id 的狀態（deleted / deleted_with_warnings / failed / not_found）。
+- 刪除流程已改為在後端並行處理 RAG/檔案刪除並使用 batch SQL 刪除 DocumentChunk 與 Document，以提升效能和一致性。
+
+### 虛擬環境
+- **位置**: D:\CB\CBvenv
+- **Python版本**: 3.10+
+- **關鍵套件**: FastAPI, SQLAlchemy, FAISS, PyPDF2, python-docx, sentence-transformers, whoosh, scikit-learn
 - **已知相容性 pin**: `huggingface_hub==0.19.3`（用於解決 sentence-transformers 相容性問題）
 
 ## 快速啟動
@@ -81,7 +97,8 @@ chatbot/
 │   ├── data/             # 數據儲存
 │   │   ├── uploads/      # 上傳檔案
 │   │   ├── faiss_index.bin  # FAISS 索引
-│   │   └── documents.pkl    # 文檔元數據
+│   │   ├── documents.pkl    # 文檔元數據
+│   │   └── bm25_index/      # BM25 索引
 │   ├── scripts/          # 工具腳本
 │   └── CBvenv/           # Python 虛擬環境
 ├── frontend/             # React 前端  
@@ -95,6 +112,14 @@ chatbot/
 ├── docker-compose.yml    # Docker 配置
 └── *.ps1                 # PowerShell 啟動腳本
 ```
+
+## 常用命令
+- **重置 FAISS**: `python scripts/reset_faiss.py`
+- **啟動後端**: `python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000`
+- **啟動前端**: `npm start`
+- **安裝套件**: `pip install whoosh==2.7.4 scikit-learn==1.3.2`
+- **測試 RAG**: `python scripts/test_rag_improvements.py`
+- **測試 API**: `python scripts/test_ollama_api.py`
 
 ## 常用命令
 - **重置 FAISS**: `python scripts/reset_faiss.py`
