@@ -22,6 +22,7 @@
 - [x] 管理員後台
 - [x] WebSocket 即時通訊
 - [x] 向量庫管理 (重置/清理)
+- [x] 文件管理改進: 流式寫入、多檔上傳、前端 per-file progress/cancel 與批次刪除
 
 ## 開發設置已完成
 - [x] 後端 API 架構 (FastAPI)
@@ -50,10 +51,16 @@
 - **檔案大小限制**: 50MB
 - **安全處理**: 檔名清理, 類型驗證
 
+### 文件管理與刪除
+- 上傳端改為流式寫入 (避免一次性將整個檔案讀入記憶體)。前端支援多檔上傳、每檔進度與取消。
+- 新增 API: `POST /api/documents/bulk_delete` 支援一次傳入多個 id 做批次刪除，後端採批次 DB 刪除並平行處理 RAG/實體檔案移除，回傳每個 id 的狀態（deleted / deleted_with_warnings / failed / not_found）。
+- 刪除流程已改為在後端並行處理 RAG/檔案刪除並使用 batch SQL 刪除 DocumentChunk 與 Document，以提升效能和一致性。
+
 ### 虛擬環境
 - **位置**: D:\CB\CBvenv
 - **Python版本**: 3.10+
 - **關鍵套件**: FastAPI, SQLAlchemy, FAISS, PyPDF2, python-docx, sentence-transformers
+- **已知相容性 pin**: `huggingface_hub==0.19.3`（用於解決 sentence-transformers 相容性問題）
 
 ## 快速啟動
 1. 配置環境變數（複製 `.env.example` 到 `.env`）

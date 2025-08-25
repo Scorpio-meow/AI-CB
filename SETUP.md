@@ -74,6 +74,32 @@ docker-compose up -d
 - DOCX 文件（使用 python-docx）
 - 最大文件大小：50MB
 
+### 上傳與刪除測試建議
+- 系統使用流式寫入上傳以避免大量記憶體使用，前端支援多檔選擇與逐檔上傳進度、取消功能。請使用前端 UI 測試上傳，或使用 curl 上傳單檔：
+
+```powershell
+# 單檔上傳範例
+curl -X POST "http://127.0.0.1:8000/api/documents/upload" -F "file=@C:/path/to/file.pdf"
+```
+
+- 測試批次刪除：可使用下列 curl 範例呼叫新的批次刪除 API：
+
+```powershell
+curl -X POST "http://127.0.0.1:8000/api/documents/bulk_delete" -H "Content-Type: application/json" -d "{ \"ids\": [1,2,3] }"
+```
+
+回傳格式範例：
+
+```
+{
+	"results": [
+		{ "id": 1, "status": "deleted" },
+		{ "id": 2, "status": "deleted_with_warnings", "detail": "File remove failed: ..." },
+		{ "id": 3, "status": "not_found" }
+	]
+}
+```
+
 ## 常見問題
 
 ### Q: 無法連接到 GitHub Models API
