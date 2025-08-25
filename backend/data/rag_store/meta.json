@@ -1,0 +1,16 @@
+[
+  {
+    "id": "5b03a658-6ce8-44eb-a012-95e391084b47",
+    "text": "FastAPI 是一個高效能的 Python Web 框架。",
+    "metadata": {
+      "lang": "zh"
+    }
+  },
+  {
+    "id": "58031060-5f20-426b-8273-524cb0560973",
+    "text": "E5-base-v2 是一個通用語義嵌入模型。",
+    "metadata": {
+      "source": "local"
+    }
+  }
+]

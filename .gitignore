@@ -1,81 +1,37 @@
-# Python 虛擬環境
-CBvenv/
-venv/
-env/
+# Node
+node_modules/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-store/
 
-# Node.js
-frontend/node_modules/
-frontend/build/
-frontend/.env.local
-frontend/.env.development.local
-frontend/.env.test.local
-frontend/.env.production.local
+# Build outputs
+/dist/
+/build/
+/.cache/
+.vite/
+coverage/
 
 # Python
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
 
-# VS Code
-.vscode/settings.json
-.vscode/launch.json
-.vscode/extensions.json
-.vscode/.ropeproject
+# IDE
+.vscode/
+.idea/
+*.iml
 
-# 數據庫
-*.db
-*.sqlite
-*.sqlite3
-
-# 日誌
-*.log
-logs/
-
-# 環境變數
-.env
-.env.local
-.env.*.local
-
-# 上傳文件
-backend/data/uploads/*
-!backend/data/uploads/.gitkeep
-
-# FAISS 索引文件
-backend/data/faiss_index.bin
-backend/data/documents.pkl
-
-# 測試文件
-backend/test_files/
-backend/simple_test.py
-backend/test_*.py
-
-# 臨時文件
-*.tmp
-*.temp
+# OS
 .DS_Store
 Thumbs.db
 
-# IDE
-.idea/
-*.swp
-*.swo
-*~
+# Docker
+*.pid
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
