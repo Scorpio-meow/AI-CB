@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
 from app.models.database import get_db
 from app.models import Document, DocumentChunk
@@ -15,6 +15,7 @@ import logging
 logger = logging.getLogger(__name__)
 router = APIRouter()
 rag_system = ContextualRAG()
+_delete_lock = asyncio.Lock()  # global delete lock to serialize deletions
 
 @router.post("/upload")
 async def upload_document(
@@ -156,34 +157,39 @@ async def delete_document(
     db: Session = Depends(get_db)
 ):
     """刪除文件"""
-    document = db.query(Document).filter(Document.id == document_id).first()
-    if not document:
-        raise HTTPException(status_code=404, detail="文件不存在")
-    
-    # 從 RAG 系統中移除文檔（這會重建 FAISS 索引）
-    try:
-        rag_system.remove_document_by_id(document_id)
-    except Exception as e:
-        print(f"Warning: Failed to remove document from RAG system: {e}")
-    
-    # 刪除文件塊
-    db.query(DocumentChunk).filter(DocumentChunk.document_id == document_id).delete()
-    
-    # 刪除實際文件（如果存在）
-    try:
-        import os
-        upload_dir = "data/uploads"
-        file_path = os.path.join(upload_dir, document.filename)
-        if os.path.exists(file_path):
-            os.remove(file_path)
-    except Exception as e:
-        print(f"Warning: Failed to remove physical file: {e}")
-    
-    # 刪除文件記錄
-    db.delete(document)
-    db.commit()
-    
-    return {"message": "文件刪除成功"}
+    # Ensure deletions are serialized to avoid index corruption
+    if _delete_lock.locked():
+        # Inform the frontend to retry later
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="另一個刪除作業進行中，請稍後重試")
+    async with _delete_lock:
+        document = db.query(Document).filter(Document.id == document_id).first()
+        if not document:
+            raise HTTPException(status_code=404, detail="文件不存在")
+        
+        # 從 RAG 系統中移除文檔（這會重建 FAISS 索引）
+        try:
+            await asyncio.to_thread(rag_system.remove_document_by_id, document_id)
+        except Exception as e:
+            print(f"Warning: Failed to remove document from RAG system: {e}")
+        
+        # 刪除文件塊
+        db.query(DocumentChunk).filter(DocumentChunk.document_id == document_id).delete()
+        
+        # 刪除實際文件（如果存在）
+        try:
+            import os
+            upload_dir = "data/uploads"
+            file_path = os.path.join(upload_dir, document.filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception as e:
+            print(f"Warning: Failed to remove physical file: {e}")
+        
+        # 刪除文件記錄
+        db.delete(document)
+        db.commit()
+        
+        return {"message": "文件刪除成功"}
 
 
 class BulkDeleteRequest(BaseModel):
@@ -208,44 +214,48 @@ async def bulk_delete_documents(
     if not ids:
         return {"results": results}
 
-    # 查出存在的 documents
-    documents = db.query(Document).filter(Document.id.in_(ids)).all()
-    present_ids = [d.id for d in documents]
-    missing_ids = [i for i in ids if i not in present_ids]
+    # Serialize bulk delete using the same global lock to ensure sequential execution
+    if _delete_lock.locked():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="刪除忙碌中，請稍後重試")
+    async with _delete_lock:
+        # 查出存在的 documents
+        documents = db.query(Document).filter(Document.id.in_(ids)).all()
+        present_ids = [d.id for d in documents]
+        missing_ids = [i for i in ids if i not in present_ids]
 
-    # 標記不存在的 id
-    for mid in missing_ids:
-        results.append({"id": mid, "status": "not_found", "detail": "文件不存在"})
+        # 標記不存在的 id
+        for mid in missing_ids:
+            results.append({"id": mid, "status": "not_found", "detail": "文件不存在"})
 
-    # 並行處理 RAG 移除與實體檔案刪除
-    async def handle_doc_removal(doc: Document) -> Dict[str, Any]:
-        doc_id = doc.id
-        detail_msgs = []
-        # 移除 RAG 索引（可能為阻塞）
-        try:
-            await asyncio.to_thread(rag_system.remove_document_by_id, doc_id)
-        except Exception as e:
-            msg = f"RAG remove failed: {e}"
-            logger.warning(msg)
-            detail_msgs.append(msg)
+        # 逐筆（順序）處理 RAG 移除與實體檔案刪除，以降低鎖衝突
+        async def handle_doc_removal(doc: Document) -> Dict[str, Any]:
+            doc_id = doc.id
+            detail_msgs = []
+            # 移除 RAG 索引（可能為阻塞）
+            try:
+                await asyncio.to_thread(rag_system.remove_document_by_id, doc_id)
+            except Exception as e:
+                msg = f"RAG remove failed: {e}"
+                logger.warning(msg)
+                detail_msgs.append(msg)
 
-        # 刪除實體檔案
-        try:
-            upload_dir = "data/uploads"
-            file_path = os.path.join(upload_dir, doc.filename)
-            if os.path.exists(file_path):
-                await asyncio.to_thread(os.remove, file_path)
-        except Exception as e:
-            msg = f"File remove failed: {e}"
-            logger.warning(msg)
-            detail_msgs.append(msg)
+            # 刪除實體檔案
+            try:
+                upload_dir = "data/uploads"
+                file_path = os.path.join(upload_dir, doc.filename)
+                if os.path.exists(file_path):
+                    await asyncio.to_thread(os.remove, file_path)
+            except Exception as e:
+                msg = f"File remove failed: {e}"
+                logger.warning(msg)
+                detail_msgs.append(msg)
 
-        return {"id": doc_id, "detail_msgs": detail_msgs}
+            return {"id": doc_id, "detail_msgs": detail_msgs}
 
-    tasks = [handle_doc_removal(d) for d in documents]
-    per_doc_results = []
-    if tasks:
-        per_doc_results = await asyncio.gather(*tasks, return_exceptions=False)
+        per_doc_results = []
+        for d in documents:
+            res = await handle_doc_removal(d)
+            per_doc_results.append(res)
 
     # 批次刪除 DocumentChunk 與 Document
     try:

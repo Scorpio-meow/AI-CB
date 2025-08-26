@@ -248,11 +248,30 @@ function Documents() {
     setUploadItems((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  const retryableDelete = async (url, attempts = 3) => {
+    let delay = 500;
+    for (let i = 0; i < attempts; i++) {
+      try {
+        return await axios.delete(url);
+      } catch (err) {
+        const status = err?.response?.status;
+        if (status === 409 && i < attempts - 1) {
+          await sleep(delay);
+          delay *= 2;
+          continue;
+        }
+        throw err;
+      }
+    }
+  };
+
   const handleDelete = async (documentId, filename) => {
     if (!window.confirm(`確定要刪除文檔 "${filename}" 嗎？此操作不可逆！`)) return;
     try {
       setDeletingStatus((prev) => ({ ...prev, [documentId]: 'deleting' }));
-      await axios.delete(`/api/documents/${documentId}`);
+      await retryableDelete(`/api/documents/${documentId}`);
       setDeletingStatus((prev) => ({ ...prev, [documentId]: 'deleted' }));
       // remove from list immediately for fast UX
       setDocuments((prev) => prev.filter((d) => d.id !== documentId));
@@ -288,12 +307,10 @@ function Documents() {
       for (const id of selectedDocIds) next[id] = 'deleting';
       return next;
     });
-
     const failed = [];
     for (const id of selectedDocIds) {
       try {
-        await axios.delete(`/api/documents/${id}`);
-        // mark deleted and remove from UI
+        await retryableDelete(`/api/documents/${id}`);
         setDeletingStatus((prev) => ({ ...prev, [id]: 'deleted' }));
         setDocuments((prev) => prev.filter((d) => d.id !== id));
       } catch (err) {
@@ -302,7 +319,6 @@ function Documents() {
         setDeletingStatus((prev) => ({ ...prev, [id]: 'failed' }));
       }
     }
-
     setBulkDeleting(false);
     setBulkDeleteConfirmOpen(false);
     if (failed.length === 0) {
@@ -310,56 +326,8 @@ function Documents() {
     } else {
       setError(`部分刪除失敗: ${failed.join(',')}`);
     }
-    // remove deleted ids from selection
-    setSelectedDocIds((prev) => prev.filter((id) => !(deletingStatus[id] === 'deleted')));
-    // finally refresh list to sync with server
+    setSelectedDocIds((prev) => prev.filter((id) => deletingStatus[id] !== 'deleted'));
     loadDocuments();
-    if (!selectedDocIds || selectedDocIds.length === 0) return;
-    setBulkDeleting(true);
-    // mark all as deleting
-    setDeletingStatus((prev) => {
-      const next = { ...prev };
-      for (const id of selectedDocIds) next[id] = 'deleting';
-      return next;
-    });
-
-    try {
-      const response = await axios.post('/api/documents/bulk_delete', { ids: selectedDocIds });
-      const results = response.data?.results || [];
-      const failed = [];
-
-      for (const r of results) {
-        if (r.status === 'deleted') {
-          setDeletingStatus((prev) => ({ ...prev, [r.id]: 'deleted' }));
-          setDocuments((prev) => prev.filter((d) => d.id !== r.id));
-        } else {
-          failed.push(r.id);
-          setDeletingStatus((prev) => ({ ...prev, [r.id]: 'failed' }));
-        }
-      }
-
-      if (failed.length === 0) {
-        setSuccess('已刪除選取的文檔');
-      } else {
-        setError(`部分刪除失敗: ${failed.join(',')}`);
-      }
-    } catch (err) {
-      console.error('Bulk delete request failed', err);
-      // mark all as failed
-      setDeletingStatus((prev) => {
-        const next = { ...prev };
-        for (const id of selectedDocIds) next[id] = 'failed';
-        return next;
-      });
-      setError('批次刪除失敗: ' + (err.response?.data?.detail || err.message));
-    } finally {
-      setBulkDeleting(false);
-      setBulkDeleteConfirmOpen(false);
-      // clear selection of those that were deleted
-      setSelectedDocIds((prev) => prev.filter((id) => deletingStatus[id] !== 'deleted'));
-      // sync with server for any unexpected differences
-      loadDocuments();
-    }
   };
 
   const formatFileSize = (bytes) => {

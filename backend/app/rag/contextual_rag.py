@@ -16,6 +16,42 @@ from whoosh import index, fields, qparser, scoring
 from whoosh.analysis import StandardAnalyzer
 from whoosh.filedb.filestore import FileStorage
 import tempfile
+import threading
+import asyncio
+import uuid
+import hashlib
+
+# Optional jieba for better Chinese tokenization
+try:
+    import jieba  # type: ignore
+    from whoosh.analysis import Analyzer, Tokenizer, Token, LowercaseFilter
+
+    class _JiebaTokenizer(Tokenizer):
+        def __call__(self, value, positions=False, chars=False, keeporiginal=False,
+                     removestops=True, start_pos=0, start_char=0, mode='', **kwargs):
+            t = Token(positions, chars, removestops=removestops)
+            # Use precise mode, disable HMM for stability
+            for i, w in enumerate(jieba.cut(value, HMM=False)):
+                if not w:
+                    continue
+                t.text = w
+                t.boost = 1.0
+                if positions:
+                    t.pos = start_pos + i
+                # char offsets skipped for simplicity
+                yield t
+
+    class JiebaAnalyzer(Analyzer):
+        def __init__(self):
+            self._tokenizer = _JiebaTokenizer()
+            self._lower = LowercaseFilter()
+
+        def __call__(self, value, **kwargs):
+            return self._lower(self._tokenizer(value, **kwargs))
+
+    HAS_JIEBA = True
+except Exception:
+    HAS_JIEBA = False
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +95,9 @@ class HybridContextualRAG:
             self.chunk_size = int(os.getenv("CHUNK_SIZE", "600"))
             self.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "150"))
             self.reindex_threshold_hours = int(os.getenv("REINDEX_HOURS", "24"))
+            self.prompt_max_chars = int(os.getenv("PROMPT_MAX_CHARS", "6000"))
+            self.per_chunk_max_chars = int(os.getenv("PER_CHUNK_MAX_CHARS", "1200"))
+            self.batch_size = int(os.getenv("EMBED_BATCH_SIZE", "32"))
             
             # Storage paths
             self.data_dir = "data"
@@ -74,10 +113,18 @@ class HybridContextualRAG:
             self.index = faiss.IndexFlatIP(self.embedding_dimension)
             self.documents = []
             self.context_memory = {}
+
+            # Concurrency locks
+            self._lock = threading.RLock()
+            self._async_lock = asyncio.Lock()
+            self._delete_global_lock = asyncio.Lock()
             
             # BM25 index
             self.bm25_index = None
             self.bm25_searcher = None
+
+            # Chinese analyzer
+            self._cn_analyzer = JiebaAnalyzer() if HAS_JIEBA else StandardAnalyzer()
             
             # Text splitter
             self.text_splitter = RecursiveCharacterTextSplitter(
@@ -93,7 +140,7 @@ class HybridContextualRAG:
             self._check_auto_reindex()
             
         except Exception as e:
-            logger.error(f"Failed to initialize HybridContextualRAG: {e}")
+            logger.exception(f"Failed to initialize HybridContextualRAG: {e}")
             # Set minimal defaults to prevent AttributeError
             self.has_reranker = False
             self.cross_encoder = None
@@ -112,6 +159,16 @@ class HybridContextualRAG:
                 self.index = faiss.read_index(self.faiss_index_path)
                 with open(self.documents_path, 'rb') as f:
                     self.documents = pickle.load(f)
+                # Dimension check
+                try:
+                    index_dim = self.index.d
+                    if index_dim != self.embedding_dimension:
+                        logger.warning(
+                            f"FAISS dimension mismatch (index: {index_dim}, embedder: {self.embedding_dimension}), rebuilding indices"
+                        )
+                        self._rebuild_indices()
+                except Exception:
+                    logger.warning("Unable to read FAISS index dimension; proceeding")
                 logger.info(f"Loaded FAISS index with {self.index.ntotal} vectors")
             
             # Load BM25
@@ -122,7 +179,7 @@ class HybridContextualRAG:
                 logger.info("No BM25 index found, will create on first add")
                 
         except Exception as e:
-            logger.error(f"Error loading indices: {e}")
+            logger.exception(f"Error loading indices: {e}")
             self._initialize_empty_indices()
     
     def _initialize_empty_indices(self):
@@ -134,9 +191,10 @@ class HybridContextualRAG:
     
     def _create_bm25_schema(self):
         """Create Whoosh schema for BM25"""
+        analyzer = self._cn_analyzer if HAS_JIEBA else StandardAnalyzer()
         return fields.Schema(
             doc_id=fields.ID(stored=True, unique=True),
-            content=fields.TEXT(stored=True, analyzer=StandardAnalyzer()),
+            content=fields.TEXT(stored=True, analyzer=analyzer),
             title=fields.TEXT(stored=True),
             source=fields.TEXT(stored=True),
             chunk_index=fields.NUMERIC(stored=True)
@@ -149,7 +207,7 @@ class HybridContextualRAG:
             self.bm25_index = storage.open_index()
             self.bm25_searcher = self.bm25_index.searcher()
         except Exception as e:
-            logger.error(f"Failed to load BM25 index: {e}")
+            logger.exception(f"Failed to load BM25 index: {e}")
             self.bm25_index = None
             self.bm25_searcher = None
     
@@ -172,7 +230,7 @@ class HybridContextualRAG:
                 
             logger.info(f"Saved indices with {self.index.ntotal} vectors")
         except Exception as e:
-            logger.error(f"Error saving indices: {e}")
+            logger.exception(f"Error saving indices: {e}")
     
     def _check_auto_reindex(self):
         """Check if auto-reindex is needed"""
@@ -193,21 +251,20 @@ class HybridContextualRAG:
         """Rebuild both indices from documents"""
         if not self.documents:
             return
-            
+
         logger.info("Rebuilding indices...")
-        
+
         # Rebuild FAISS
         all_texts = [doc.page_content for doc in self.documents]
-        embeddings = self.local_embeddings.encode(all_texts, show_progress_bar=True)
-        embeddings = embeddings.astype('float32')
+        embeddings = self._encode_texts_in_batches(all_texts)
         faiss.normalize_L2(embeddings)
-        
+
         self.index = faiss.IndexFlatIP(self.embedding_dimension)
         self.index.add(embeddings)
-        
+
         # Rebuild BM25
         self._rebuild_bm25_index()
-        
+
         # Save
         self._save_indices()
         logger.info("Indices rebuilt successfully")
@@ -242,7 +299,7 @@ class HybridContextualRAG:
             self.bm25_searcher = self.bm25_index.searcher()
             
         except Exception as e:
-            logger.error(f"Failed to rebuild BM25 index: {e}")
+            logger.exception(f"Failed to rebuild BM25 index: {e}")
             self.bm25_index = None
             self.bm25_searcher = None
     
@@ -250,12 +307,20 @@ class HybridContextualRAG:
         """Add documents with hybrid indexing"""
         if not documents:
             return
-            
+        
+        async with self._async_lock:
+            with self._lock:
+                pass  # reserve combined lock scope
+
         # Chunk documents
         all_chunks = []
         for doc in documents:
             chunks = self.text_splitter.split_text(doc.page_content)
             for i, chunk in enumerate(chunks):
+                # stable chunk uid
+                source = doc.metadata.get('source', 'unknown')
+                uid_seed = f"{doc.metadata.get('document_id')}|{source}|{i}|{hashlib.sha1(chunk.encode('utf-8')).hexdigest()}"
+                chunk_uid = str(uuid.uuid5(uuid.NAMESPACE_URL, uid_seed))
                 chunk_doc = Document(
                     page_content=chunk,
                     metadata={
@@ -263,7 +328,8 @@ class HybridContextualRAG:
                         "chunk_id": f"{doc.metadata.get('source', 'unknown')}_{i}",
                         "chunk_index": i,
                         "original_doc_id": doc.metadata.get('document_id'),
-                        "added_timestamp": datetime.now().isoformat()
+                        "added_timestamp": datetime.now().isoformat(),
+                        "chunk_uid": chunk_uid,
                     }
                 )
                 all_chunks.append(chunk_doc)
@@ -273,19 +339,16 @@ class HybridContextualRAG:
         
         # Add to vector index
         chunk_texts = [chunk.page_content for chunk in all_chunks]
-        embeddings = self.local_embeddings.encode(chunk_texts, show_progress_bar=True)
-        embeddings = embeddings.astype('float32')
+        embeddings = self._encode_texts_in_batches(chunk_texts)
         faiss.normalize_L2(embeddings)
-        self.index.add(embeddings)
-        
-        # Add to BM25 index
-        self._add_to_bm25(all_chunks)
-        
-        # Store documents
-        self.documents.extend(all_chunks)
-        
-        # Save indices
-        self._save_indices()
+        with self._lock:
+            self.index.add(embeddings)
+            # Add to BM25 index
+            self._add_to_bm25(all_chunks)
+            # Store documents
+            self.documents.extend(all_chunks)
+            # Save indices
+            self._save_indices()
         
         logger.info(f"Added {len(all_chunks)} chunks. Total: {self.index.ntotal} vectors")
         return len(all_chunks)
@@ -322,7 +385,7 @@ class HybridContextualRAG:
             self.bm25_searcher = self.bm25_index.searcher()
             
         except Exception as e:
-            logger.error(f"Failed to add to BM25 index: {e}")
+            logger.exception(f"Failed to add to BM25 index: {e}")
     
     def vector_search(self, query: str, top_k: int = None) -> List[Tuple[Document, float]]:
         """Pure vector search"""
@@ -332,7 +395,7 @@ class HybridContextualRAG:
         top_k = top_k or self.top_k
         
         # Generate and normalize query embedding
-        query_embedding = self.local_embeddings.encode([query])
+        query_embedding = self.local_embeddings.encode([query], show_progress_bar=False, convert_to_numpy=True)
         query_embedding = query_embedding.astype('float32')
         faiss.normalize_L2(query_embedding)
         
@@ -342,7 +405,9 @@ class HybridContextualRAG:
         # Filter and return
         results = []
         for similarity, idx in zip(similarities[0], indices[0]):
-            if similarity > self.similarity_threshold and idx < len(self.documents):
+            if idx == -1:
+                continue
+            if similarity > self.similarity_threshold and 0 <= idx < len(self.documents):
                 results.append((self.documents[idx], float(similarity)))
         
         return results
@@ -374,7 +439,7 @@ class HybridContextualRAG:
             return bm25_results
             
         except Exception as e:
-            logger.error(f"BM25 search failed: {e}")
+            logger.exception(f"BM25 search failed: {e}")
             return []
     
     def hybrid_search(self, query: str, alpha: float = 0.7) -> List[Tuple[Document, float]]:
@@ -387,26 +452,30 @@ class HybridContextualRAG:
         bm25_results = self.bm25_search(query, self.top_k)
         
         # Create score mapping
-        doc_scores = {}
-        
-        # Normalize and combine vector scores
+        doc_scores: Dict[int, Dict[str, Any]] = {}
+
+        # Min-max normalize vector scores
         if vector_results:
-            max_vec_score = max(score for _, score in vector_results)
+            vec_scores = [s for _, s in vector_results]
+            vec_min, vec_max = min(vec_scores), max(vec_scores)
+            vec_range = (vec_max - vec_min) if vec_max > vec_min else 1.0
             for doc, score in vector_results:
                 doc_id = id(doc)
-                normalized_score = score / max_vec_score if max_vec_score > 0 else 0
+                normalized_score = (score - vec_min) / vec_range
                 doc_scores[doc_id] = {
                     'doc': doc,
                     'vector_score': normalized_score,
                     'bm25_score': 0.0
                 }
-        
-        # Normalize and combine BM25 scores
+
+        # Min-max normalize BM25 scores
         if bm25_results:
-            max_bm25_score = max(score for _, score in bm25_results)
+            bm_scores = [s for _, s in bm25_results]
+            bm_min, bm_max = min(bm_scores), max(bm_scores)
+            bm_range = (bm_max - bm_min) if bm_max > bm_min else 1.0
             for doc, score in bm25_results:
                 doc_id = id(doc)
-                normalized_score = score / max_bm25_score if max_bm25_score > 0 else 0
+                normalized_score = (score - bm_min) / bm_range
                 if doc_id in doc_scores:
                     doc_scores[doc_id]['bm25_score'] = normalized_score
                 else:
@@ -452,9 +521,9 @@ class HybridContextualRAG:
             reranked.sort(key=lambda x: x[1], reverse=True)
             
             return reranked[:self.final_k]
-            
+        
         except Exception as e:
-            logger.error(f"Cross-encoder reranking failed: {e}")
+            logger.exception(f"Cross-encoder reranking failed: {e}")
             return doc_score_pairs[:self.final_k]
     
     def smart_search(self, query: str) -> List[Document]:
@@ -501,17 +570,26 @@ class HybridContextualRAG:
             for exchange in recent_context:
                 conversation_context += f"用戶: {exchange['user']}\nAI: {exchange['assistant']}\n\n"
         
-        # Build document context with improved citations
+        # Build document context with improved citations (with per-chunk truncation)
         document_context = ""
         sources = []
         for i, doc in enumerate(relevant_docs):
             source = doc.metadata.get('source', '未知來源')
             sources.append(source)
             chunk_id = doc.metadata.get('chunk_index', 0)
-            document_context += f"文檔 [{i+1}] (來源: {source}, 段落: {chunk_id}):\n{doc.page_content}\n\n"
+            content = doc.page_content
+            if self.per_chunk_max_chars and len(content) > self.per_chunk_max_chars:
+                content = content[: self.per_chunk_max_chars]
+            document_context += f"文檔 [{i+1}] (來源: {source}, 段落: {chunk_id}):\n{content}\n\n"
+
+        # Truncate overall prompt to guard maximum size
+        def _truncate(s: str, limit: int) -> str:
+            if limit and len(s) > limit:
+                return s[:limit]
+            return s
         
         # Enhanced prompt with citation requirements
-        prompt = f"""你是一個專業的繁體中文智能助手。請根據提供的文檔內容回答用戶問題，並嚴格遵循以下要求：
+        prompt_body = f"""你是一個專業的繁體中文智能助手。請根據提供的文檔內容回答用戶問題，並嚴格遵循以下要求：
 
 對話歷史:
 {conversation_context}
@@ -530,7 +608,7 @@ class HybridContextualRAG:
 6. 對於數據、日期、專有名詞等關鍵信息，務必準確引用
 
 請提供回答："""
-        
+        prompt = _truncate(prompt_body, self.prompt_max_chars)
         return prompt
     
     async def call_llm_api(self, prompt: str) -> str:
@@ -562,7 +640,7 @@ class HybridContextualRAG:
         except self.requests.exceptions.ConnectionError:
             return "抱歉，無法連接到語言模型服務。請檢查網路連接。"
         except Exception as e:
-            logger.error(f"LLM API error: {e}")
+            logger.exception(f"LLM API error: {e}")
             return f"抱歉，生成回應時出現錯誤: {str(e)}"
     
     async def generate_response(self, query: str, conversation_id: Optional[int] = None) -> Dict[str, Any]:
@@ -599,7 +677,7 @@ class HybridContextualRAG:
             # Keep only recent exchanges
             if len(self.context_memory[conversation_id]) > 10:
                 self.context_memory[conversation_id] = self.context_memory[conversation_id][-10:]
-        
+
         # Prepare sources info
         sources_info = []
         for doc in relevant_docs[:3]:  # Top 3 sources
@@ -608,7 +686,7 @@ class HybridContextualRAG:
                 "chunk": doc.metadata.get('chunk_index', 0),
                 "snippet": doc.page_content[:200] + "..." if len(doc.page_content) > 200 else doc.page_content
             })
-        
+
         return {
             "answer": answer,
             "context_used": len(relevant_docs),
@@ -632,19 +710,20 @@ class HybridContextualRAG:
             return
         
         # Remove documents (reverse order to maintain indices)
-        for i in sorted(docs_to_remove_indices, reverse=True):
-            del self.documents[i]
-        
-        # Rebuild indices
-        self._rebuild_indices()
+        with self._lock:
+            for i in sorted(docs_to_remove_indices, reverse=True):
+                del self.documents[i]
+            # Rebuild indices
+            self._rebuild_indices()
         
         logger.info(f"Removed {len(docs_to_remove_indices)} chunks for document_id {document_id}")
     
     def clear_vector_store(self):
         """Clear all data"""
-        self.index = faiss.IndexFlatIP(self.embedding_dimension)
-        self.documents = []
-        self.context_memory = {}
+        with self._lock:
+            self.index = faiss.IndexFlatIP(self.embedding_dimension)
+            self.documents = []
+            self.context_memory = {}
         
         # Close BM25 searcher
         if self.bm25_searcher:
@@ -748,7 +827,8 @@ class HybridContextualRAG:
     def force_reindex(self):
         """Force immediate reindexing"""
         logger.info("Forcing reindex...")
-        self._rebuild_indices()
+        with self._lock:
+            self._rebuild_indices()
         return True
     
     def get_vector_store_info(self) -> Dict[str, Any]:
@@ -771,6 +851,31 @@ class HybridContextualRAG:
         if conversation_id in self.context_memory:
             del self.context_memory[conversation_id]
             logger.info(f"Cleared context for conversation {conversation_id}")
+
+    def _encode_texts_in_batches(self, texts: List[str]) -> np.ndarray:
+        """Encode texts using sentence-transformers in batches for performance."""
+        if not texts:
+            return np.empty((0, self.embedding_dimension), dtype='float32')
+        embeddings_list: List[np.ndarray] = []
+        total = len(texts)
+        for i in range(0, total, self.batch_size):
+            batch = texts[i:i + self.batch_size]
+            emb = self.local_embeddings.encode(
+                batch,
+                batch_size=self.batch_size,
+                show_progress_bar=False,
+                convert_to_numpy=True
+            )
+            if not isinstance(emb, np.ndarray):
+                emb = np.asarray(emb)
+            emb = emb.astype('float32')
+            # Validate dimensions
+            if emb.shape[1] != self.embedding_dimension:
+                logger.warning(
+                    f"Embedding dimension mismatch in batch (got {emb.shape[1]}, expected {self.embedding_dimension}); attempting to reshape may fail"
+                )
+            embeddings_list.append(emb)
+        return np.vstack(embeddings_list)
 
 # For backward compatibility
 ContextualRAG = HybridContextualRAG
