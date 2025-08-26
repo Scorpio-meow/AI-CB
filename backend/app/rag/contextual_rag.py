@@ -29,9 +29,8 @@ class HybridContextualRAG:
     """
     def __init__(self):
         try:
-            self.github_token = os.getenv("GITHUB_TOKEN")
             self.model_name = os.getenv("MODEL_NAME", "gpt-oss:20b")
-            self.api_base = os.getenv("GITHUB_API_BASE", "https://fc5d1d0fc900.ngrok-free.app")
+            self.api_base = os.getenv("LLM_API_BASE", "https://fc5d1d0fc900.ngrok-free.app")
             
             # Import requests for API calls
             import requests
