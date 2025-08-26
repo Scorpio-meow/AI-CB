@@ -14,13 +14,11 @@ import {
   Alert,
   Chip
 } from '@mui/material';
-import {
-  Send as SendIcon,
-  Delete as DeleteIcon,
-  Add as AddIcon
-} from '@mui/icons-material';
+import { FaRobot } from "react-icons/fa";
+import { Send as SendIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
+import DiscussionBoard from './DiscussionBoard';
 
 function Chat() {
   const [conversations, setConversations] = useState([]);
@@ -30,14 +28,18 @@ function Chat() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const messagesEndRef = useRef(null);
+  const [viewMode, setViewMode] = useState('chat');
+  const discussionBoardRef = useRef(null);
 
   useEffect(() => {
     loadConversations();
   }, []);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (viewMode === 'chat') {
+      scrollToBottom();
+    }
+  }, [messages, viewMode]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -47,10 +49,11 @@ function Chat() {
     try {
       const response = await axios.get('/api/chat/conversations');
       setConversations(response.data);
-      
       if (response.data.length > 0 && !currentConversation) {
-        setCurrentConversation(response.data[0]);
-        setMessages(response.data[0].messages || []);
+        if (viewMode === 'chat') {
+          setCurrentConversation(response.data[0]);
+          setMessages(response.data[0].messages || []);
+        }
       }
     } catch (error) {
       setError('載入對話失敗');
@@ -58,6 +61,7 @@ function Chat() {
   };
 
   const loadConversation = async (conversation) => {
+    setViewMode('chat');
     try {
       const response = await axios.get(`/api/chat/conversations/${conversation.id}`);
       setCurrentConversation(response.data);
@@ -67,16 +71,14 @@ function Chat() {
     }
   };
 
-  const sendMessage = async () => {
-    if (!newMessage.trim()) return;
+  const sendChatMessage = async () => {
+    if (!newMessage.trim() || viewMode !== 'chat') return;
 
     const userMessage = {
       content: newMessage,
       is_user: true,
       created_at: new Date().toISOString()
     };
-
-    // 立即顯示用戶消息
     setMessages(prev => [...prev, userMessage]);
     setNewMessage('');
     setLoading(true);
@@ -86,11 +88,7 @@ function Chat() {
         content: newMessage,
         conversation_id: currentConversation?.id
       });
-
-      // 添加機器人回應
       setMessages(prev => [...prev, response.data.message]);
-
-      // 如果是新對話，更新對話列表
       if (!currentConversation || response.data.conversation_id !== currentConversation.id) {
         await loadConversations();
         const newConv = conversations.find(c => c.id === response.data.conversation_id);
@@ -98,21 +96,42 @@ function Chat() {
           setCurrentConversation(newConv);
         }
       }
-
     } catch (error) {
       setError('發送消息失敗');
-      // 移除失敗的用戶消息
       setMessages(prev => prev.slice(0, -1));
     } finally {
       setLoading(false);
     }
   };
 
+  const handleStartWorkflow = () => {
+    if (discussionBoardRef.current) {
+      discussionBoardRef.current.startWorkflow();
+    }
+  };
+
+  const handleSendMessage = () => {
+    if (viewMode === 'discussion') {
+      handleStartWorkflow();
+    } else {
+      sendChatMessage();
+    }
+  };
+
+  const handleWorkflowComplete = (result) => {
+    const systemMessage = {
+      content: `**工作流執行完畢**\n\n---\n\n${result}`,
+      is_user: false,
+      created_at: new Date().toISOString()
+    };
+    setMessages(prev => [...prev, systemMessage]);
+    setViewMode('chat'); // Switch back to chat view to see the result
+  };
+
   const deleteConversation = async (conversationId) => {
     try {
       await axios.delete(`/api/chat/conversations/${conversationId}`);
       await loadConversations();
-      
       if (currentConversation?.id === conversationId) {
         setCurrentConversation(null);
         setMessages([]);
@@ -125,59 +144,60 @@ function Chat() {
   const startNewConversation = () => {
     setCurrentConversation(null);
     setMessages([]);
+    setViewMode('chat');
   };
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      handleSendMessage();
     }
   };
 
   return (
     <Box sx={{ height: '100vh', display: 'flex' }}>
-      {/* 側邊欄 - 對話列表 */}
-      <Box sx={{ width: 300, borderRight: 1, borderColor: 'divider' }}>
+      {/* 側邊欄 - 這部分不變 */}
+      <Box sx={{ width: 300, borderRight: 1, borderColor: 'divider', display: 'flex', flexDirection: 'column' }}>
         <Paper sx={{ height: '100%', borderRadius: 0 }}>
-          <Box sx={{ p: 2 }}>
+          <Box sx={{ p: 2, display: "flex", columnGap: 1 }}>
             <Button
               fullWidth
-              variant="contained"
+              variant={viewMode === 'chat' ? 'contained' : 'outlined'}
               startIcon={<AddIcon />}
               onClick={startNewConversation}
             >
               新對話
             </Button>
+            <Button
+              fullWidth
+              variant={viewMode === 'discussion' ? 'contained' : 'outlined'}
+              startIcon={<FaRobot />}
+              onClick={() => setViewMode('discussion')}
+            >
+              AI討論
+            </Button>
           </Box>
-          
           <Divider />
-          
           <List sx={{ height: 'calc(100% - 80px)', overflow: 'auto' }}>
             {conversations.map((conv) => (
               <ListItem
                 key={conv.id}
                 button
-                selected={currentConversation?.id === conv.id}
+                selected={currentConversation?.id === conv.id && viewMode === 'chat'}
                 onClick={() => loadConversation(conv)}
                 sx={{
-                  borderLeft: currentConversation?.id === conv.id ? 3 : 0,
+                  borderLeft: currentConversation?.id === conv.id && viewMode === 'chat' ? 3 : 0,
                   borderColor: 'primary.main'
                 }}
               >
                 <ListItemText
                   primary={conv.title}
                   secondary={new Date(conv.updated_at).toLocaleDateString()}
-                  primaryTypographyProps={{
-                    noWrap: true,
-                    fontSize: '0.9rem'
-                  }}
+                  primaryTypographyProps={{ noWrap: true, fontSize: '0.9rem' }}
                 />
                 <IconButton
                   size="small"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteConversation(conv.id);
-                  }}
+                  onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}
                 >
                   <DeleteIcon fontSize="small" />
                 </IconButton>
@@ -187,97 +207,78 @@ function Chat() {
         </Paper>
       </Box>
 
-      {/* 主聊天區域 */}
+      {/* 主區域 */}
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {/* 聊天標題 */}
-        <Paper sx={{ p: 2, borderRadius: 0 }} elevation={1}>
-          <Typography variant="h6">
-            {currentConversation?.title || '新對話'}
-          </Typography>
-        </Paper>
-
-        {/* 錯誤提示 */}
-        {error && (
-          <Alert severity="error" onClose={() => setError('')}>
-            {error}
-          </Alert>
-        )}
-
-        {/* 消息列表 */}
-        <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
-          {messages.map((message, index) => (
-            <Box
-              key={index}
-              sx={{
-                display: 'flex',
-                justifyContent: message.is_user ? 'flex-end' : 'flex-start',
-                mb: 2
-              }}
-            >
-              <Paper
-                sx={{
-                  p: 2,
-                  maxWidth: '70%',
-                  backgroundColor: message.is_user ? 'primary.main' : 'grey.100',
-                  color: message.is_user ? 'white' : 'text.primary'
-                }}
-              >
-                <ReactMarkdown>{message.content}</ReactMarkdown>
-                
-                {!message.is_user && message.context_used && (
-                  <Box sx={{ mt: 1 }}>
-                    <Chip 
-                      label="使用了知識庫" 
-                      size="small" 
-                      variant="outlined" 
-                      sx={{ fontSize: '0.7rem' }}
-                    />
-                  </Box>
-                )}
-              </Paper>
-            </Box>
-          ))}
-          
-          {loading && (
-            <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2 }}>
-              <Paper sx={{ p: 2, backgroundColor: 'grey.100' }}>
-                <CircularProgress size={20} />
-                <Typography variant="body2" sx={{ ml: 1, display: 'inline' }}>
-                  正在思考...
-                </Typography>
-              </Paper>
-            </Box>
-          )}
-          
-          <div ref={messagesEndRef} />
+        
+        {/* 主要內容區域 (會變動) */}
+        <Box sx={{ flex: 1, overflow: 'hidden' }}>
+            {viewMode === 'chat' ? (
+            <>
+                <Paper sx={{ p: 2, borderRadius: 0 }} elevation={1}>
+                    <Typography variant="h6">{currentConversation?.title || '新對話'}</Typography>
+                </Paper>
+                {error && (<Alert severity="error" onClose={() => setError('')}>{error}</Alert>)}
+                <Box sx={{ height: 'calc(100% - 68px)', overflow: 'auto', p: 2 }}>
+                    {messages.map((message, index) => (
+                        <Box key={index} sx={{ display: 'flex', justifyContent: message.is_user ? 'flex-end' : 'flex-start', mb: 2 }}>
+                            <Paper sx={{ p: 2, maxWidth: '70%', backgroundColor: message.is_user ? 'primary.main' : 'grey.100', color: message.is_user ? 'white' : 'text.primary' }}>
+                                <ReactMarkdown>{message.content}</ReactMarkdown>
+                                {!message.is_user && message.context_used && (
+                                <Box sx={{ mt: 1 }}><Chip label="使用了知識庫" size="small" variant="outlined" sx={{ fontSize: '0.7rem' }}/></Box>
+                                )}
+                            </Paper>
+                        </Box>
+                    ))}
+                    {loading && (
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2 }}>
+                            <Paper sx={{ p: 2, backgroundColor: 'grey.100' }}>
+                                <CircularProgress size={20} />
+                                <Typography variant="body2" sx={{ ml: 1, display: 'inline' }}>正在思考...</Typography>
+                            </Paper>
+                        </Box>
+                    )}
+                    <div ref={messagesEndRef} />
+                </Box>
+            </>
+            ) : (
+                <DiscussionBoard 
+                    ref={discussionBoardRef}
+                    initialPrompt={newMessage} 
+                    onWorkflowComplete={handleWorkflowComplete}
+                />
+            )}
         </Box>
 
-        {/* 輸入區域 */}
-        <Paper sx={{ p: 2, borderRadius: 0 }} elevation={1}>
-          <Box sx={{ display: 'flex', gap: 1 }}>
+        {/* 輸入區域 (固定在底部) */}
+        <Paper sx={{ p: 2, borderRadius: 0, borderTop: 1, borderColor: 'divider' }} elevation={2}>
+            <Box sx={{ display: 'flex', gap: 1 }}>
             <TextField
-              fullWidth
-              multiline
-              maxRows={4}
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="輸入你的問題..."
-              disabled={loading}
+                fullWidth
+                multiline
+                maxRows={4}
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                disabled={loading}
+                placeholder={
+                    viewMode === 'discussion' 
+                      ? '在此輸入工作流的初始指令...' 
+                      : '輸入你的問題...'
+                }
             />
             <Button
-              variant="contained"
-              onClick={sendMessage}
-              disabled={loading || !newMessage.trim()}
-              sx={{ minWidth: 60 }}
+                variant="contained"
+                onClick={handleSendMessage}
+                sx={{ minWidth: 60 }}
             >
               <SendIcon />
             </Button>
-          </Box>
+            </Box>
         </Paper>
       </Box>
     </Box>
   );
 }
+
 
 export default Chat;
