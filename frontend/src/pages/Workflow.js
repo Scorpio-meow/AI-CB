@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, TextField, Button, Paper, Typography, CircularProgress, Card, CardContent, CardActions, IconButton, Collapse, Alert } from '@mui/material';
+import { Box, TextField, Button, Paper, Typography, CircularProgress, Card, CardContent, CardActions, Collapse, Alert } from '@mui/material';
 import { PlayArrow, Replay, AccountTree, Send } from '@mui/icons-material';
 
 // A simple, hardcoded workflow definition for demonstration

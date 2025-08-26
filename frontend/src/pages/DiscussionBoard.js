@@ -8,7 +8,7 @@ import ReactFlow, {
   Background,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Box, Paper, Typography, List, ListItem, ListItemText, Menu, MenuItem, Button, Chip } from '@mui/material';
+import { Box, Paper, Typography, List, ListItem, ListItemText, Menu, MenuItem, Chip } from '@mui/material';
 import AgentNode from './AgentNode';
 
 const agentTypes = [
@@ -54,7 +54,6 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
   const socketRef = useRef(null);
   const reactFlowWrapper = useRef(null); 
   const [wsStatus, setWsStatus] = useState('disconnected');
-  const [runStatus, setRunStatus] = useState('idle');
   
   const nodeTypes = useMemo(() => ({ agent: AgentNode }), []);
 
@@ -83,10 +82,7 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
       const data = JSON.parse(event.data);
       console.log("收到後端更新:", data);
 
-      if (data.status === 'started') {
-        setRunStatus('running');
-      } else if (data.status === 'finished' || data.status === 'error') {
-        setRunStatus(data.status);
+      if (data.status === 'finished' || data.status === 'error') {
         if (data.status === 'finished' && data.final_artical && onWorkflowComplete) {
           onWorkflowComplete(data.final_artical);
         }
@@ -141,7 +137,7 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
             type: "start_workflow",
             payload: workflowPayload
         }));
-        setRunStatus('running');
+  // running state can be displayed per-node; no global runStatus used
     } else {
         alert("WebSocket 尚未連接，請稍後再試。");
     }

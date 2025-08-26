@@ -12,7 +12,7 @@ import {
   Description,
   AccountTree
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Outlet } from 'react-router-dom';
 
 function Layout({ children }) {
   const navigate = useNavigate();
@@ -45,7 +45,7 @@ function Layout({ children }) {
             <Button 
               color="inherit" 
               startIcon={<AccountTree />}
-              onClick={() => navigate('/workflow')}
+              onClick={() => navigate('/chat')}
             >
               工作流
             </Button>
@@ -62,7 +62,8 @@ function Layout({ children }) {
       </AppBar>
       
       <Box component="main" sx={{ mt: 2 }}>
-        {children}
+        {/* If used as a router layout, render nested routes via Outlet; fall back to children for direct usage */}
+        {children ? children : <Outlet />}
       </Box>
     </Box>
   );

@@ -5,7 +5,6 @@ import CssBaseline from '@mui/material/CssBaseline';
 import Chat from './pages/Chat';
 import AdminDashboard from './pages/AdminDashboard';
 import Documents from './pages/Documents';
-import Workflow from './pages/Workflow';
 import Layout from './components/Layout';
 
 const theme = createTheme({
@@ -21,38 +20,30 @@ const theme = createTheme({
 });
 
 function App() {
+  // Define routes for RouterProvider (v6 data routers)
   const routes = createRoutesFromElements(
-    <>
+    <Route element={<Layout />}>
       <Route path="/" element={<Navigate to="/chat" />} />
-  <Route path="/dashboard" element={<Navigate to="/admin" replace />} />
+      <Route path="/dashboard" element={<Navigate to="/admin" replace />} />
       <Route path="/chat" element={<Chat />} />
       <Route path="/documents" element={<Documents />} />
+  {/* /workflow route intentionally removed to avoid direct access; Workflow component is not exposed as a top-level route */}
       <Route path="/admin" element={<AdminDashboard />} />
-    </>
+    </Route>
   );
 
   // enable future flags to opt-in v7 behavior and silence runtime warnings
   const router = createBrowserRouter(routes, {
     future: {
       v7_startTransition: true,
-      v7_relativeSplatPath: true
-    }
+      v7_relativeSplatPath: true,
+    },
   });
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <RouterProvider router={router}>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Navigate to="/chat" />} />
-            <Route path="/chat" element={<Chat />} />
-            <Route path="/documents" element={<Documents />} />
-            <Route path="/workflow" element={<Workflow />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-          </Routes>
-        </Layout>
-      </RouterProvider>
+      <RouterProvider router={router} />
     </ThemeProvider>
   );
 }

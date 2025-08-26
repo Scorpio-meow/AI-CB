@@ -203,8 +203,18 @@ class HybridContextualRAG:
     def _load_bm25_index(self):
         """Load existing BM25 index"""
         try:
+            # Ensure directory exists
+            os.makedirs(self.bm25_index_dir, exist_ok=True)
             storage = FileStorage(self.bm25_index_dir)
-            self.bm25_index = storage.open_index()
+            # If index missing, create it
+            if not index.exists_in(self.bm25_index_dir):
+                self.bm25_index = storage.create_index(self._create_bm25_schema())
+                logger.info("BM25 index not found; created new index")
+            else:
+                self.bm25_index = storage.open_index()
+            # (Re)open searcher
+            if self.bm25_searcher:
+                self.bm25_searcher.close()
             self.bm25_searcher = self.bm25_index.searcher()
         except Exception as e:
             logger.exception(f"Failed to load BM25 index: {e}")
