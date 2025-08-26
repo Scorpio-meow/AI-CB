@@ -1,18 +1,3 @@
-# Python 虛擬環境
-CBvenv/
-venv/
-env/
-
-# Node.js
-frontend/node_modules/
-frontend/build/
-frontend/.env.local
-frontend/.env.development.local
-frontend/.env.test.local
-frontend/.env.production.local
-npm-debug.log*
-yarn-error.log
-
 # Python
 __pycache__/
 *.py[cod]
@@ -37,52 +22,98 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# VS Code
-.vscode/settings.json
-.vscode/launch.json
-.vscode/extensions.json
-.vscode/.ropeproject
+# Virtual Environment
+CBvenv/
+venv/
+env/
+ENV/
+.venv/
+.ENV/
 
-# 數據庫
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Database
 *.db
 *.sqlite
 *.sqlite3
-backend/data/*
-# 日誌
-*.log
-logs/
 chatbot.db
-backend/data/*
 
-# 環境變數
-.env
-.env.local
-.env.*.local
+# Data Files (RAG System)
+data/uploads/
+data/faiss_index.bin
+data/documents.pkl
+data/index_metadata.pkl
+data/index_metadata.pkl.lock
+data/bm25_index/
+*.pkl
+*.bin
 
-# 上傳文件
-backend/data/uploads/*
-!backend/data/uploads/.gitkeep
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# FAISS 索引文件
-backend/data/faiss_index.bin
-backend/data/documents.pkl
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
 
-# 測試文件
-backend/test_files/
-backend/simple_test.py
-backend/test_*.py
-
-# 臨時文件
-*.tmp
-*.temp
-.DS_Store
-Thumbs.db
+# Frontend Build
+frontend/build/
+frontend/dist/
 
 # IDE
+.vscode/settings.json
 .idea/
 *.swp
 *.swo
 *~
 
-# DB
-chatbot.db 
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Cache
+.cache/
+*.cache
+
+# Test coverage
+coverage/
+.coverage
+.pytest_cache/
+
+# Redis
+dump.rdb
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ML Models (if downloaded locally)
+models/
+*.model
+*.bin
+sentence-transformers/
