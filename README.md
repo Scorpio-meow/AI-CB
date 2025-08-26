@@ -45,9 +45,12 @@
 - **SQLAlchemy**: ORM 數據庫操作
 - **LangChain**: RAG 實現框架
 - **Ollama/GitHub Models**: 大型語言模型支援
-- **FAISS**: 向量數據庫 (IndexFlatIP, 384維)
+- **FAISS**: 向量數據庫 (支援 HNSW/IVF/FLAT 多種索引結構)
 - **Whoosh**: BM25 全文檢索引擎
 - **Cross-Encoder**: ms-marco-MiniLM-L-6-v2 重新排序
+- **Celery + Redis**: 背景任務處理（索引重建、文檔處理）
+- **httpx**: 非同步 HTTP 客戶端（LLM 呼叫）
+- **portalocker**: 跨程序檔案鎖定
 - **PyPDF2 + python-docx**: 文檔處理
 - **SQLite/PostgreSQL**: 主數據庫
 - **sentence-transformers**: paraphrase-multilingual-MiniLM-L12-v2 嵌入模型
@@ -145,6 +148,16 @@ RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2
 SIMILARITY_THRESHOLD=0.25
 CHUNK_SIZE=600
 CHUNK_OVERLAP=150
+
+# FAISS 索引配置
+FAISS_INDEX_TYPE=HNSW              # HNSW | IVFFLAT | FLAT
+HNSW_M=32                          # HNSW 參數 M (連接數)
+HNSW_EFSEARCH=50                   # HNSW 搜尋效率參數
+IVF_NLIST=100                      # IVF 群集數量
+
+# Celery 設置
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=redis://localhost:6379/1
 TOP_K=50
 FINAL_K=5
 REINDEX_HOURS=24
@@ -240,6 +253,74 @@ docker-compose up -d
 3. 設置環境變數
 4. 配置數據庫連接池
 5. 設置日誌記錄
+
+## FAISS 索引優化
+
+### 支援的索引類型
+
+1. **HNSW (預設)**：適合中大型數據集，無需訓練
+   ```env
+   FAISS_INDEX_TYPE=HNSW
+   HNSW_M=32               # 連接數，影響記憶體與精度
+   HNSW_EFSEARCH=50        # 搜尋效率，值越大精度越高但速度越慢
+   ```
+
+2. **IVFFLAT**：適合大型數據集，需要訓練
+   ```env
+   FAISS_INDEX_TYPE=IVFFLAT
+   IVF_NLIST=100           # 群集數量，通常設為 sqrt(數據量)
+   ```
+
+3. **FLAT**：最高精度，適合小型數據集
+   ```env
+   FAISS_INDEX_TYPE=FLAT
+   ```
+
+### 性能調優建議
+
+- **小於 10K 向量**：使用 FLAT
+- **10K-1M 向量**：使用 HNSW (M=32, efSearch=50)
+- **超過 1M 向量**：使用 IVFFLAT 或 HNSW (調高 M 值)
+
+## 故障排除
+
+### Windows 檔案鎖定問題
+
+如果遇到 "程序無法存取檔案" 錯誤：
+
+1. **停止所有相關程序**：
+```powershell
+# 停止 uvicorn
+Stop-Process -Name python -Force
+
+# 停止 celery worker
+taskkill /f /im python.exe
+```
+
+2. **清理索引目錄**：
+```powershell
+Remove-Item -Recurse -Force data\bm25_index*
+Remove-Item -Force data\faiss_index.bin*
+Remove-Item -Force data\*.lock
+```
+
+3. **重新啟動服務**：
+```powershell
+# 啟動後端
+python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
+
+# 啟動 Redis 與 Celery (另開 terminal)
+docker run -d -p 6379:6379 redis:7
+celery -A app.celery_app.celery_app worker --loglevel=info
+```
+
+### 手動重建索引
+
+```python
+from app.rag.contextual_rag import ContextualRAG
+rag = ContextualRAG()
+rag.force_reindex()
+```
 
 ## 開發指南
 

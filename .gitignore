@@ -47,12 +47,12 @@ MANIFEST
 *.db
 *.sqlite
 *.sqlite3
-# 忽略 data 資料夾內的檔案，但保留特定 keep 檔案（例如 uploads/.gitkeep）
 backend/data/*
-backend/chatbot.db
 # 日誌
 *.log
 logs/
+chatbot.db
+backend/data/*
 
 # 環境變數
 .env

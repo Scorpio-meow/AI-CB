@@ -16,6 +16,13 @@ from whoosh import index, fields, qparser, scoring
 from whoosh.analysis import StandardAnalyzer
 from whoosh.filedb.filestore import FileStorage
 import tempfile
+import threading
+import asyncio
+import httpx
+import portalocker
+import gc
+import hashlib
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -32,14 +39,25 @@ class HybridContextualRAG:
             self.model_name = os.getenv("MODEL_NAME", "gpt-oss:20b")
             self.api_base = os.getenv("LLM_API_BASE", "https://fc5d1d0fc900.ngrok-free.app")
             
-            # Import requests for API calls
-            import requests
-            self.requests = requests
+            # HTTP client settings - keep requests for backward compat but prefer httpx
+            self.requests = None
+            # httpx async client config can be created per-call
             
             # Embedding models
             embedding_model = os.getenv("EMBEDDING_MODEL", "paraphrase-multilingual-MiniLM-L12-v2")
             self.local_embeddings = SentenceTransformer(embedding_model)
             self.embedding_dimension = self.local_embeddings.get_sentence_embedding_dimension()
+
+            # FAISS index configuration
+            self.index_type = os.getenv("FAISS_INDEX_TYPE", "HNSW").upper()  # HNSW | IVFFLAT | FLAT
+            self.hnsw_m = int(os.getenv("HNSW_M", "32"))
+            self.hnsw_efsearch = int(os.getenv("HNSW_EFSEARCH", "50"))
+            self.ivf_nlist = int(os.getenv("IVF_NLIST", "100"))
+
+            # Embedding optimization configuration
+            self.embedding_batch_size = int(os.getenv("EMBEDDING_BATCH_SIZE", "32"))
+            self.use_embedding_cache = os.getenv("USE_EMBEDDING_CACHE", "true").lower() == "true"
+            # embedding_cache_dir will be set after data_dir is defined
             
             # Cross-encoder for reranking
             reranker_model = os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
@@ -67,13 +85,21 @@ class HybridContextualRAG:
             self.bm25_index_dir = os.path.join(self.data_dir, "bm25_index")
             self.metadata_path = os.path.join(self.data_dir, "index_metadata.pkl")
             
+            # Set embedding cache directory now that data_dir is defined
+            self.embedding_cache_dir = os.path.join(self.data_dir, "embedding_cache")
+            if self.use_embedding_cache:
+                os.makedirs(self.embedding_cache_dir, exist_ok=True)
+            
             # Initialize storage
             os.makedirs(self.data_dir, exist_ok=True)
             
             # Vector store
-            self.index = faiss.IndexFlatIP(self.embedding_dimension)
+            self.index = self._create_index()
             self.documents = []
             self.context_memory = {}
+
+            # Lock to protect save/rebuild operations
+            self._save_lock = threading.Lock()
             
             # BM25 index
             self.bm25_index = None
@@ -117,9 +143,9 @@ class HybridContextualRAG:
             # Load BM25
             if os.path.exists(self.bm25_index_dir):
                 self._load_bm25_index()
-                logger.info("Loaded BM25 index")
+                # Log message is now handled inside _load_bm25_index()
             else:
-                logger.info("No BM25 index found, will create on first add")
+                logger.info("No BM25 index directory found, will create on first add")
                 
         except Exception as e:
             logger.error(f"Error loading indices: {e}")
@@ -127,10 +153,112 @@ class HybridContextualRAG:
     
     def _initialize_empty_indices(self):
         """Initialize empty indices"""
-        self.index = faiss.IndexFlatIP(self.embedding_dimension)
+        self.index = self._create_index()
         self.documents = []
         self.bm25_index = None
         self.bm25_searcher = None
+
+
+    def _create_index(self):
+        """Create FAISS index based on configuration"""
+        try:
+            if self.index_type == 'HNSW':
+                # HNSW using Inner Product requires IndexHNSWFlat
+                index = faiss.IndexHNSWFlat(self.embedding_dimension, self.hnsw_m)
+                # set efSearch default
+                index.hnsw.efSearch = self.hnsw_efsearch
+                return index
+            elif self.index_type == 'IVFFLAT':
+                # IVF requires a quantizer; use IndexFlatIP as quantizer for inner product
+                quantizer = faiss.IndexFlatIP(self.embedding_dimension)
+                index = faiss.IndexIVFFlat(quantizer, self.embedding_dimension, self.ivf_nlist, faiss.METRIC_INNER_PRODUCT)
+                return index
+            else:
+                # FLAT fallback
+                return faiss.IndexFlatIP(self.embedding_dimension)
+        except Exception as e:
+            logger.warning(f"Failed to create requested FAISS index ({self.index_type}), falling back to Flat: {e}")
+            return faiss.IndexFlatIP(self.embedding_dimension)
+
+    def _get_text_hash(self, text: str) -> str:
+        """Generate a hash for text content for caching"""
+        return hashlib.md5(text.encode('utf-8')).hexdigest()
+
+    def _get_cache_path(self, text_hash: str) -> str:
+        """Get cache file path for embedding"""
+        return os.path.join(self.embedding_cache_dir, f"{text_hash}.pkl")
+
+    def _load_cached_embedding(self, text: str) -> Optional[np.ndarray]:
+        """Load embedding from cache if available"""
+        if not self.use_embedding_cache:
+            return None
+        
+        text_hash = self._get_text_hash(text)
+        cache_path = self._get_cache_path(text_hash)
+        
+        try:
+            if os.path.exists(cache_path):
+                with open(cache_path, 'rb') as f:
+                    return pickle.load(f)
+        except Exception as e:
+            logger.warning(f"Failed to load cached embedding: {e}")
+        return None
+
+    def _save_cached_embedding(self, text: str, embedding: np.ndarray):
+        """Save embedding to cache"""
+        if not self.use_embedding_cache:
+            return
+        
+        text_hash = self._get_text_hash(text)
+        cache_path = self._get_cache_path(text_hash)
+        
+        try:
+            with open(cache_path, 'wb') as f:
+                pickle.dump(embedding, f)
+        except Exception as e:
+            logger.warning(f"Failed to save cached embedding: {e}")
+
+    def _get_embeddings_batch(self, texts: List[str], show_progress: bool = False) -> np.ndarray:
+        """Get embeddings with caching and batch processing"""
+        embeddings = []
+        uncached_texts = []
+        uncached_indices = []
+        
+        # Check cache first
+        for i, text in enumerate(texts):
+            cached = self._load_cached_embedding(text)
+            if cached is not None:
+                embeddings.append(cached)
+            else:
+                embeddings.append(None)
+                uncached_texts.append(text)
+                uncached_indices.append(i)
+        
+        # Generate embeddings for uncached texts in batches
+        if uncached_texts:
+            logger.info(f"Generating embeddings for {len(uncached_texts)} uncached texts (batch size: {self.embedding_batch_size})")
+            
+            for batch_start in range(0, len(uncached_texts), self.embedding_batch_size):
+                batch_end = min(batch_start + self.embedding_batch_size, len(uncached_texts))
+                batch_texts = uncached_texts[batch_start:batch_end]
+                
+                # Generate batch embeddings
+                batch_embeddings = self.local_embeddings.encode(batch_texts, show_progress_bar=show_progress and batch_start == 0)
+                
+                # Save to cache and update results
+                for j, embedding in enumerate(batch_embeddings):
+                    text_idx = uncached_indices[batch_start + j]
+                    original_text = texts[text_idx]
+                    
+                    # Normalize and save
+                    embedding = embedding.astype('float32')
+                    embeddings[text_idx] = embedding
+                    self._save_cached_embedding(original_text, embedding)
+        
+        # Convert to numpy array and normalize
+        result = np.array(embeddings, dtype='float32')
+        faiss.normalize_L2(result)
+        return result
     
     def _create_bm25_schema(self):
         """Create Whoosh schema for BM25"""
@@ -145,9 +273,27 @@ class HybridContextualRAG:
     def _load_bm25_index(self):
         """Load existing BM25 index"""
         try:
-            storage = FileStorage(self.bm25_index_dir)
-            self.bm25_index = storage.open_index()
-            self.bm25_searcher = self.bm25_index.searcher()
+            lock_path = self.metadata_path + '.lock'
+            # Acquire lock while opening index to avoid races
+            with portalocker.Lock(lock_path, timeout=30):
+                storage = FileStorage(self.bm25_index_dir)
+                
+                # Check if index actually exists
+                if not storage.index_exists():
+                    logger.info("BM25 index does not exist, will be created when documents are added")
+                    self.bm25_index = None
+                    self.bm25_searcher = None
+                    return
+                
+                self.bm25_index = storage.open_index()
+                # close previous searcher if any
+                if self.bm25_searcher:
+                    try:
+                        self.bm25_searcher.close()
+                    except Exception:
+                        pass
+                self.bm25_searcher = self.bm25_index.searcher()
+                logger.info("Successfully loaded BM25 index")
         except Exception as e:
             logger.error(f"Failed to load BM25 index: {e}")
             self.bm25_index = None
@@ -156,20 +302,62 @@ class HybridContextualRAG:
     def _save_indices(self):
         """Save both FAISS and BM25 indices"""
         try:
-            # Save FAISS
-            faiss.write_index(self.index, self.faiss_index_path)
-            with open(self.documents_path, 'wb') as f:
-                pickle.dump(self.documents, f)
-            
-            # Save metadata
-            metadata = {
-                "last_reindex": datetime.now(),
-                "total_documents": len(self.documents),
-                "total_vectors": self.index.ntotal
-            }
-            with open(self.metadata_path, 'wb') as f:
-                pickle.dump(metadata, f)
-                
+            # Protect concurrent saves/rebuilds
+            # Use cross-process file lock around index writes
+            lock_path = self.metadata_path + '.lock'
+            try:
+                with portalocker.Lock(lock_path, timeout=30):
+                    with self._save_lock:
+                        # Save FAISS atomically (write to temp then replace)
+                        faiss_temp = self.faiss_index_path + ".tmp"
+                        try:
+                            faiss.write_index(self.index, faiss_temp)
+                            os.replace(faiss_temp, self.faiss_index_path)
+                        except Exception:
+                            # Cleanup temp if exists
+                            if os.path.exists(faiss_temp):
+                                try:
+                                    os.remove(faiss_temp)
+                                except Exception:
+                                    pass
+                            raise
+
+                        # Save documents atomically
+                        docs_temp = self.documents_path + ".tmp"
+                        try:
+                            with open(docs_temp, 'wb') as f:
+                                pickle.dump(self.documents, f)
+                            os.replace(docs_temp, self.documents_path)
+                        except Exception:
+                            if os.path.exists(docs_temp):
+                                try:
+                                    os.remove(docs_temp)
+                                except Exception:
+                                    pass
+                            raise
+
+                        # Save metadata atomically
+                        metadata = {
+                            "last_reindex": datetime.now(),
+                            "total_documents": len(self.documents),
+                            "total_vectors": self.index.ntotal
+                        }
+                        meta_temp = self.metadata_path + ".tmp"
+                        try:
+                            with open(meta_temp, 'wb') as f:
+                                pickle.dump(metadata, f)
+                            os.replace(meta_temp, self.metadata_path)
+                        except Exception:
+                            if os.path.exists(meta_temp):
+                                try:
+                                    os.remove(meta_temp)
+                                except Exception:
+                                    pass
+                            raise
+            except portalocker.exceptions.LockException as le:
+                logger.error(f"Failed to acquire index lock: {le}")
+                raise
+
             logger.info(f"Saved indices with {self.index.ntotal} vectors")
         except Exception as e:
             logger.error(f"Error saving indices: {e}")
@@ -195,51 +383,103 @@ class HybridContextualRAG:
             return
             
         logger.info("Rebuilding indices...")
-        
-        # Rebuild FAISS
-        all_texts = [doc.page_content for doc in self.documents]
-        embeddings = self.local_embeddings.encode(all_texts, show_progress_bar=True)
-        embeddings = embeddings.astype('float32')
-        faiss.normalize_L2(embeddings)
-        
-        self.index = faiss.IndexFlatIP(self.embedding_dimension)
-        self.index.add(embeddings)
-        
-        # Rebuild BM25
-        self._rebuild_bm25_index()
-        
-        # Save
-        self._save_indices()
+        # Protect rebuild with the same save lock to avoid races
+        with self._save_lock:
+            # Rebuild FAISS
+            all_texts = [doc.page_content for doc in self.documents]
+            embeddings = self._get_embeddings_batch(all_texts, show_progress=True)
+
+            # Create index (may be HNSW/IVF/FLAT)
+            self.index = self._create_index()
+
+            if isinstance(self.index, faiss.IndexIVFFlat):
+                # train IVF index
+                if not self.index.is_trained:
+                    self.index.train(embeddings)
+            self.index.add(embeddings)
+
+            # Rebuild BM25
+            self._rebuild_bm25_index()
+
+            # Save
+            self._save_indices()
+
         logger.info("Indices rebuilt successfully")
     
     def _rebuild_bm25_index(self):
         """Rebuild BM25 index"""
         try:
-            # Remove old index
-            if os.path.exists(self.bm25_index_dir):
-                shutil.rmtree(self.bm25_index_dir)
-            
-            # Create new index
-            os.makedirs(self.bm25_index_dir, exist_ok=True)
-            storage = FileStorage(self.bm25_index_dir)
-            self.bm25_index = storage.create_index(self._create_bm25_schema())
-            
-            # Add documents
-            writer = self.bm25_index.writer()
-            for i, doc in enumerate(self.documents):
-                writer.add_document(
-                    doc_id=f"doc_{i}",
-                    content=doc.page_content,
-                    title=doc.metadata.get('source', ''),
-                    source=doc.metadata.get('source', ''),
-                    chunk_index=doc.metadata.get('chunk_index', 0)
-                )
-            writer.commit()
-            
-            # Update searcher
+            lock_path = self.metadata_path + '.lock'
+            # Close existing searcher before deleting files
             if self.bm25_searcher:
-                self.bm25_searcher.close()
-            self.bm25_searcher = self.bm25_index.searcher()
+                try:
+                    self.bm25_searcher.close()
+                except Exception:
+                    pass
+                self.bm25_searcher = None
+
+            # Use portalocker to guard cross-process delete/create
+            with portalocker.Lock(lock_path, timeout=60):
+                # Remove old index: on Windows rmtree can fail if files are locked.
+                if os.path.exists(self.bm25_index_dir):
+                    # Attempt a safe rename/backup first, with retries to allow OS handles to close.
+                    backup_dir = f"{self.bm25_index_dir}.old.{int(time.time())}"
+                    max_attempts = 6
+                    attempt = 0
+                    renamed = False
+                    last_exc = None
+                    while attempt < max_attempts and not renamed:
+                        attempt += 1
+                        try:
+                            # collect garbage to release possible refs
+                            gc.collect()
+                            # try rename (move) directory to a backup name
+                            os.replace(self.bm25_index_dir, backup_dir)
+                            renamed = True
+                            logger.info(f"Renamed BM25 index dir to backup: {backup_dir}")
+                        except Exception as e:
+                            last_exc = e
+                            logger.warning(f"Attempt {attempt} to rename BM25 index dir failed: {e}")
+                            # small backoff
+                            time.sleep(1 + attempt)
+
+                    if not renamed:
+                        # As a last resort try rmtree once (may still fail)
+                        try:
+                            shutil.rmtree(self.bm25_index_dir)
+                        except Exception as e:
+                            logger.error(f"Failed to remove old BM25 index dir: {e}")
+                            # Windows file lock workaround: create new index with timestamp suffix
+                            logger.warning("Creating new index directory with timestamp to avoid file lock")
+                            import random
+                            suffix = f"_{int(time.time())}_{random.randint(1000,9999)}"
+                            self.bm25_index_dir = f"{self.bm25_index_dir.rstrip('/')}{suffix}"
+                            logger.info(f"Using new BM25 index directory: {self.bm25_index_dir}")
+
+                # Create new index
+                os.makedirs(self.bm25_index_dir, exist_ok=True)
+                storage = FileStorage(self.bm25_index_dir)
+                self.bm25_index = storage.create_index(self._create_bm25_schema())
+
+                # Add documents
+                writer = self.bm25_index.writer()
+                for i, doc in enumerate(self.documents):
+                    writer.add_document(
+                        doc_id=f"doc_{i}",
+                        content=doc.page_content,
+                        title=doc.metadata.get('source', ''),
+                        source=doc.metadata.get('source', ''),
+                        chunk_index=doc.metadata.get('chunk_index', 0)
+                    )
+                writer.commit()
+
+                # Update searcher
+                if self.bm25_searcher:
+                    try:
+                        self.bm25_searcher.close()
+                    except Exception:
+                        pass
+                self.bm25_searcher = self.bm25_index.searcher()
             
         except Exception as e:
             logger.error(f"Failed to rebuild BM25 index: {e}")
@@ -293,33 +533,43 @@ class HybridContextualRAG:
     def _add_to_bm25(self, chunks: List[Document]):
         """Add chunks to BM25 index"""
         try:
-            # Create index if it doesn't exist
-            if self.bm25_index is None:
-                os.makedirs(self.bm25_index_dir, exist_ok=True)
-                storage = FileStorage(self.bm25_index_dir)
-                self.bm25_index = storage.create_index(self._create_bm25_schema())
-                if self.bm25_searcher:
-                    self.bm25_searcher.close()
-                self.bm25_searcher = self.bm25_index.searcher()
-            
-            # Add documents
-            writer = self.bm25_index.writer()
-            start_id = len(self.documents)
-            
-            for i, chunk in enumerate(chunks):
-                writer.add_document(
-                    doc_id=f"doc_{start_id + i}",
-                    content=chunk.page_content,
-                    title=chunk.metadata.get('source', ''),
-                    source=chunk.metadata.get('source', ''),
-                    chunk_index=chunk.metadata.get('chunk_index', 0)
-                )
-            writer.commit()
-            
-            # Update searcher
+            lock_path = self.metadata_path + '.lock'
+            # Ensure searcher closed before writer operations
             if self.bm25_searcher:
-                self.bm25_searcher.close()
-            self.bm25_searcher = self.bm25_index.searcher()
+                try:
+                    self.bm25_searcher.close()
+                except Exception:
+                    pass
+                self.bm25_searcher = None
+
+            with portalocker.Lock(lock_path, timeout=30):
+                # Create index if it doesn't exist
+                if self.bm25_index is None:
+                    os.makedirs(self.bm25_index_dir, exist_ok=True)
+                    storage = FileStorage(self.bm25_index_dir)
+                    self.bm25_index = storage.create_index(self._create_bm25_schema())
+
+                # Add documents
+                writer = self.bm25_index.writer()
+                start_id = len(self.documents)
+
+                for i, chunk in enumerate(chunks):
+                    writer.add_document(
+                        doc_id=f"doc_{start_id + i}",
+                        content=chunk.page_content,
+                        title=chunk.metadata.get('source', ''),
+                        source=chunk.metadata.get('source', ''),
+                        chunk_index=chunk.metadata.get('chunk_index', 0)
+                    )
+                writer.commit()
+
+                # Update searcher
+                if self.bm25_searcher:
+                    try:
+                        self.bm25_searcher.close()
+                    except Exception:
+                        pass
+                self.bm25_searcher = self.bm25_index.searcher()
             
         except Exception as e:
             logger.error(f"Failed to add to BM25 index: {e}")
@@ -336,6 +586,13 @@ class HybridContextualRAG:
         query_embedding = query_embedding.astype('float32')
         faiss.normalize_L2(query_embedding)
         
+        # For HNSW set efSearch
+        try:
+            if hasattr(self.index, 'hnsw'):
+                self.index.hnsw.efSearch = self.hnsw_efsearch
+        except Exception:
+            pass
+
         # Search
         similarities, indices = self.index.search(query_embedding, min(top_k, self.index.ntotal))
         
@@ -535,35 +792,53 @@ class HybridContextualRAG:
     
     async def call_llm_api(self, prompt: str) -> str:
         """Enhanced LLM API call with Ollama format"""
+        # Use httpx async client with retries and timeout
+        url = f"{self.api_base}/api/generate"
+        payload = {
+            "model": self.model_name,
+            "prompt": prompt,
+            "stream": False
+        }
+        headers = {"Content-Type": "application/json"}
+
+        timeout = httpx.Timeout(60.0, connect=10.0)
+        max_retries = 2
+        backoff = 1.0
+
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            for attempt in range(max_retries + 1):
+                try:
+                    resp = await client.post(url, json=payload, headers=headers)
+                    resp.raise_for_status()
+                    data = resp.json()
+                    response_text = data.get("response", "").strip()
+                    if response_text:
+                        return response_text
+                    return "抱歉，模型沒有返回有效回應。"
+                except httpx.RequestError as e:
+                    logger.warning(f"LLM request error (attempt {attempt}): {e}")
+                    if attempt < max_retries:
+                        await asyncio.sleep(backoff * (2 ** attempt))
+                        continue
+                    return "抱歉，無法連接到語言模型服務。請稍後再試。"
+                except httpx.HTTPStatusError as e:
+                    logger.error(f"LLM HTTP error: {e.response.status_code} {e}")
+                    return f"抱歉，語言模型服務返回錯誤: {e.response.status_code}"
+                except Exception as e:
+                    logger.error(f"Unexpected LLM error: {e}")
+                    return f"抱歉，生成回應時出現錯誤: {str(e)}"
+
+    def _sync_post_request(self, url: str, payload: dict, headers: dict, timeout: int):
+        """Synchronous wrapper for requests.post with consistent error handling"""
+        # keep for compatibility if requests available
         try:
-            # Use Ollama format directly
-            url = f"{self.api_base}/api/generate"
-            payload = {
-                "model": self.model_name,
-                "prompt": prompt,
-                "stream": False  # Get complete response at once
-            }
-            
-            headers = {"Content-Type": "application/json"}
-            
-            resp = self.requests.post(url, json=payload, headers=headers, timeout=120)
+            import requests as _requests
+            resp = _requests.post(url, json=payload, headers=headers, timeout=timeout)
             resp.raise_for_status()
-            
-            data = resp.json()
-            response_text = data.get("response", "").strip()
-            
-            if response_text:
-                return response_text
-            else:
-                return "抱歉，模型沒有返回有效回應。"
-                
-        except self.requests.exceptions.Timeout:
-            return "抱歉，請求超時。請稍後再試。"
-        except self.requests.exceptions.ConnectionError:
-            return "抱歉，無法連接到語言模型服務。請檢查網路連接。"
+            return resp.json()
         except Exception as e:
-            logger.error(f"LLM API error: {e}")
-            return f"抱歉，生成回應時出現錯誤: {str(e)}"
+            logger.error(f"Sync LLM request failed: {e}")
+            raise
     
     async def generate_response(self, query: str, conversation_id: Optional[int] = None) -> Dict[str, Any]:
         """Generate response using enhanced RAG pipeline"""

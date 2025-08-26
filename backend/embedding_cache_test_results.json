@@ -1,0 +1,61 @@
+{
+  "cache_functionality": true,
+  "batch_performance": {
+    "1": {
+      "time": 6.813992738723755,
+      "texts_per_second": 7.337841690944462,
+      "shape": [
+        50,
+        384
+      ]
+    },
+    "8": {
+      "time": 3.1549031734466553,
+      "texts_per_second": 15.848346922601815,
+      "shape": [
+        50,
+        384
+      ]
+    },
+    "16": {
+      "time": 1.7500720024108887,
+      "texts_per_second": 28.57025307022814,
+      "shape": [
+        50,
+        384
+      ]
+    },
+    "32": {
+      "time": 1.5764901638031006,
+      "texts_per_second": 31.716024081863456,
+      "shape": [
+        50,
+        384
+      ]
+    },
+    "64": {
+      "time": 1.1325337886810303,
+      "texts_per_second": 44.148793174842865,
+      "shape": [
+        50,
+        384
+      ]
+    }
+  },
+  "cache_batch_performance": {
+    "first_round_time": 4.8244309425354,
+    "second_round_time": 0.052184104919433594,
+    "speedup": 92.45020011330617,
+    "cache_files": 100
+  },
+  "memory_usage": {
+    "initial_memory_mb": 279.5859375,
+    "final_memory_mb": 920.7578125,
+    "memory_increase_mb": 641.171875,
+    "embeddings_size_mb": 0.732421875,
+    "embeddings_shape": [
+      500,
+      384
+    ]
+  }
+}

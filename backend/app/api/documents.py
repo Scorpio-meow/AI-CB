@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from app.models.database import get_db
 from app.models import Document, DocumentChunk
-from app.rag.contextual_rag import ContextualRAG
+from app.rag.contextual_rag import HybridContextualRAG
+from app.tasks.rag_tasks import add_documents_task, remove_document_task
 from app.services.document_processor import DocumentProcessor
 from langchain.schema import Document as LangchainDocument
 import os
@@ -14,7 +15,22 @@ import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-rag_system = ContextualRAG()
+rag_system = HybridContextualRAG()
+
+
+def _enqueue_task_safe(task, *args, **kwargs):
+    """Try to enqueue a Celery task; if Redis or Celery is not available, return None."""
+    try:
+        import redis as _redis  # check redis python client availability
+    except Exception:
+        logger.debug("redis python package not available; will fallback to inline execution")
+        return None
+
+    try:
+        return task.delay(*args, **kwargs)
+    except Exception as e:
+        logger.warning(f"Failed to enqueue task {getattr(task, '__name__', str(task))}: {e}")
+        return None
 
 @router.post("/upload")
 async def upload_document(
@@ -101,18 +117,26 @@ async def upload_document(
             db.commit()
             db.refresh(document)
 
-            # 添加到 RAG 系統
-            langchain_doc = LangchainDocument(
-                page_content=content,
-                metadata={
+            # 添加到 RAG 系統 via Celery background worker
+            langchain_doc = {
+                'page_content': content,
+                'metadata': {
                     "source": safe_filename,
                     "document_id": document.id,
                     "uploaded_by": 1,
                     "content_type": up.content_type,
                     "original_filename": up.filename
                 }
-            )
-            await rag_system.add_documents([langchain_doc])
+            }
+            task = _enqueue_task_safe(add_documents_task, [langchain_doc])
+            if task is not None:
+                task_id = getattr(task, 'id', None)
+            else:
+                try:
+                    await rag_system.add_documents([LangchainDocument(page_content=content, metadata=langchain_doc['metadata'])])
+                except Exception as e:
+                    logger.warning(f"Fallback add_documents failed: {e}")
+                task_id = None
 
             # 標記為已處理
             document.is_processed = True
@@ -123,7 +147,8 @@ async def upload_document(
                 "status": "success",
                 "document_id": document.id,
                 "content_length": len(content),
-                "content_type": up.content_type
+                "content_type": up.content_type,
+                "rag_task_id": task_id
             })
 
         except Exception as e:
@@ -160,11 +185,13 @@ async def delete_document(
     if not document:
         raise HTTPException(status_code=404, detail="文件不存在")
     
-    # 從 RAG 系統中移除文檔（這會重建 FAISS 索引）
-    try:
-        rag_system.remove_document_by_id(document_id)
-    except Exception as e:
-        print(f"Warning: Failed to remove document from RAG system: {e}")
+    # 從 RAG 系統中移除文檔（可能會重建 FAISS 索引）
+    task = _enqueue_task_safe(remove_document_task, document_id)
+    if task is None:
+        try:
+            await asyncio.to_thread(rag_system.remove_document_by_id, document_id)
+        except Exception as e2:
+            logger.warning(f"Fallback remove_document_by_id failed: {e2}")
     
     # 刪除文件塊
     db.query(DocumentChunk).filter(DocumentChunk.document_id == document_id).delete()
