@@ -10,6 +10,8 @@ frontend/.env.local
 frontend/.env.development.local
 frontend/.env.test.local
 frontend/.env.production.local
+npm-debug.log*
+yarn-error.log
 
 # Python
 __pycache__/
@@ -45,7 +47,8 @@ MANIFEST
 *.db
 *.sqlite
 *.sqlite3
-backend/data
+# 忽略 data 資料夾內的檔案，但保留特定 keep 檔案（例如 uploads/.gitkeep）
+backend/data/*
 backend/chatbot.db
 # 日誌
 *.log
