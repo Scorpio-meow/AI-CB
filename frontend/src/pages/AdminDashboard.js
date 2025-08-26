@@ -35,7 +35,6 @@ import axios from 'axios';
 function AdminDashboard() {
   const [statistics, setStatistics] = useState(null);
   const [users, setUsers] = useState([]);
-  const [conversations, setConversations] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -58,8 +57,9 @@ function AdminDashboard() {
       ]);
       
       setStatistics(statsResponse.data);
-      setUsers(usersResponse.data);
-      setDocuments(docsResponse.data);
+  // normalize responses to arrays to avoid runtime map errors
+  setUsers(Array.isArray(usersResponse.data) ? usersResponse.data : (usersResponse.data ? [usersResponse.data] : []));
+  setDocuments(Array.isArray(docsResponse.data) ? docsResponse.data : (docsResponse.data ? [docsResponse.data] : []));
     } catch (err) {
       setError('載入數據失敗');
       console.error('Admin data loading error:', err);
@@ -210,7 +210,7 @@ function AdminDashboard() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {users.map((user) => (
+              {(Array.isArray(users) ? users : []).map((user) => (
                 <TableRow key={user.id}>
                   <TableCell>{user.id}</TableCell>
                   <TableCell>{user.username}</TableCell>
@@ -271,7 +271,7 @@ function AdminDashboard() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {documents.map((doc) => (
+              {(Array.isArray(documents) ? documents : []).map((doc) => (
                 <TableRow key={doc.id}>
                   <TableCell>{doc.id}</TableCell>
                   <TableCell>{doc.filename}</TableCell>

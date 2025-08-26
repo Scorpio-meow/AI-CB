@@ -1,0 +1,29 @@
+:root {
+  --table-border: #e0e0e0;
+}
+
+.converted-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+
+.converted-table th,
+.converted-table td {
+  border: 1px solid var(--table-border);
+  padding: 8px;
+  text-align: left;
+}
+
+.converted-table thead th {
+  background: #f5f5f5;
+  font-weight: 600;
+}
+
+/* make table responsive inside chat bubble */
+.converted-table {
+  display: block;
+  overflow-x: auto;
+}

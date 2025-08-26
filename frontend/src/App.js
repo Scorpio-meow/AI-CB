@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, createRoutesFromElements, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Chat from './pages/Chat';
@@ -20,19 +20,32 @@ const theme = createTheme({
 });
 
 function App() {
+  const routes = createRoutesFromElements(
+    <>
+      <Route path="/" element={<Navigate to="/chat" />} />
+  <Route path="/dashboard" element={<Navigate to="/admin" replace />} />
+      <Route path="/chat" element={<Chat />} />
+      <Route path="/documents" element={<Documents />} />
+      <Route path="/admin" element={<AdminDashboard />} />
+    </>
+  );
+
+  // enable future flags to opt-in v7 behavior and silence runtime warnings
+  const router = createBrowserRouter(routes, {
+    future: {
+      v7_startTransition: true,
+      v7_relativeSplatPath: true
+    }
+  });
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Router>
+      <RouterProvider router={router}>
         <Layout>
-          <Routes>
-            <Route path="/" element={<Navigate to="/chat" />} />
-            <Route path="/chat" element={<Chat />} />
-            <Route path="/documents" element={<Documents />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-          </Routes>
+          {/* routes are provided via RouterProvider */}
         </Layout>
-      </Router>
+      </RouterProvider>
     </ThemeProvider>
   );
 }

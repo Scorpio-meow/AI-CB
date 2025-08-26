@@ -51,7 +51,9 @@ function Documents() {
     setLoading(true);
     try {
       const response = await axios.get('/api/documents/');
-      setDocuments(response.data);
+  // Ensure documents is always an array to avoid runtime errors when mapping
+  const docs = Array.isArray(response.data) ? response.data : (response.data ? [response.data] : []);
+  setDocuments(docs);
       setError('');
     } catch (err) {
       setError('載入文檔失敗');
@@ -419,7 +421,7 @@ function Documents() {
       <Paper>
         <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
           <Typography variant="h6">
-            已上傳的文檔 ({documents.length})
+            已上傳的文檔 ({Array.isArray(documents) ? documents.length : 0})
           </Typography>
           <Box>
             <Button variant="outlined" color="error" onClick={openBulkDeleteConfirm} disabled={!selectedDocIds.length} sx={{ mr: 1 }}>
@@ -428,7 +430,7 @@ function Documents() {
           </Box>
         </Box>
         
-        {documents.length === 0 ? (
+  {(Array.isArray(documents) ? documents.length : 0) === 0 ? (
           <Box p={4} textAlign="center">
             <DocumentIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
             <Typography variant="h6" color="text.secondary" gutterBottom>
@@ -440,11 +442,13 @@ function Documents() {
           </Box>
         ) : (
           <List>
-            {documents.map((doc, index) => (
+            {(Array.isArray(documents) ? documents : []).map((doc, index) => (
               <React.Fragment key={doc.id}>
                 <ListItem>
                   <Checkbox checked={selectedDocIds.includes(doc.id)} onChange={() => toggleSelectDoc(doc.id)} />
                   <ListItemText
+                    primaryTypographyProps={{ component: 'div' }}
+                    secondaryTypographyProps={{ component: 'div' }}
                     primary={
                       <Box display="flex" alignItems="center" gap={1}>
                         <DocumentIcon color="primary" />
@@ -464,6 +468,7 @@ function Documents() {
                         )}
                       </Box>
                     }
+                    
                     secondary={
                       <Box>
                         <Typography variant="body2" color="text.secondary">

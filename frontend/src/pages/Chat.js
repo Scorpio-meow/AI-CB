@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box,
   Paper,
@@ -22,6 +22,7 @@ import {
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 
 function Chat() {
   const [conversations, setConversations] = useState([]);
@@ -31,11 +32,28 @@ function Chat() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const messagesEndRef = useRef(null);
+  const initialLoadDoneRef = useRef(false);
+
+  const loadConversations = useCallback(async () => {
+    try {
+      const response = await axios.get('/api/chat/conversations');
+      // Ensure conversations is always an array to avoid map errors
+      const convs = Array.isArray(response.data) ? response.data : (response.data ? [response.data] : []);
+      setConversations(convs);
+      // auto-select first conversation only on first load
+      if (convs.length > 0 && !initialLoadDoneRef.current) {
+        setCurrentConversation(convs[0]);
+        setMessages(convs[0].messages || []);
+        initialLoadDoneRef.current = true;
+      }
+    } catch (error) {
+      setError('載入對話失敗');
+    }
+  }, []);
 
   useEffect(() => {
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  loadConversations();
-  }, []);
+    loadConversations();
+  }, [loadConversations]);
 
   useEffect(() => {
     scrollToBottom();
@@ -55,28 +73,30 @@ function Chat() {
       const parser = new DOMParser();
       const doc = parser.parseFromString(content, 'text/html');
 
-      const escapePipe = (s) => String(s).replace(/\|/g, '\\|');
+  // escapePipe removed (unused)
 
       function tableToMarkdown(table) {
+  // Convert an HTML table DOM node into an HTML string (not markdown)
   const rows = Array.from(table.querySelectorAll('tr'));
   if (rows.length === 0) return '';
-        const headerCells = Array.from(rows[0].querySelectorAll('th'));
-        let md = '';
 
-        // If first row has th use as header, otherwise use first row as header
-        const headerRow = headerCells.length ? rows[0] : rows[0];
-        const headerTexts = Array.from(headerRow.querySelectorAll('th,td')).map(td => escapePipe(nodeText(td).trim() || ''));
-        md += `| ${headerTexts.join(' | ')} |\n`;
-        md += `| ${Array(headerTexts.length).fill('---').join(' | ')} |\n`;
+  // build header
+  let thead = '';
+  const firstRow = rows[0];
+  const headerCells = Array.from(firstRow.querySelectorAll('th'));
+  const headerCols = headerCells.length ? headerCells : Array.from(firstRow.querySelectorAll('td'));
+  if (headerCols.length) {
+    thead = '<thead><tr>' + headerCols.map(h => `<th>${nodeText(h).trim()}</th>`).join('') + '</tr></thead>';
+  }
 
-        const dataRows = headerCells.length ? rows.slice(1) : rows.slice(1);
-        for (const r of dataRows) {
-          const cells = Array.from(r.querySelectorAll('td,th')).map(td => escapePipe(nodeText(td).trim() || ''));
-          // pad cells if less than header
-          while (cells.length < headerTexts.length) cells.push('');
-          md += `| ${cells.join(' | ')} |\n`;
-        }
-        return md + '\n';
+  // build body
+  const bodyRows = headerCells.length ? rows.slice(1) : rows.slice(1);
+  const tbody = '<tbody>' + bodyRows.map(r => {
+    const cells = Array.from(r.querySelectorAll('td,th'));
+    return '<tr>' + cells.map(c => `<td>${nodeText(c).trim()}</td>`).join('') + '</tr>';
+  }).join('') + '</tbody>';
+
+  return `<table class="converted-table">${thead}${tbody}</table>`;
       }
 
       function nodeText(node) {
@@ -162,20 +182,6 @@ function Chat() {
     }
   };
 
-  const loadConversations = async () => {
-    try {
-      const response = await axios.get('/api/chat/conversations');
-      setConversations(response.data);
-      
-      if (response.data.length > 0 && !currentConversation) {
-        setCurrentConversation(response.data[0]);
-        setMessages(response.data[0].messages || []);
-      }
-    } catch (error) {
-      setError('載入對話失敗');
-    }
-  };
-
   const loadConversation = async (conversation) => {
     try {
       const response = await axios.get(`/api/chat/conversations/${conversation.id}`);
@@ -209,12 +215,16 @@ function Chat() {
       // 添加機器人回應
       setMessages(prev => [...prev, response.data.message]);
 
-      // 如果是新對話，更新對話列表
+      // 如果是新對話，直接載入該對話的詳細內容，並在背景刷新對話列表，避免使用舊的 conversations state 覆寫剛建立的對話
       if (!currentConversation || response.data.conversation_id !== currentConversation.id) {
-        await loadConversations();
-        const newConv = conversations.find(c => c.id === response.data.conversation_id);
-        if (newConv) {
-          setCurrentConversation(newConv);
+        try {
+          // 使用現有的 loadConversation helper（接受一個含 id 屬性的參數）來載入完整對話
+          await loadConversation({ id: response.data.conversation_id });
+          // 非同步在背景刷新對話列表，但不要等待它完成以免覆寫目前選取
+          loadConversations().catch(() => {});
+        } catch (e) {
+          // 若載入失敗，嘗試退而求其次地刷新整個對話列表
+          await loadConversations();
         }
       }
 
@@ -272,7 +282,7 @@ function Chat() {
           <Divider />
           
           <List sx={{ height: 'calc(100% - 80px)', overflow: 'auto' }}>
-            {conversations.map((conv) => (
+            {(Array.isArray(conversations) ? conversations : []).map((conv) => (
               <ListItem
                 key={conv.id}
                 button
@@ -287,9 +297,11 @@ function Chat() {
                   primary={conv.title}
                   secondary={new Date(conv.updated_at).toLocaleDateString()}
                   primaryTypographyProps={{
+                    component: 'div',
                     noWrap: true,
                     fontSize: '0.9rem'
                   }}
+                  secondaryTypographyProps={{ component: 'div' }}
                 />
                 <IconButton
                   size="small"
@@ -324,12 +336,16 @@ function Chat() {
 
         {/* 消息列表 */}
         <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
-          {messages.map((message, index) => (
+          {(Array.isArray(messages) ? messages : []).map((message, index) => {
+            const msg = message || {};
+            const isUser = !!msg.is_user;
+            const content = msg.content || '';
+            return (
             <Box
               key={index}
               sx={{
                 display: 'flex',
-                justifyContent: message.is_user ? 'flex-end' : 'flex-start',
+                justifyContent: isUser ? 'flex-end' : 'flex-start',
                 mb: 2
               }}
             >
@@ -337,13 +353,16 @@ function Chat() {
                 sx={{
                   p: 2,
                   maxWidth: '70%',
-                  backgroundColor: message.is_user ? 'primary.main' : 'grey.100',
-                  color: message.is_user ? 'white' : 'text.primary'
+                  backgroundColor: isUser ? 'primary.main' : 'grey.100',
+                  color: isUser ? 'white' : 'text.primary'
                 }}
               >
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{preprocessContent(message.content)}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} children={preprocessContent(content)} components={{
+                  // keep default rendering but allow table elements from raw HTML
+                  table: ({node, ...props}) => <table className="converted-table" {...props} />
+                }} />
                 
-                {!message.is_user && message.context_used && (
+                {!isUser && msg.context_used && (
                   <Box sx={{ mt: 1 }}>
                     <Chip 
                       label="使用了知識庫" 
@@ -355,7 +374,8 @@ function Chat() {
                 )}
               </Paper>
             </Box>
-          ))}
+            );
+          })}
           
           {loading && (
             <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2 }}>
