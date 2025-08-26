@@ -5,7 +5,7 @@ from app.models.database import get_db
 from app.models import MessageCreate, MessageResponse, ChatResponse, ConversationResponse
 from app.services.auth_service import AuthService
 from app.services.chat_service import ChatService
-from app.rag.contextual_rag import ContextualRAG
+from app.rag.contextual_rag import HybridContextualRAG
 from typing import List
 import json
 
@@ -13,7 +13,7 @@ router = APIRouter()
 security = HTTPBearer()
 auth_service = AuthService()
 chat_service = ChatService()
-rag_system = ContextualRAG()
+rag_system = HybridContextualRAG()
 
 class ConnectionManager:
     def __init__(self):

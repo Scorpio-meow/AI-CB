@@ -1,13 +1,16 @@
 # ChatBot 應用程式
 
-一個具備使用者介面和後台管理介面的 ChatBot 應用程式，使用 Contextual RAG（檢索增強生成）技術提供智能對話服務。
+一個具備使用者介面和後台管理介面的 ChatBot 應用程式，使用增強型混合 RAG（檢索增強生成）技術提供智能對話服務。
 
 ## 功能特色
 
 ### 🤖 智能對話
-- **Contextual RAG**: 基於對話歷史和文件知識庫的上下文感知回答
+- **混合 RAG**: 結合向量搜尋和 BM25 關鍵詞匹配的混合檢索系統
+- **Cross-Encoder 重新排序**: 使用 ms-marco-MiniLM-L-6-v2 提升檢索精度
+- **智能搜尋策略**: 根據查詢特徵自動選擇最佳搜尋方法
 - **即時聊天**: 支援 WebSocket 即時通訊
 - **對話管理**: 多對話管理，支援對話歷史保存
+- **自動重建索引**: 24 小時周期自動維護索引性能
 
 ### 👥 用戶管理
 - **用戶註冊登入**: JWT 身份驗證系統（前後端代碼已準備，待整合）
@@ -15,16 +18,25 @@
 
 ### 📚 知識庫管理
 - **文件上傳**: 支援多種文件格式（PDF, TXT, DOCX）
-- **智能分塊**: 自動將文件分割為語義塊
-- **向量搜尋**: 使用 FAISS IndexFlatIP 進行高效相似度搜尋
+- **流式上傳**: 避免大文件記憶體問題，支援多檔上傳和進度顯示
+- **智能分塊**: 自動將文件分割為語義塊（600字符，150重疊）
+- **混合索引**: FAISS IndexFlatIP + Whoosh BM25 雙重索引
 - **多編碼支援**: 支援 UTF-8, GBK, Big5 等中文編碼
 - **文檔處理**: PyPDF2 + python-docx 處理多格式文件
+- **批次管理**: 支援批次刪除文檔與高效索引維護
 
 ### 🎛️ 後台管理
 - **用戶管理**: 查看、編輯、刪除用戶
 - **對話監控**: 查看用戶對話記錄
 - **系統統計**: 使用量統計和分析
 - **文件管理**: 知識庫文件管理
+- **向量庫監控**: 索引狀態、重建統計、性能指標
+
+### 📊 評估與監控
+- **檢索質量評估**: Recall@k, Precision@k, MRR 指標
+- **性能基準測試**: 多種搜尋方法比較
+- **配置優化**: 不同參數組合的效果評估
+- **自動化測試**: 包含評估腳本和測試工具
 
 ## 技術架構
 
@@ -32,11 +44,13 @@
 - **FastAPI**: 高性能 Web 框架
 - **SQLAlchemy**: ORM 數據庫操作
 - **LangChain**: RAG 實現框架
-- **OpenAI/GitHub Models**: 大型語言模型支援
-- **FAISS**: 向量數據庫 (IndexFlatIP)
+- **Ollama/GitHub Models**: 大型語言模型支援
+- **FAISS**: 向量數據庫 (IndexFlatIP, 384維)
+- **Whoosh**: BM25 全文檢索引擎
+- **Cross-Encoder**: ms-marco-MiniLM-L-6-v2 重新排序
 - **PyPDF2 + python-docx**: 文檔處理
 - **SQLite/PostgreSQL**: 主數據庫
-- **sentence-transformers**: 多語言嵌入模型
+- **sentence-transformers**: paraphrase-multilingual-MiniLM-L12-v2 嵌入模型
 
 ### 前端
 - **React 18**: 用戶界面框架
@@ -103,10 +117,15 @@ npm start
 
 #### 後端 (.env)
 ```env
-# GitHub Models API (推薦)
+# Ollama API 配置（推薦）
+GITHUB_TOKEN=your-token-here
+MODEL_NAME=gpt-oss:20b
+GITHUB_API_BASE=https://your-ngrok-url.ngrok-free.app
+
+# 或 GitHub Models API
 GITHUB_TOKEN=your_github_token_here
-MODEL_NAME=openai/gpt-5-chat
-GITHUB_API_BASE=https://models.github.ai/inference
+MODEL_NAME=gpt-4o-mini
+GITHUB_API_BASE=https://models.inference.ai.azure.com
 
 # 或 OpenAI API
 OPENAI_API_KEY=your_openai_api_key_here
@@ -122,9 +141,13 @@ DATABASE_URL=sqlite:///./chatbot.db
 
 # RAG 設置
 EMBEDDING_MODEL=paraphrase-multilingual-MiniLM-L12-v2
-SIMILARITY_THRESHOLD=0.3
-CHUNK_SIZE=1000
-CHUNK_OVERLAP=200
+RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2
+SIMILARITY_THRESHOLD=0.25
+CHUNK_SIZE=600
+CHUNK_OVERLAP=150
+TOP_K=50
+FINAL_K=5
+REINDEX_HOURS=24
 ```
 
 #### 前端 (.env)
@@ -149,6 +172,7 @@ REACT_APP_API_URL=http://127.0.0.1:8000
 - `POST /api/documents/upload` - 上傳文件 (支援 TXT, PDF, DOCX)
 - `GET /api/documents/` - 獲取文件列表
 - `DELETE /api/documents/{id}` - 刪除文件
+ - `POST /api/documents/bulk_delete` - 批次刪除文件（接受 JSON { ids: [1,2,3] }，回傳每 id 的刪除結果）
 
 ### 管理功能
 - `GET /api/admin/users` - 獲取用戶列表
@@ -163,21 +187,30 @@ REACT_APP_API_URL=http://127.0.0.1:8000
 - `GET /api/admin/vector-store/statistics` - 獲取向量庫統計
 - `DELETE /api/admin/vector-store/clear` - 清空向量庫
 
-## Contextual RAG 實現
+## 混合 RAG 系統
 
 ### 核心特色
-1. **對話上下文感知**: 結合歷史對話提高回答相關性
-2. **智能文件檢索**: 基於語義相似度的文件片段檢索
-3. **動態重排序**: 根據對話上下文重新排序檢索結果
-4. **多層次匹配**: 關鍵詞匹配 + 語義匹配的混合策略
+1. **多重檢索策略**: 向量搜尋 + BM25 關鍵詞匹配 + 智能路由
+2. **Cross-Encoder 重新排序**: 提升檢索結果相關性
+3. **自動索引維護**: 24小時周期重建，保持最佳性能
+4. **評估驅動優化**: 內建 Recall、Precision、MRR 指標
+5. **對話上下文感知**: 結合歷史對話提高回答相關性
+
+### 搜尋策略
+- **向量搜尋**: 語義相似度匹配，適合概念性查詢
+- **BM25 搜尋**: 關鍵詞精確匹配，適合具體詞彙查詢
+- **混合搜尋**: 結合兩種方法，平衡覆蓋面和精度
+- **智能路由**: 根據查詢特徵自動選擇最佳策略
 
 ### 工作流程
 1. 用戶提問
-2. 提取對話歷史上下文
-3. 增強查詢（查詢 + 上下文）
-4. 向量檢索相關文件片段
-5. 基於上下文重排序
-6. 生成最終回答
+2. 查詢分析（中文檢測、精確詞彙檢測等）
+3. 智能選擇檢索策略（向量/BM25/混合）
+4. 執行檢索並獲取候選文檔
+5. Cross-Encoder 重新排序
+6. 提取 top-k 結果
+7. 構建上下文提示
+8. 生成回答並更新對話記憶
 
 ## 部署
 

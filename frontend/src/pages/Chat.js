@@ -19,6 +19,7 @@ import { Send as SendIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/ico
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import DiscussionBoard from './DiscussionBoard';
+import remarkGfm from 'remark-gfm';
 
 function Chat() {
   const [conversations, setConversations] = useState([]);
@@ -32,7 +33,8 @@ function Chat() {
   const discussionBoardRef = useRef(null);
 
   useEffect(() => {
-    loadConversations();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  loadConversations();
   }, []);
 
   useEffect(() => {
@@ -43,6 +45,123 @@ function Chat() {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Simple preprocessing: convert HTML <br> tags to Markdown newlines
+  const preprocessContent = (content) => {
+    if (!content || typeof content !== 'string') return '';
+    // If no HTML tags, return as-is
+    if (content.indexOf('<') === -1) return content;
+
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(content, 'text/html');
+
+      const escapePipe = (s) => String(s).replace(/\|/g, '\\|');
+
+      function tableToMarkdown(table) {
+  const rows = Array.from(table.querySelectorAll('tr'));
+  if (rows.length === 0) return '';
+        const headerCells = Array.from(rows[0].querySelectorAll('th'));
+        let md = '';
+
+        // If first row has th use as header, otherwise use first row as header
+        const headerRow = headerCells.length ? rows[0] : rows[0];
+        const headerTexts = Array.from(headerRow.querySelectorAll('th,td')).map(td => escapePipe(nodeText(td).trim() || ''));
+        md += `| ${headerTexts.join(' | ')} |\n`;
+        md += `| ${Array(headerTexts.length).fill('---').join(' | ')} |\n`;
+
+        const dataRows = headerCells.length ? rows.slice(1) : rows.slice(1);
+        for (const r of dataRows) {
+          const cells = Array.from(r.querySelectorAll('td,th')).map(td => escapePipe(nodeText(td).trim() || ''));
+          // pad cells if less than header
+          while (cells.length < headerTexts.length) cells.push('');
+          md += `| ${cells.join(' | ')} |\n`;
+        }
+        return md + '\n';
+      }
+
+      function nodeText(node) {
+        if (!node) return '';
+        if (node.nodeType === Node.TEXT_NODE) return node.textContent || '';
+        if (node.nodeType !== Node.ELEMENT_NODE) return '';
+        const tag = node.tagName.toLowerCase();
+        if (tag === 'br') return '\n\n';
+        if (tag === 'p' || tag === 'div' || tag === 'section' || tag === 'header' || tag === 'footer') {
+          return Array.from(node.childNodes).map(nodeText).join('') + '\n\n';
+        }
+        if (tag === 'strong' || tag === 'b') return `**${Array.from(node.childNodes).map(nodeText).join('').trim()}**`;
+        if (tag === 'em' || tag === 'i') return `*${Array.from(node.childNodes).map(nodeText).join('').trim()}*`;
+        if (tag === 'a') {
+          const href = node.getAttribute('href') || '';
+          const text = Array.from(node.childNodes).map(nodeText).join('').trim();
+          return href ? `[${text}](${href})` : text;
+        }
+        if (tag === 'ul') {
+          return Array.from(node.querySelectorAll(':scope > li')).map(li => `- ${Array.from(li.childNodes).map(nodeText).join('').trim()}`).join('\n') + '\n\n';
+        }
+        if (tag === 'ol') {
+          return Array.from(node.querySelectorAll(':scope > li')).map((li, idx) => `${idx+1}. ${Array.from(li.childNodes).map(nodeText).join('').trim()}`).join('\n') + '\n\n';
+        }
+        if (tag === 'li') return `- ${Array.from(node.childNodes).map(nodeText).join('').trim()}\n`;
+        if (tag === 'pre' || tag === 'code') return '```\n' + (node.textContent || '') + '\n```\n\n';
+        if (tag === 'table') return tableToMarkdown(node);
+
+        // default: concatenate children
+        return Array.from(node.childNodes).map(nodeText).join('');
+      }
+
+      const body = doc.body || doc;
+      const out = Array.from(body.childNodes).map(nodeText).join('').trim();
+      // Post-process: convert pipe-like blocks to proper Markdown tables
+      function convertPipeBlocksToTables(text) {
+        const lines = text.split(/\r?\n/);
+        const result = [];
+        let i = 0;
+        while (i < lines.length) {
+          // detect start of a pipe block (line contains at least one | and not a code fence)
+          if (lines[i].includes('|') && !lines[i].trim().startsWith('```')) {
+            // collect contiguous pipe lines
+            const block = [];
+            let j = i;
+            while (j < lines.length && lines[j].includes('|') && !lines[j].trim().startsWith('```')) {
+              block.push(lines[j]);
+              j++;
+            }
+
+            // analyze block: must have at least 1 pipe and at least 1 row
+            if (block.length > 0) {
+              // check if any line is a separator like | --- | --- |
+              const hasSeparator = block.some(l => /^\s*\|?\s*[:-]+/.test(l.replace(/\s+/g, '')) || /-\s*\|\s*-/.test(l));
+              if (!hasSeparator && block.length >= 2) {
+                // create separator based on first row's column count
+                const headerCells = block[0].split('|').map(s => s.trim()).filter(s => s.length > 0);
+                const cols = headerCells.length || Math.max(1, block[0].split('|').length - 1);
+                const sep = '| ' + Array(cols).fill('---').join(' | ') + ' |';
+                // insert separator after first line
+                const newBlock = [block[0], sep, ...block.slice(1)];
+                result.push(...newBlock);
+              } else {
+                result.push(...block);
+              }
+            }
+
+            i = j;
+            continue;
+          }
+
+          result.push(lines[i]);
+          i++;
+        }
+
+        return result.join('\n');
+      }
+
+      return convertPipeBlocksToTables(out);
+    } catch (e) {
+      // fallback: simple br replacement and strip tags
+      return content.replace(/<br\s*\/?>(?=>)?/gi, '\n\n').replace(/<[^>]+>/g, '');
+    }
   };
 
   const loadConversations = async () => {
@@ -222,7 +341,7 @@ function Chat() {
                     {messages.map((message, index) => (
                         <Box key={index} sx={{ display: 'flex', justifyContent: message.is_user ? 'flex-end' : 'flex-start', mb: 2 }}>
                             <Paper sx={{ p: 2, maxWidth: '70%', backgroundColor: message.is_user ? 'primary.main' : 'grey.100', color: message.is_user ? 'white' : 'text.primary' }}>
-                                <ReactMarkdown>{message.content}</ReactMarkdown>
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{preprocessContent(message.content)}</ReactMarkdown>
                                 {!message.is_user && message.context_used && (
                                 <Box sx={{ mt: 1 }}><Chip label="使用了知識庫" size="small" variant="outlined" sx={{ fontSize: '0.7rem' }}/></Box>
                                 )}
