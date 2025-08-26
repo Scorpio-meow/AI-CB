@@ -8,7 +8,7 @@ import ReactFlow, {
   Background,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Box, Paper, Typography, List, ListItem, ListItemText, Menu, MenuItem, Button, Chip } from '@mui/material';
+import { Box, Paper, Typography, List, ListItem, ListItemText, Menu, MenuItem, Chip } from '@mui/material';
 import AgentNode from './AgentNode';
 
 const agentTypes = [
@@ -170,6 +170,7 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
                color={wsStatus === 'connected' ? 'success' : 'warning'}
                size="small"
             />
+            <Chip label={runStatus} sx={{ ml: 1 }} size="small" />
         </Box>
         <ReactFlow
           nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}

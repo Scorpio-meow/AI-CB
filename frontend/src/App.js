@@ -5,8 +5,6 @@ import CssBaseline from '@mui/material/CssBaseline';
 import Chat from './pages/Chat';
 import AdminDashboard from './pages/AdminDashboard';
 import Documents from './pages/Documents';
-import Workflow from './pages/Workflow';
-import Layout from './components/Layout';
 
 const theme = createTheme({
   palette: {
@@ -42,17 +40,7 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <RouterProvider router={router}>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Navigate to="/chat" />} />
-            <Route path="/chat" element={<Chat />} />
-            <Route path="/documents" element={<Documents />} />
-            <Route path="/workflow" element={<Workflow />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-          </Routes>
-        </Layout>
-      </RouterProvider>
+      <RouterProvider router={router} />
     </ThemeProvider>
   );
 }
