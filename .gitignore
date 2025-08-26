@@ -45,7 +45,8 @@ MANIFEST
 *.db
 *.sqlite
 *.sqlite3
-
+backend/data
+backend/chatbot.db
 # 日誌
 *.log
 logs/
