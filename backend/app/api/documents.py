@@ -15,7 +15,16 @@ import logging
 logger = logging.getLogger(__name__)
 router = APIRouter()
 rag_system = ContextualRAG()
-_delete_lock = asyncio.Lock()  # global delete lock to serialize deletions
+# Global deletion lock to ensure only one deletion (single or bulk) runs at a time
+_deletion_lock = asyncio.Lock()
+
+
+async def _acquire_deletion_lock_or_409():
+    """Acquire the global deletion lock immediately or raise 409 if another deletion is running."""
+    if _deletion_lock.locked():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="刪除作業正在進行中，請稍後重試")
+    await _deletion_lock.acquire()
+    return True
 
 @router.post("/upload")
 async def upload_document(
@@ -157,39 +166,55 @@ async def delete_document(
     db: Session = Depends(get_db)
 ):
     """刪除文件"""
-    # Ensure deletions are serialized to avoid index corruption
-    if _delete_lock.locked():
-        # Inform the frontend to retry later
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="另一個刪除作業進行中，請稍後重試")
-    async with _delete_lock:
+    # Acquire global deletion lock or return 409
+    await _acquire_deletion_lock_or_409()
+    try:
         document = db.query(Document).filter(Document.id == document_id).first()
         if not document:
             raise HTTPException(status_code=404, detail="文件不存在")
-        
-        # 從 RAG 系統中移除文檔（這會重建 FAISS 索引）
+
+        # Remove from RAG system (synchronous, serialized to avoid concurrent reindex)
         try:
             await asyncio.to_thread(rag_system.remove_document_by_id, document_id)
         except Exception as e:
-            print(f"Warning: Failed to remove document from RAG system: {e}")
-        
-        # 刪除文件塊
-        db.query(DocumentChunk).filter(DocumentChunk.document_id == document_id).delete()
-        
-        # 刪除實際文件（如果存在）
+            logger.warning(f"Failed to remove document from RAG system: {e}")
+
+        # Delete document chunks for this document
+        try:
+            db.query(DocumentChunk).filter(DocumentChunk.document_id == document_id).delete()
+        except Exception as e:
+            logger.warning(f"Failed to delete document chunks for {document_id}: {e}")
+
+        # Delete physical file
         try:
             import os
             upload_dir = "data/uploads"
             file_path = os.path.join(upload_dir, document.filename)
             if os.path.exists(file_path):
-                os.remove(file_path)
+                await asyncio.to_thread(os.remove, file_path)
         except Exception as e:
-            print(f"Warning: Failed to remove physical file: {e}")
-        
-        # 刪除文件記錄
-        db.delete(document)
-        db.commit()
-        
+            logger.warning(f"Failed to remove physical file: {e}")
+
+        # Delete document record (commit per-document)
+        try:
+            db.delete(document)
+            db.commit()
+        except Exception as e:
+            logger.error(f"Failed to delete document record {document_id}: {e}")
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            raise HTTPException(status_code=500, detail="DB 刪除失敗")
+
         return {"message": "文件刪除成功"}
+    finally:
+        # Release deletion lock
+        try:
+            if _deletion_lock.locked():
+                _deletion_lock.release()
+        except Exception:
+            pass
 
 
 class BulkDeleteRequest(BaseModel):
@@ -214,32 +239,27 @@ async def bulk_delete_documents(
     if not ids:
         return {"results": results}
 
-    # Serialize bulk delete using the same global lock to ensure sequential execution
-    if _delete_lock.locked():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="刪除忙碌中，請稍後重試")
-    async with _delete_lock:
-        # 查出存在的 documents
-        documents = db.query(Document).filter(Document.id.in_(ids)).all()
-        present_ids = [d.id for d in documents]
-        missing_ids = [i for i in ids if i not in present_ids]
+    # Acquire global deletion lock or return 409
+    await _acquire_deletion_lock_or_409()
+    try:
+        # Process ids in input order, sequentially
+        for document_id in ids:
+            doc = db.query(Document).filter(Document.id == document_id).first()
+            if not doc:
+                results.append({"id": document_id, "status": "not_found", "detail": "文件不存在"})
+                continue
 
-        # 標記不存在的 id
-        for mid in missing_ids:
-            results.append({"id": mid, "status": "not_found", "detail": "文件不存在"})
+            detail_msgs: List[str] = []
 
-        # 逐筆（順序）處理 RAG 移除與實體檔案刪除，以降低鎖衝突
-        async def handle_doc_removal(doc: Document) -> Dict[str, Any]:
-            doc_id = doc.id
-            detail_msgs = []
-            # 移除 RAG 索引（可能為阻塞）
+            # Remove from RAG (synchronously, serialized)
             try:
-                await asyncio.to_thread(rag_system.remove_document_by_id, doc_id)
+                await asyncio.to_thread(rag_system.remove_document_by_id, document_id)
             except Exception as e:
                 msg = f"RAG remove failed: {e}"
                 logger.warning(msg)
                 detail_msgs.append(msg)
 
-            # 刪除實體檔案
+            # Remove physical file
             try:
                 upload_dir = "data/uploads"
                 file_path = os.path.join(upload_dir, doc.filename)
@@ -250,40 +270,30 @@ async def bulk_delete_documents(
                 logger.warning(msg)
                 detail_msgs.append(msg)
 
-            return {"id": doc_id, "detail_msgs": detail_msgs}
+            # Delete DB records for this document (chunks + document) with per-doc commit/rollback
+            try:
+                db.query(DocumentChunk).filter(DocumentChunk.document_id == document_id).delete()
+                db.delete(doc)
+                db.commit()
+                # success
+                if detail_msgs:
+                    results.append({"id": document_id, "status": "deleted_with_warnings", "detail": "; ".join(detail_msgs)})
+                else:
+                    results.append({"id": document_id, "status": "deleted"})
+            except Exception as e:
+                logger.error(f"DB delete failed for {document_id}: {e}")
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                results.append({"id": document_id, "status": "failed", "detail": f"DB delete failed: {e}; details: {'; '.join(detail_msgs)}"})
 
-        per_doc_results = []
-        for d in documents:
-            res = await handle_doc_removal(d)
-            per_doc_results.append(res)
-
-    # 批次刪除 DocumentChunk 與 Document
-    try:
-        if present_ids:
-            db.query(DocumentChunk).filter(DocumentChunk.document_id.in_(present_ids)).delete(synchronize_session=False)
-            db.query(Document).filter(Document.id.in_(present_ids)).delete(synchronize_session=False)
-            db.commit()
-            db_operation_ok = True
-        else:
-            db_operation_ok = True
-    except Exception as e:
-        logger.error(f"Batch DB delete failed: {e}")
+    finally:
+        # Always release the global deletion lock
         try:
-            db.rollback()
+            if _deletion_lock.locked():
+                _deletion_lock.release()
         except Exception:
             pass
-        db_operation_ok = False
-
-    # 撰寫最終結果
-    for r in per_doc_results:
-        doc_id = r.get('id')
-        msgs = r.get('detail_msgs') or []
-        if not db_operation_ok:
-            results.append({"id": doc_id, "status": "failed", "detail": "DB delete failed" + (": " + "; ".join(msgs) if msgs else "")})
-        else:
-            if msgs:
-                results.append({"id": doc_id, "status": "deleted_with_warnings", "detail": "; ".join(msgs)})
-            else:
-                results.append({"id": doc_id, "status": "deleted"})
 
     return {"results": results}

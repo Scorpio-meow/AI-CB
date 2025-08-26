@@ -96,6 +96,9 @@ class HybridContextualRAG:
             self.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "150"))
             self.reindex_threshold_hours = int(os.getenv("REINDEX_HOURS", "24"))
             self.prompt_max_chars = int(os.getenv("PROMPT_MAX_CHARS", "6000"))
+            # Approximate token limit to guard LLM token budgets. This is an approximate
+            # protection only (simple whitespace token estimate). Set via env PROMPT_MAX_TOKENS.
+            self.prompt_max_tokens = int(os.getenv("PROMPT_MAX_TOKENS", "2048"))
             self.per_chunk_max_chars = int(os.getenv("PER_CHUNK_MAX_CHARS", "1200"))
             self.batch_size = int(os.getenv("EMBED_BATCH_SIZE", "32"))
             
@@ -159,6 +162,20 @@ class HybridContextualRAG:
                 self.index = faiss.read_index(self.faiss_index_path)
                 with open(self.documents_path, 'rb') as f:
                     self.documents = pickle.load(f)
+                # Ensure each chunk/document has a stable unique id for cross-process stability
+                for i, doc in enumerate(self.documents):
+                    try:
+                        if not isinstance(doc.metadata, dict):
+                            doc.metadata = dict(doc.metadata or {})
+                        if 'chunk_uid' not in doc.metadata:
+                            # deterministic seed based on available metadata and content
+                            src = doc.metadata.get('source', f'unknown_{i}')
+                            orig = doc.metadata.get('document_id', doc.metadata.get('original_doc_id', ''))
+                            uid_seed = f"{orig}|{src}|{i}|{hashlib.sha1(doc.page_content.encode('utf-8')).hexdigest()}"
+                            doc.metadata['chunk_uid'] = str(uuid.uuid5(uuid.NAMESPACE_URL, uid_seed))
+                    except Exception:
+                        # best-effort only
+                        continue
                 # Dimension check
                 try:
                     index_dim = self.index.d
@@ -282,36 +299,133 @@ class HybridContextualRAG:
     def _rebuild_bm25_index(self):
         """Rebuild BM25 index"""
         try:
-            # Remove old index
-            if os.path.exists(self.bm25_index_dir):
-                shutil.rmtree(self.bm25_index_dir)
-            
-            # Create new index
-            os.makedirs(self.bm25_index_dir, exist_ok=True)
-            storage = FileStorage(self.bm25_index_dir)
-            self.bm25_index = storage.create_index(self._create_bm25_schema())
-            
-            # Add documents
-            writer = self.bm25_index.writer()
-            for i, doc in enumerate(self.documents):
-                writer.add_document(
-                    doc_id=f"doc_{i}",
-                    content=doc.page_content,
-                    title=doc.metadata.get('source', ''),
-                    source=doc.metadata.get('source', ''),
-                    chunk_index=doc.metadata.get('chunk_index', 0)
-                )
-            writer.commit()
-            
-            # Update searcher
-            if self.bm25_searcher:
-                self.bm25_searcher.close()
-            self.bm25_searcher = self.bm25_index.searcher()
-            
+            # Guard rebuild with lock to avoid concurrent search using the index
+            with self._lock:
+                # Close existing searcher to release file handles on Windows
+                try:
+                    if self.bm25_searcher:
+                        self.bm25_searcher.close()
+                finally:
+                    self.bm25_searcher = None
+
+                # Best-effort: drop reference to current index to avoid residual handles
+                try:
+                    if self.bm25_index:
+                        close_fn = getattr(self.bm25_index, "close", None)
+                        if callable(close_fn):
+                            close_fn()
+                except Exception:
+                    pass
+                finally:
+                    self.bm25_index = None
+
+                # Build new index in a temporary directory on the same volume
+                parent_dir = os.path.dirname(self.bm25_index_dir) or "."
+                tmp_dir = os.path.join(parent_dir, f"bm25_index.build.{uuid.uuid4().hex}")
+                os.makedirs(tmp_dir, exist_ok=True)
+
+                storage = FileStorage(tmp_dir)
+                new_index = storage.create_index(self._create_bm25_schema())
+
+                writer = new_index.writer()
+                for i, doc in enumerate(self.documents):
+                    writer.add_document(
+                        doc_id=f"doc_{i}",
+                        content=doc.page_content,
+                        title=doc.metadata.get('source', ''),
+                        source=doc.metadata.get('source', ''),
+                        chunk_index=doc.metadata.get('chunk_index', 0)
+                    )
+                writer.commit()
+
+                # Prepare atomic swap: rename old dir aside, move new into place
+                old_backup = None
+                if os.path.exists(self.bm25_index_dir):
+                    old_backup = os.path.join(parent_dir, f"bm25_index.old.{uuid.uuid4().hex}")
+                    rename_ok = False
+                    try:
+                        os.replace(self.bm25_index_dir, old_backup)
+                        rename_ok = True
+                    except Exception:
+                        # If replace fails (e.g., file locks), try a plain rename first
+                        try:
+                            os.rename(self.bm25_index_dir, old_backup)
+                            rename_ok = True
+                        except Exception as e_rename:
+                            logger.warning(f"Rename old BM25 dir failed, trying safe delete: {e_rename}")
+                            # Fall back: try to delete old directory with retries
+                            if self._safe_rmtree(self.bm25_index_dir, retries=6, delay=0.5):
+                                rename_ok = True
+                                old_backup = None
+                            else:
+                                # As a final fallback, we will try per-file replacement later
+                                rename_ok = False
+
+                    if not rename_ok:
+                        logger.warning("Could not rename or delete old BM25 dir; will attempt per-file replacement.")
+
+                # Move or copy the new index into the target path
+                if not os.path.exists(self.bm25_index_dir):
+                    os.replace(tmp_dir, self.bm25_index_dir)
+                else:
+                    # Per-file replacement fallback
+                    for name in os.listdir(tmp_dir):
+                        src = os.path.join(tmp_dir, name)
+                        dst = os.path.join(self.bm25_index_dir, name)
+                        try:
+                            if os.path.isdir(src):
+                                # Whoosh typically doesn't use subdirs, but handle just in case
+                                if os.path.exists(dst):
+                                    self._safe_rmtree(dst)
+                                shutil.copytree(src, dst)
+                            else:
+                                # Ensure parent exists
+                                os.makedirs(os.path.dirname(dst) or ".", exist_ok=True)
+                                # Try atomic replace; if fails, try copy over
+                                try:
+                                    os.replace(src, dst)
+                                except Exception:
+                                    shutil.copy2(src, dst)
+                        except Exception as e_file:
+                            logger.warning(f"Failed to place BM25 file '{name}': {e_file}")
+
+                    # Cleanup tmp_dir after copying
+                    self._safe_rmtree(tmp_dir)
+
+                # Open the fresh index/searcher
+                storage_final = FileStorage(self.bm25_index_dir)
+                self.bm25_index = storage_final.open_index()
+                self.bm25_searcher = self.bm25_index.searcher()
+
+            # Cleanup old backup directory asynchronously with retries (outside lock)
+            if 'old_backup' in locals() and old_backup and os.path.exists(old_backup):
+                self._safe_rmtree(old_backup)
+
         except Exception as e:
             logger.exception(f"Failed to rebuild BM25 index: {e}")
             self.bm25_index = None
             self.bm25_searcher = None
+
+    def _safe_rmtree(self, path: str, retries: int = 5, delay: float = 0.3) -> bool:
+        """Remove a directory tree with retries to mitigate Windows file locks.
+
+        Returns True if deleted, False if still exists after retries.
+        """
+        for attempt in range(retries):
+            try:
+                if os.path.exists(path):
+                    shutil.rmtree(path)
+                return True
+            except PermissionError as e:
+                logger.debug(f"rmtree PermissionError on '{path}', retry {attempt+1}/{retries}: {e}")
+                time.sleep(delay * (attempt + 1))
+            except Exception as e:
+                logger.debug(f"rmtree error on '{path}', retry {attempt+1}/{retries}: {e}")
+                time.sleep(delay * (attempt + 1))
+        if os.path.exists(path):
+            logger.warning(f"Failed to remove directory after retries: {path}")
+            return False
+        return True
     
     async def add_documents(self, documents: List[Document]):
         """Add documents with hybrid indexing"""
@@ -327,17 +441,16 @@ class HybridContextualRAG:
         for doc in documents:
             chunks = self.text_splitter.split_text(doc.page_content)
             for i, chunk in enumerate(chunks):
-                # stable chunk uid
-                source = doc.metadata.get('source', 'unknown')
-                uid_seed = f"{doc.metadata.get('document_id')}|{source}|{i}|{hashlib.sha1(chunk.encode('utf-8')).hexdigest()}"
+                # stable chunk uid (deterministic across runs)
+                source = (doc.metadata or {}).get('source', 'unknown')
+                uid_seed = f"{(doc.metadata or {}).get('document_id')}|{source}|{i}|{hashlib.sha1(chunk.encode('utf-8')).hexdigest()}"
                 chunk_uid = str(uuid.uuid5(uuid.NAMESPACE_URL, uid_seed))
                 chunk_doc = Document(
                     page_content=chunk,
                     metadata={
-                        **doc.metadata,
-                        "chunk_id": f"{doc.metadata.get('source', 'unknown')}_{i}",
+                        **(doc.metadata or {}),
                         "chunk_index": i,
-                        "original_doc_id": doc.metadata.get('document_id'),
+                        "original_doc_id": (doc.metadata or {}).get('document_id'),
                         "added_timestamp": datetime.now().isoformat(),
                         "chunk_uid": chunk_uid,
                     }
@@ -366,33 +479,39 @@ class HybridContextualRAG:
     def _add_to_bm25(self, chunks: List[Document]):
         """Add chunks to BM25 index"""
         try:
-            # Create index if it doesn't exist
-            if self.bm25_index is None:
-                os.makedirs(self.bm25_index_dir, exist_ok=True)
-                storage = FileStorage(self.bm25_index_dir)
-                self.bm25_index = storage.create_index(self._create_bm25_schema())
+            with self._lock:
+                # Create index if it doesn't exist
+                if self.bm25_index is None:
+                    os.makedirs(self.bm25_index_dir, exist_ok=True)
+                    storage = FileStorage(self.bm25_index_dir)
+                    # If it exists, open; else create
+                    if index.exists_in(self.bm25_index_dir):
+                        self.bm25_index = storage.open_index()
+                    else:
+                        self.bm25_index = storage.create_index(self._create_bm25_schema())
+                    if self.bm25_searcher:
+                        self.bm25_searcher.close()
+                        self.bm25_searcher = None
+                    self.bm25_searcher = self.bm25_index.searcher()
+
+                # Add documents
+                writer = self.bm25_index.writer()
+                start_id = len(self.documents)
+
+                for i, chunk in enumerate(chunks):
+                    writer.add_document(
+                        doc_id=f"doc_{start_id + i}",
+                        content=chunk.page_content,
+                        title=chunk.metadata.get('source', ''),
+                        source=chunk.metadata.get('source', ''),
+                        chunk_index=chunk.metadata.get('chunk_index', 0)
+                    )
+                writer.commit()
+
+                # Update searcher
                 if self.bm25_searcher:
                     self.bm25_searcher.close()
                 self.bm25_searcher = self.bm25_index.searcher()
-            
-            # Add documents
-            writer = self.bm25_index.writer()
-            start_id = len(self.documents)
-            
-            for i, chunk in enumerate(chunks):
-                writer.add_document(
-                    doc_id=f"doc_{start_id + i}",
-                    content=chunk.page_content,
-                    title=chunk.metadata.get('source', ''),
-                    source=chunk.metadata.get('source', ''),
-                    chunk_index=chunk.metadata.get('chunk_index', 0)
-                )
-            writer.commit()
-            
-            # Update searcher
-            if self.bm25_searcher:
-                self.bm25_searcher.close()
-            self.bm25_searcher = self.bm25_index.searcher()
             
         except Exception as e:
             logger.exception(f"Failed to add to BM25 index: {e}")
@@ -411,23 +530,34 @@ class HybridContextualRAG:
         
         # Search
         similarities, indices = self.index.search(query_embedding, min(top_k, self.index.ntotal))
-        
-        # Filter and return
+
+        # Filter and return, robustly handle -1 indices that FAISS may return
         results = []
-        for similarity, idx in zip(similarities[0], indices[0]):
-            if idx == -1:
+        try:
+            sim_row = similarities[0]
+            idx_row = indices[0]
+        except Exception:
+            return []
+
+        for similarity, idx in zip(sim_row, idx_row):
+            try:
+                if int(idx) == -1:
+                    continue
+            except Exception:
                 continue
             if similarity > self.similarity_threshold and 0 <= idx < len(self.documents):
-                results.append((self.documents[idx], float(similarity)))
+                results.append((self.documents[int(idx)], float(similarity)))
         
         return results
     
     def bm25_search(self, query: str, top_k: int = None) -> List[Tuple[Document, float]]:
         """Pure BM25 search"""
-        if not self.bm25_searcher:
-            return []
+        # Guard against concurrent rebuilds
+        with self._lock:
+            if not self.bm25_searcher:
+                return []
             
-        top_k = top_k or self.top_k
+            top_k = top_k or self.top_k
         
         try:
             # Parse query
@@ -461,8 +591,8 @@ class HybridContextualRAG:
         vector_results = self.vector_search(query, self.top_k)
         bm25_results = self.bm25_search(query, self.top_k)
         
-        # Create score mapping
-        doc_scores: Dict[int, Dict[str, Any]] = {}
+        # Create score mapping using stable chunk_uid as key when available
+        doc_scores: Dict[str, Dict[str, Any]] = {}
 
         # Min-max normalize vector scores
         if vector_results:
@@ -470,9 +600,9 @@ class HybridContextualRAG:
             vec_min, vec_max = min(vec_scores), max(vec_scores)
             vec_range = (vec_max - vec_min) if vec_max > vec_min else 1.0
             for doc, score in vector_results:
-                doc_id = id(doc)
+                key = str(doc.metadata.get('chunk_uid', id(doc)))
                 normalized_score = (score - vec_min) / vec_range
-                doc_scores[doc_id] = {
+                doc_scores[key] = {
                     'doc': doc,
                     'vector_score': normalized_score,
                     'bm25_score': 0.0
@@ -484,12 +614,12 @@ class HybridContextualRAG:
             bm_min, bm_max = min(bm_scores), max(bm_scores)
             bm_range = (bm_max - bm_min) if bm_max > bm_min else 1.0
             for doc, score in bm25_results:
-                doc_id = id(doc)
+                key = str(doc.metadata.get('chunk_uid', id(doc)))
                 normalized_score = (score - bm_min) / bm_range
-                if doc_id in doc_scores:
-                    doc_scores[doc_id]['bm25_score'] = normalized_score
+                if key in doc_scores:
+                    doc_scores[key]['bm25_score'] = normalized_score
                 else:
-                    doc_scores[doc_id] = {
+                    doc_scores[key] = {
                         'doc': doc,
                         'vector_score': 0.0,
                         'bm25_score': normalized_score
@@ -519,12 +649,33 @@ class HybridContextualRAG:
             
             # Get cross-encoder scores
             cross_scores = self.cross_encoder.predict(pairs)
-            
-            # Combine with original scores
+
+            # Normalize both cross scores and original scores (min-max) before combining
+            orig_scores = [s for _, s in doc_score_pairs]
+            try:
+                cross_min, cross_max = min(cross_scores), max(cross_scores)
+                cross_range = cross_max - cross_min if cross_max > cross_min else 1.0
+            except Exception:
+                cross_min, cross_range = 0.0, 1.0
+
+            try:
+                orig_min, orig_max = min(orig_scores), max(orig_scores)
+                orig_range = orig_max - orig_min if orig_max > orig_min else 1.0
+            except Exception:
+                orig_min, orig_range = 0.0, 1.0
+
             reranked = []
             for i, (doc, original_score) in enumerate(doc_score_pairs):
-                # Weighted combination: 70% cross-encoder, 30% original
-                combined_score = 0.7 * cross_scores[i] + 0.3 * original_score
+                try:
+                    norm_cross = (cross_scores[i] - cross_min) / cross_range
+                except Exception:
+                    norm_cross = 0.0
+                try:
+                    norm_orig = (original_score - orig_min) / orig_range
+                except Exception:
+                    norm_orig = 0.0
+                # Weighted combination: favor cross-encoder but keep original signal
+                combined_score = 0.7 * norm_cross + 0.3 * norm_orig
                 reranked.append((doc, combined_score))
             
             # Sort by combined score
@@ -581,8 +732,11 @@ class HybridContextualRAG:
                 conversation_context += f"用戶: {exchange['user']}\nAI: {exchange['assistant']}\n\n"
         
         # Build document context with improved citations (with per-chunk truncation)
+        # Also apply approximate token-based truncation to avoid exceeding model token limits
         document_context = ""
         sources = []
+        approx_tokens_used = 0
+        max_tokens = getattr(self, 'prompt_max_tokens', None)
         for i, doc in enumerate(relevant_docs):
             source = doc.metadata.get('source', '未知來源')
             sources.append(source)
@@ -590,6 +744,14 @@ class HybridContextualRAG:
             content = doc.page_content
             if self.per_chunk_max_chars and len(content) > self.per_chunk_max_chars:
                 content = content[: self.per_chunk_max_chars]
+
+            # approximate token count for this chunk (whitespace split)
+            chunk_tokens = len(content.split())
+            # If adding this chunk would exceed token budget, stop adding more
+            if max_tokens and (approx_tokens_used + chunk_tokens) > max_tokens:
+                break
+            approx_tokens_used += chunk_tokens
+
             document_context += f"文檔 [{i+1}] (來源: {source}, 段落: {chunk_id}):\n{content}\n\n"
 
         # Truncate overall prompt to guard maximum size
@@ -739,6 +901,14 @@ class HybridContextualRAG:
         if self.bm25_searcher:
             self.bm25_searcher.close()
             self.bm25_searcher = None
+        # Release bm25_index if it exposes close()
+        try:
+            if self.bm25_index:
+                close_fn = getattr(self.bm25_index, "close", None)
+                if callable(close_fn):
+                    close_fn()
+        except Exception:
+            pass
         
         # Remove files
         for path in [self.faiss_index_path, self.documents_path, self.metadata_path]:
@@ -746,7 +916,7 @@ class HybridContextualRAG:
                 os.remove(path)
         
         if os.path.exists(self.bm25_index_dir):
-            shutil.rmtree(self.bm25_index_dir)
+            self._safe_rmtree(self.bm25_index_dir)
         
         self.bm25_index = None
         logger.info("Vector store cleared completely")

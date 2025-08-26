@@ -214,6 +214,20 @@ REACT_APP_API_URL=http://127.0.0.1:8000
 
 ## 部署
 
+### Whoosh 中文分詞說明
+
+Whoosh 預設分析器對中文並不理想，建議安裝並使用 `jieba` 作為中文分詞器以提升 BM25 檢索品質。
+
+- 如要啟用 jieba 支援，請在後端環境中安裝：
+
+```bash
+pip install jieba
+```
+
+- 本專案會自動檢測是否安裝了 `jieba`：若已安裝，會在 Whoosh 中使用基於 jieba 的自訂 Analyzer；否則回退使用 Whoosh 的 `StandardAnalyzer`（對中文效果有限）。
+
+註：若在 Windows 上遇到檔案鎖定問題，請參考 README 中的索引重建與清理段落。
+
 ### Docker 部署
 
 1. 構建後端鏡像：
