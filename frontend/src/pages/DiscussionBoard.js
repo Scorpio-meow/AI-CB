@@ -60,7 +60,7 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
 
   // === WebSocket 連線與事件處理 ===
   useEffect(() => {
-    const websocketURL = 'ws://localhost:8000/api/workflow/ws';
+    const websocketURL = 'ws://localhost:8001/api/workflow/ws';
     socketRef.current = new WebSocket(websocketURL);
 
     socketRef.current.onopen = () => {

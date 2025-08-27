@@ -41,15 +41,7 @@ function Layout({ children }) {
             >
               知識庫
             </Button>
-
-            <Button 
-              color="inherit" 
-              startIcon={<AccountTree />}
-              onClick={() => navigate('/workflow')}
-            >
-              工作流
-            </Button>
-            
+                        
             <Button 
               color="inherit" 
               startIcon={<AdminPanelSettings />}
