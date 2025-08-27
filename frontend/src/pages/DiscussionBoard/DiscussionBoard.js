@@ -153,7 +153,7 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
   };
 
   useEffect(() => {
-    const websocketURL = 'ws://localhost:8000/api/workflow/ws';
+    const websocketURL = 'ws://localhost:8001/api/workflow/ws';
     socketRef.current = new WebSocket(websocketURL);
     socketRef.current.onopen = () => { console.log("WebSocket 連線已建立"); setWsStatus('connected'); };
     socketRef.current.onclose = () => { console.log("WebSocket 連線已關閉"); setWsStatus('disconnected'); };

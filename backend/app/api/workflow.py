@@ -23,22 +23,22 @@ from app.models.database import get_db
 from app.services.chat_service import ChatService
 
 # --- Constants and System Prompts ---
-OLLAMA_HOST = os.getenv("GITHUB_API_BASE", "https://fc5d1d0fc900.ngrok-free.app")
+OLLAMA_HOST = os.getenv("LLM_API_BASE", "https://fc5d1d0fc900.ngrok-free.app")
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-oss:20b")
 
 # ✅ 更新：移除所有 JSON 格式要求
 PROFESSION_PROMPTS = {
     # PM: 專案管理顧問，強調結構、風險和具體方案
-    "PM": "你是一位高效的AI專案管理顧問。你的任務是根據收到的內容，生成一份結構清晰、可執行的專案計畫或分析報告。在產出時，你必須做到：1. **結構化思考**：使用列表、里程碑和時程呈現資訊。2. **風險意識**：主動識別潛在風險並提出緩解策略。3. **提供建議**：針對模糊不清的部分，提出具體選項與下一步行動。4. **方法彈性**：考量敏捷(Agile)或瀑布(Waterfall)方法的適用性。你的所有輸出都必須是一個 JSON 物件，格式為 {\"artical\": \"你的完整專案計畫或分析報告\"}。",
+    "PM": "你是一位高效的AI專案管理顧問。你的任務是根據收到的內容，生成一份結構清晰、可執行的專案計畫或分析報告。在產出時，你必須做到：1. **結構化思考**：使用列表、里程碑和時程呈現資訊。2. **風險意識**：主動識別潛在風險並提出緩解策略。3. **提供建議**：針對模糊不清的部分，提出具體選項與下一步行動。4. **方法彈性**：考量敏捷(Agile)或瀑布(Waterfall)方法的適用性。",
     
     # RD: 軟體架構師，強調可行性、擴展性和技術債
-    "RD": "你是一位務實的資深軟體架構師(RD)。你的任務是從技術角度審核收到的內容，並優化其設計。在修改內容時，你必須考量以下四個面向：1. **技術可行性**：評估需求的實現難度與時程。2. **系統架構**：確保設計具備良好的擴展性、穩定性和可維護性。3. **開發成本**：在效率與品質之間尋求最佳平衡。4. **潛在風險**：點出可能的技術債、安全漏洞或效能瓶頸。你的所有輸出都必須是一個 JSON 物件，格式為 {\"artical\": \"包含上述分析與優化建議的完整內文\"}。",
+    "RD": "你是一位務實的資深軟體架構師(RD)。你的任務是從技術角度審核收到的內容，並優化其設計。在修改內容時，你必須考量以下四個面向：1. **技術可行性**：評估需求的實現難度與時程。2. **系統架構**：確保設計具備良好的擴展性、穩定性和可維護性。3. **開發成本**：在效率與品質之間尋求最佳平衡。4. **潛在風險**：點出可能的技術債、安全漏洞或效能瓶頸。",
     
     # BD: 業務開發策略師，強調市場、對手和商業模式
-    "BD": "你是一位敏銳的業務開發策略師(BD)。你的任務是從商業價值角度審核收到的內容，並強化其市場競爭力。在修改內容時，你必須聚焦於以下四個面向：1. **市場機會**：分析目標客群(TA)與市場切入點。2. **競爭格局**：找出差異化優勢(USP)與競爭壁壘。3. **商業模式**：明確價值主張與可行的營收模式。4. **行動方案**：提出具體的市場推廣(Go-To-Market)或合作夥伴建議。你的所有輸出都必須是一個 JSON 物件，格式為 {\"artical\": \"包含上述策略分析與優化建議的完整內文\"}。",
+    "BD": "你是一位敏銳的業務開發策略師(BD)。你的任務是從商業價值角度審核收到的內容，並強化其市場競爭力。在修改內容時，你必須聚焦於以下四個面向：1. **市場機會**：分析目標客群(TA)與市場切入點。2. **競爭格局**：找出差異化優勢(USP)與競爭壁壘。3. **商業模式**：明確價值主張與可行的營收模式。4. **行動方案**：提出具體的市場推廣(Go-To-Market)或合作夥伴建議。",
     
     # DEFAULT: 資深編輯與溝通專家，強調清晰、邏輯和說服力
-    "DEFAULT": "你是一位資深編輯與溝通專家。你的任務是將收到的內容優化得更清晰、更有邏輯且具說服力。在修改內容時，你必須執行以下三項檢查：1. **核心論點**：確保核心訊息明確，並移除冗餘、模糊的描述。2. **結構邏輯**：調整段落順序與用詞，使整體論述流暢且易於理解。3. **目標受眾**：根據內容判斷可能的讀者，並優化語氣與風格以達成最佳溝通效果。最好用表格呈現內容，你的所有輸出都必須是一個 JSON 物件，格式為 {\"artical\": \"優化後的完整內文，並在文末附上[編輯點評]說明主要修改思路。\"}。"
+    "DEFAULT": "你是一位資深編輯與溝通專家。你的任務是將收到的內容優化得更清晰、更有邏輯且具說服力。在修改內容時，你必須執行以下三項檢查：1. **核心論點**：確保核心訊息明確，並移除冗餘、模糊的描述。2. **結構邏輯**：調整段落順序與用詞，使整體論述流暢且易於理解。3. **目標受眾**：根據內容判斷可能的讀者，並優化語氣與風格以達成最佳溝通效果。最好用表格呈現內容}。"
 }
 
 CYCLE_LIMIT = 2
@@ -88,23 +88,16 @@ class WorkflowNode:
         print(f"{self.log_prefix} 已初始化。輸入源: {self.input_ids}, 輸出目標: {self.output_ids}")
 
     async def check_and_run(self, sender_id: str):
-        """檢查依賴並執行。sender_id 是觸發本次檢查的上游節點 ID。"""
         print(f"{self.log_prefix} 由 {sender_id} 觸發檢查... (收到 {len(self.received_inputs)} / 需要 {len(self.input_ids)})")
-
-        # ✅ 核心邏輯：處理循環和重激活
-        # 如果節點已完成，但收到新的輸入（代表循環），則檢查循環限制
         if self.status == "COMPLETED":
             count = self.activation_counts.get(sender_id, 0)
             print(f"{self.log_prefix} 已完成，但收到來自 {sender_id} 的循環激活。當前計數: {count}/{CYCLE_LIMIT}")
             if count < CYCLE_LIMIT:
-                # 如果未達到限制，增加計數並重置狀態以重新運行
                 self.activation_counts[sender_id] = count + 1
-                self.status = "PENDING" # 重置狀態，允許重新運行
+                self.status = "PENDING"
                 print(f"{self.log_prefix} 循環次數未達上限，重置狀態為 PENDING。")
             else:
-                # 如果達到限制，則忽略此激活，中斷循環
                 print(f"{self.log_prefix} 已達到循環次數上限，忽略來自 {sender_id} 的激活。")
-                # 檢查工作流是否因為這個循環的中斷而結束
                 await self.manager.check_completion()
                 return
 
@@ -137,8 +130,9 @@ class WorkflowNode:
         task_description = f"請基於以下全部內容，從你「{self.profession}」的角度出發，完成你的任務。\n\n{combined_input}"
 
         try:
-            response_data = await self.manager.execute_llm_call(self.system_prompt, task_description)
-            self.output_content = response_data.get("artical", "(內容生成失敗)")
+            # ✅ 正確的邏輯：直接接收純文本回應
+            raw_response = await self.manager.execute_llm_call(self.system_prompt, task_description)
+            self.output_content = raw_response if raw_response else "(內容生成失敗)"
             self.status = "COMPLETED"
             print(f"{self.log_prefix} 執行成功。")
 
@@ -157,7 +151,7 @@ class WorkflowNode:
             await self.manager.handle_failure(error_msg)
 
 # =================================================================
-# 3. 工作流管理器 (Workflow Manager) - (✅ 升級以支持循環)
+# 3. 工作流管理器 (Workflow Manager)
 # =================================================================
 
 class DynamicWorkflowManager:
@@ -177,7 +171,7 @@ class DynamicWorkflowManager:
         print(f"{self.log_prefix} 所有節點初始化完畢。 সন")
 
     async def start(self):
-        print(f"{self.log_prefix} 開始執行 `start` 函數。")
+        print(f"{self.log_prefix} 開始執行 `start` 函數。 সন")
         try:
             await self.send_update({"status": "started", "message": "工作流啟動..."})
             self.master_history.append({"role": "User", "content": self.process.initialPrompt})
@@ -191,7 +185,6 @@ class DynamicWorkflowManager:
             print(f"{self.log_prefix} 找到唯一起始節點: {gate_node.id}。 সন")
 
             gate_node.received_inputs["user_prompt"] = self.process.initialPrompt
-            # ✅ 傳遞觸發者 ID，對於初始節點，我們使用一個特殊標識
             await gate_node.check_and_run(sender_id="_start_workflow")
 
         except Exception as e:
@@ -260,7 +253,6 @@ class DynamicWorkflowManager:
                 "conversation_id": conv_id
             })
         else:
-            # 在循環流程中，某些節點可能暫時等待，所以不是每次檢查都會結束
             print(f"{self.log_prefix} 尚有 PENDING 或 RUNNING 的節點，工作流繼續。 সন")
 
     def _find_final_node(self) -> Optional[WorkflowNode]:
