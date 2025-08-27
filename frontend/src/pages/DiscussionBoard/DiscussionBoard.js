@@ -11,7 +11,7 @@ import ReactFlow, {
   applyEdgeChanges,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Box, Paper, Typography, Menu, MenuItem, Chip, Button } from '@mui/material';
+import { Box, Paper, Typography, Menu, MenuItem, Chip, Button, Alert, CircularProgress } from '@mui/material';
 import { DoneAll } from '@mui/icons-material';
 import AgentNode from './AgentNode';
 import Sidebar from './Sidebar'; // Corrected typo from Siderbar
@@ -30,13 +30,12 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
   const reactFlowWrapper = useRef(null); 
   const [wsStatus, setWsStatus] = useState('disconnected');
   
-  // ✨ 新增：控制流程結束的狀態
   const [isFinished, setIsFinished] = useState(false);
   const [finalConversationId, setFinalConversationId] = useState(null);
+  const [infoMessage, setInfoMessage] = useState(''); // State for info messages
 
   const nodeTypes = useMemo(() => ({ agent: AgentNode }), []);
 
-  // ... (onDrop, onConnect, etc. remain the same) ...
   const logCurrentProcess = (action) => {
     setWorkflowProcess(currentProcess => {
       console.log(`--- 🔄 狀態更新後 (${action}) ---`);
@@ -105,7 +104,7 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
     logCurrentProcess("設定入口");
   }, []);
   
-     const handleEdgesChange = useCallback((changes) => {
+  const handleEdgesChange = useCallback((changes) => {
     setEdges((eds) => applyEdgeChanges(changes, eds));
     changes.forEach(change => {
       if (change.type === 'remove') {
@@ -130,7 +129,7 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
         logCurrentProcess("刪除連線");
       }
     });
-  }, [edges, setEdges, setWorkflowProcess]);
+  }, [edges, setEdges]);
 
   const handleDeleteNode = () => { 
     if (!contextMenu.node) return;
@@ -153,7 +152,6 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
     logCurrentProcess("刪除 Agent");
   };
 
-  // WebSocket 連接邏輯
   useEffect(() => {
     const websocketURL = 'ws://localhost:8000/api/workflow/ws';
     socketRef.current = new WebSocket(websocketURL);
@@ -165,12 +163,15 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
       const data = JSON.parse(event.data);
       console.log("收到後端更新:", data);
       
-      // ✨ 修改：收到 finished 消息時，只更新狀態，不直接回調
       if (data.status === 'finished') {
+        setInfoMessage('');
         setIsFinished(true);
         setFinalConversationId(data.conversation_id);
       } else if (data.status === 'error') {
-        setIsFinished(true); // 也標示為結束以顯示按鈕
+        setInfoMessage('工作流執行出錯');
+        setIsFinished(true);
+      } else if (data.status === 'info') {
+        setInfoMessage(data.message);
       } else if (data.nodeId) {
         setNodes((nds) =>
           nds.map((node) => {
@@ -186,7 +187,6 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
     return () => { if (socketRef.current) socketRef.current.close(); };
   }, [setNodes]);
 
-  // 啟動流程函數
   const handleStartWorkflow = () => {
     if (!entryPointId) { 
       alert("請先左鍵點擊一個 AI 角色，將其設定為主要進入端口！"); 
@@ -198,7 +198,8 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
     }
     
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-        setIsFinished(false); // 重置結束狀態
+        setInfoMessage('');
+        setIsFinished(false);
         setFinalConversationId(null);
         setNodes(nds => nds.map(node => ({...node, data: {...node.data, response: null, status: undefined}})));
         
@@ -213,7 +214,6 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
     }
   };
 
-  // ✨ 新增：處理最終結果按鈕點擊的函數
   const handleFinalize = () => {
     if (onWorkflowComplete && finalConversationId) {
       onWorkflowComplete(finalConversationId);
@@ -230,7 +230,12 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
     <Box sx={{ height: '100%', display: 'flex' }}>
       <Sidebar />
       <Box sx={{ flex: 1, height: '100%', position: 'relative' }} ref={reactFlowWrapper}>
-        <Box sx={{position: 'absolute', top: 10, right: 10, zIndex: 10}}>
+        <Box sx={{position: 'absolute', top: 10, right: 10, zIndex: 10, display: 'flex', gap: 1, alignItems: 'center' }}>
+             {infoMessage && (
+                <Alert severity="info" icon={<CircularProgress size={20} />} sx={{ p: '0px 16px' }}>
+                    {infoMessage}
+                </Alert>
+             )}
              <Chip 
                label={wsStatus === 'connected' ? '連線成功' : '連線中...'} 
                color={wsStatus === 'connected' ? 'success' : 'warning'}
@@ -263,7 +268,6 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
             )}
           </Box>
         </ReactFlow>
-        {/* ✨ 新增：當流程結束時，顯示最終結果按鈕 */}
         {isFinished && (
           <Paper sx={{ position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)', p: 2, zIndex: 10}} elevation={4}>
             <Button
@@ -283,6 +287,8 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
     </Box>
   );
 });
+
+
 
 const DiscussionBoardWrapper = React.forwardRef((props, ref) => (
   <ReactFlowProvider>

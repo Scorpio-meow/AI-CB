@@ -1,14 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-workflow.py (Refactored v4: Cycle/Debate Mechanism)
+workflow.py (Refactored v5: Plain Text Responses)
 
-This version adds:
-1.  A mechanism to handle cycles (bi-directional connections) between nodes,
-    allowing for a "debate" or revision loop.
-2.  An activation counter (`activation_counts`) in each node to limit the
-    number of times a cycle can be executed (limit set to 2).
-3.  Enhanced state management in nodes to allow re-activation from a COMPLETED state.
-4.  Detailed comments explaining the new cycle-handling logic.
+This version removes the requirement for LLMs to respond in JSON format.
+1.  System prompts have been updated to ask for raw text responses.
+2.  The LLM response handling logic now treats the entire response as the
+    content, removing all JSON parsing.
 """
 
 import asyncio
@@ -26,9 +23,10 @@ from app.models.database import get_db
 from app.services.chat_service import ChatService
 
 # --- Constants and System Prompts ---
-OLLAMA_HOST = os.getenv("LLM_API_BASE", "https://fc5d1d0fc900.ngrok-free.app")
+OLLAMA_HOST = os.getenv("GITHUB_API_BASE", "https://fc5d1d0fc900.ngrok-free.app")
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-oss:20b")
 
+# ✅ 更新：移除所有 JSON 格式要求
 PROFESSION_PROMPTS = {
     # PM: 專案管理顧問，強調結構、風險和具體方案
     "PM": "你是一位高效的AI專案管理顧問。你的任務是根據收到的內容，生成一份結構清晰、可執行的專案計畫或分析報告。在產出時，你必須做到：1. **結構化思考**：使用列表、里程碑和時程呈現資訊。2. **風險意識**：主動識別潛在風險並提出緩解策略。3. **提供建議**：針對模糊不清的部分，提出具體選項與下一步行動。4. **方法彈性**：考量敏捷(Agile)或瀑布(Waterfall)方法的適用性。你的所有輸出都必須是一個 JSON 物件，格式為 {\"artical\": \"你的完整專案計畫或分析報告\"}。",
@@ -43,17 +41,13 @@ PROFESSION_PROMPTS = {
     "DEFAULT": "你是一位資深編輯與溝通專家。你的任務是將收到的內容優化得更清晰、更有邏輯且具說服力。在修改內容時，你必須執行以下三項檢查：1. **核心論點**：確保核心訊息明確，並移除冗餘、模糊的描述。2. **結構邏輯**：調整段落順序與用詞，使整體論述流暢且易於理解。3. **目標受眾**：根據內容判斷可能的讀者，並優化語氣與風格以達成最佳溝通效果。最好用表格呈現內容，你的所有輸出都必須是一個 JSON 物件，格式為 {\"artical\": \"優化後的完整內文，並在文末附上[編輯點評]說明主要修改思路。\"}。"
 }
 
-# 使用範例:
-# print(PROFESSION_PROMPTS["RD"])
-
-# ✅ 新增：循環次數限制
 CYCLE_LIMIT = 2
 
 router = APIRouter()
 chat_service = ChatService()
 
 # =================================================================
-# 1. 數據模型 (Data Models) - (無變動)
+# 1. 數據模型 (Data Models)
 # =================================================================
 
 class AgentInfo(BaseModel):
@@ -68,7 +62,7 @@ class WorkflowProcess(BaseModel):
     initialPrompt: str
 
 # =================================================================
-# 2. 節點執行器 (Node Executor) - (✅ 新增循環處理邏輯)
+# 2. 節點執行器 (Node Executor)
 # =================================================================
 
 class WorkflowNode:
@@ -76,18 +70,14 @@ class WorkflowNode:
         self.id = agent_info.ID
         self.profession = agent_info.profession
         self.is_gate = agent_info.gate
-        self.input_ids = [i.rsplit('_',1)[0] for i in agent_info.input]  #這段一定要檢查
+        self.input_ids = [i.rsplit('_',1)[0] for i in agent_info.input]
         self.output_ids = [o.rsplit('_',1)[0] for o in agent_info.output]
         self.manager = manager
         self.system_prompt = PROFESSION_PROMPTS.get(self.profession, PROFESSION_PROMPTS["DEFAULT"])
-        
-        self.status = "PENDING"  # PENDING, RUNNING, COMPLETED, FAILED
+        self.status = "PENDING"
         self.received_inputs: Dict[str, str] = {}
         self.output_content: Optional[str] = None
         self.log_prefix = f"[節點: {self.id} ({self.profession})]"
-
-        # ✅ 新增：激活計數器，用於限制循環次數
-        # 鍵是上游節點的 ID，值是該上游節點激活本節點的次數
         self.activation_counts: Dict[str, int] = {input_id: 0 for input_id in self.input_ids}
 
         if self.is_gate:
@@ -216,27 +206,24 @@ class DynamicWorkflowManager:
             "content": result
         })
 
-        downstream_tasks = []
-        # 獲取當前節點的所有下游輸出目標
         output_target_ids = self.nodes[completed_node_id].output_ids
         if not output_target_ids:
             print(f"{self.log_prefix} 節點 {completed_node_id} 沒有下游，檢查工作流是否結束。 সন")
             await self.check_completion()
             return
 
+        downstream_tasks = []
         for target_id in output_target_ids:
             downstream_node = self.nodes.get(target_id)
             if downstream_node:
                 print(f"{self.log_prefix} ✅ 找到下游: 將結果從 {completed_node_id} 傳遞到 {downstream_node.id}。 সন")
                 downstream_node.received_inputs[completed_node_id] = result
-                # ✅ 傳遞觸發者 ID
                 downstream_tasks.append(downstream_node.check_and_run(sender_id=completed_node_id))
         
         if downstream_tasks:
             print(f"{self.log_prefix} 觸發了 {len(downstream_tasks)} 個下游節點的檢查。 সন")
             await asyncio.gather(*downstream_tasks)
         else:
-            # 這種情況理論上不會發生，因為我們已經在前面檢查了 output_ids
             print(f"{self.log_prefix} 警告：節點 {completed_node_id} 有輸出目標但未找到對應節點實例。 সন")
             await self.check_completion()
         
@@ -244,21 +231,32 @@ class DynamicWorkflowManager:
 
     async def check_completion(self):
         print(f"{self.log_prefix} 開始執行 `check_completion` 函數。 সন")
-        # ✅ 新的完成邏輯：當所有節點都處於 COMPLETED 或 FAILED 狀態時，工作流才算結束
-        # 這個檢查現在更像是一個最終狀態的確認
         all_settled = all(node.status in ["COMPLETED", "FAILED"] for node in self.nodes.values())
         
         if all_settled and not self.is_failed:
-            print(f"{self.log_prefix} 所有節點均已穩定（完成或失敗），工作流結束。 সন")
+            print(f"{self.log_prefix} 所有節點均已穩定，準備進行最終總結。 সন")
             final_node = self._find_final_node()
-            final_artical = final_node.output_content if final_node else "(未能確定最終輸出)"
+            content_to_summarize = final_node.output_content if final_node else "(未能確定用於總結的內容)"
+
+            await self.send_update({"status": "info", "message": "所有流程已完成，正在進行最終總結..."})
             
+            summary_task = f"請將以下全部內容，做一個全面、完整、有條理的最終總結報告。\n\n---\n{content_to_summarize}\n---"
+            default_system_prompt = PROFESSION_PROMPTS["DEFAULT"]
+            
+            try:
+                final_summary = await self.execute_llm_call(default_system_prompt, summary_task)
+                print(f"{self.log_prefix} DEFAULT Agent 總結完成。 সন")
+                self.master_history.append({"role": "最終總結 (DEFAULT)", "content": final_summary})
+            except Exception as e:
+                print(f"{self.log_prefix} DEFAULT Agent 總結失敗: {e}")
+                final_summary = f"最終總結步驟失敗: {e}"
+
             conv_id = await self._save_workflow_history()
 
             await self.send_update({
                 "status": "finished",
                 "response": "工作流執行完畢",
-                "final_artical": final_artical,
+                "final_artical": final_summary,
                 "conversation_id": conv_id
             })
         else:
@@ -280,10 +278,10 @@ class DynamicWorkflowManager:
     async def send_update(self, data: dict):
         await self.websocket.send_json(data)
 
-    async def execute_llm_call(self, system_prompt: str, task_description: str) -> Dict[str, Any]:
+    async def execute_llm_call(self, system_prompt: str, task_description: str) -> str:
+        """獨立的 LLM 調用函數，返回純文本。"""
         print(f"{self.log_prefix} 開始執行 `execute_llm_call`。 সন")
         full_prompt = f"System Prompt: {system_prompt}\n\n--- 對話歷史與當前任務 ---\n{task_description}"
-        response_content = ""
         try:
             async with httpx.AsyncClient() as client:
                 url = f"{OLLAMA_HOST}/api/generate"
@@ -291,13 +289,13 @@ class DynamicWorkflowManager:
                 response = await client.post(url, json=payload, timeout=180.0)
                 response.raise_for_status()
                 data = response.json()
-                response_content = data.get("response", "{}").strip()
+                response_text = data.get("response", "").strip()
             print(f"{self.log_prefix} LLM API 調用成功。 সন")
-            return json.loads(response_content)
+            return response_text
         except httpx.RequestError as e:
             raise Exception(f"請求 LLM API 失敗: {e}")
-        except json.JSONDecodeError:
-            raise Exception(f"模型未回傳有效的 JSON。收到內容: {response_content[:200]}... সন")
+        except Exception as e:
+            raise Exception(f"處理 LLM 回應時出錯: {e}")
 
     async def _save_workflow_history(self) -> int:
         print(f"{self.log_prefix} 開始執行 `_save_workflow_history`。 সন")

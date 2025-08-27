@@ -7,16 +7,20 @@ function AgentNode({ data }) {
     <Paper 
       elevation={3} 
       sx={{ 
-        padding: '10px 15px', 
+        padding: '14px 10px', 
+        margin: '17px 0px', 
         borderRadius: '8px', 
-        border: data.isEntryPoint ? '2px solid #4CAF50' : '1px solid #bbb',
+        border: data.isEntryPoint ? '3.5px solid #4CAF50' : '2px solid #000000ff',
         boxShadow: data.isEntryPoint ? '0 0 10px rgba(76, 175, 80, 0.5)' : 'none',
-        width: 250,
+        width: 350,
         backgroundColor: data.status === 'thinking' || data.status === 'revising' ? '#fffbe6' : 'white',
         transition: 'background-color 0.3s ease',
       }}
     >
-      <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
+      <Handle type="target" position={Position.Top} style={{ 
+       background: data.isEntryPoint ? ' #4CAF50' : '#000000ff' ,width: 16,height: 16,
+        border: data.isEntryPoint ? '3.5px solid #4CAF50' : '2px solid #000000ff',
+        boxShadow: data.isEntryPoint ? '0 0 10px rgba(76, 175, 80, 0.5)' : 'none'}} />
       
       <Typography variant="subtitle1" sx={{ fontWeight: 'bold', textAlign: 'center' }}>
         {data.label}
@@ -26,11 +30,13 @@ function AgentNode({ data }) {
       <Box 
         sx={{
           minHeight: 50, // 設定最小高度，避免思考中狀態框太小
-          maxHeight: 150,
+          maxHeight: 350,
           overflowY: 'auto',
           fontSize: '0.875rem',
           backgroundColor: '#f5f5f5',
           padding: '8px',
+          border:"0.1px solid black",
+          borderRadius: '4px',
           borderRadius: '4px',
           whiteSpace: 'pre-wrap',
           wordBreak: 'break-word',
@@ -54,7 +60,10 @@ function AgentNode({ data }) {
         )}
       </Box>
 
-      <Handle type="source" position={Position.Bottom} style={{ background: '#555' }} />
+      <Handle type="source" position={Position.Bottom} style={{ 
+        background: data.isEntryPoint ? ' #4CAF50' : '#000000ff',width: 16,height: 16,
+        border: data.isEntryPoint ? '3.5px solid #4CAF50' : '2px solid #000000ff',
+        boxShadow: data.isEntryPoint ? '0 0 10px rgba(76, 175, 80, 0.5)' : 'none'}}/>
     </Paper>
   );
 }
