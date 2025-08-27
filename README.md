@@ -91,7 +91,7 @@ copy .env.example .env
 
 5. 啟動後端服務：
 ```bash
-python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
+python -m uvicorn main:app --reload --host 127.0.0.1 --port 8001
 ```
 
 ### 前端設置
@@ -152,7 +152,7 @@ REINDEX_HOURS=24
 
 #### 前端 (.env)
 ```env
-REACT_APP_API_URL=http://127.0.0.1:8000
+REACT_APP_API_URL=http://127.0.0.1:8001
 ```
 
 ## API 接口
