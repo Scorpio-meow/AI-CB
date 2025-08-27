@@ -13,14 +13,9 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document
 from sklearn.metrics.pairwise import cosine_similarity
 from whoosh import index, fields, qparser, scoring
-from whoosh.analysis import StandardAnalyzer, Analyzer, Tokenizer, Token
+from whoosh.analysis import StandardAnalyzer
 from whoosh.filedb.filestore import FileStorage
 import tempfile
-try:
-    import jieba
-    _HAS_JIEBA = True
-except Exception:
-    _HAS_JIEBA = False
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +29,7 @@ class HybridContextualRAG:
     """
     def __init__(self):
         try:
+            self.github_token = os.getenv("GITHUB_TOKEN")
             self.model_name = os.getenv("MODEL_NAME", "gpt-oss:20b")
             self.api_base = os.getenv("GITHUB_API_BASE", "https://fc5d1d0fc900.ngrok-free.app")
             
@@ -84,8 +80,12 @@ class HybridContextualRAG:
             self.bm25_index = None
             self.bm25_searcher = None
             
-            # Text splitter (optimize for Chinese punctuation-aware splitting)
-            self.text_splitter = self._create_text_splitter()
+            # Text splitter
+            self.text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=self.chunk_size,
+                chunk_overlap=self.chunk_overlap,
+                length_function=len,
+            )
             
             # Load existing indices
             self._load_indices()
@@ -135,76 +135,12 @@ class HybridContextualRAG:
     
     def _create_bm25_schema(self):
         """Create Whoosh schema for BM25"""
-        # Prefer jieba analyzer for Chinese text if available
-        analyzer = self._get_chinese_analyzer()
         return fields.Schema(
             doc_id=fields.ID(stored=True, unique=True),
-            content=fields.TEXT(stored=True, analyzer=analyzer),
+            content=fields.TEXT(stored=True, analyzer=StandardAnalyzer()),
             title=fields.TEXT(stored=True),
             source=fields.TEXT(stored=True),
             chunk_index=fields.NUMERIC(stored=True)
-        )
-
-    def _get_chinese_analyzer(self) -> Analyzer:
-        """Return a Whoosh analyzer optimized for Chinese using jieba when available."""
-        if _HAS_JIEBA:
-            class JiebaTokenizer(Tokenizer):
-                def __call__(self, value, positions=False, chars=False, keeporiginal=False,
-                             removestops=False, start_pos=0, start_char=0, tokenize=True,
-                             mode="default", **kwargs):
-                    t = Token(positions, chars, removestops=removestops)
-                    if not tokenize:
-                        return
-                    if isinstance(value, bytes):
-                        try:
-                            value = value.decode("utf-8", "ignore")
-                        except Exception:
-                            value = value.decode(errors="ignore")
-                    pos = start_pos
-                    char_pos = start_char
-                    for w in jieba.cut(value, cut_all=False):
-                        w = w.strip()
-                        if not w:
-                            continue
-                        t.original = w
-                        t.text = w
-                        t.boost = 1.0
-                        if positions:
-                            t.pos = pos
-                            pos += 1
-                        if chars:
-                            # best-effort char positions
-                            idx = value.find(w, char_pos)
-                            if idx < 0:
-                                idx = char_pos
-                            t.startchar = idx
-                            t.endchar = idx + len(w)
-                            char_pos = t.endchar
-                        yield t
-
-            class JiebaAnalyzer(Analyzer):
-                def __init__(self):
-                    self._tokenizer = JiebaTokenizer()
-
-                def __call__(self, value, **kwargs):
-                    return self._tokenizer(value, **kwargs)
-
-            return JiebaAnalyzer()
-        # Fallback to StandardAnalyzer when jieba is not available
-        return StandardAnalyzer()
-
-    def _create_text_splitter(self) -> RecursiveCharacterTextSplitter:
-        """Create a text splitter tuned for Chinese punctuation and sentence breaks."""
-        # Prioritize splitting on Chinese punctuation, then on sentences/newlines, then characters
-        separators = [
-            "\n\n", "。", "！", "？", "；", "：", "，", ", ", ". ", "! ", "? ",
-            "\n", "。\n", "；\n", "，\n", "。 ", "； ", "， ", " ", ""
-        ]
-        return RecursiveCharacterTextSplitter(
-            chunk_size=self.chunk_size,
-            chunk_overlap=self.chunk_overlap,
-            length_function=len,
-            separators=separators,
         )
     
     def _load_bm25_index(self):
@@ -212,8 +148,7 @@ class HybridContextualRAG:
         try:
             storage = FileStorage(self.bm25_index_dir)
             self.bm25_index = storage.open_index()
-            # Use BM25 weighting explicitly
-            self.bm25_searcher = self.bm25_index.searcher(weighting=scoring.BM25F())
+            self.bm25_searcher = self.bm25_index.searcher()
         except Exception as e:
             logger.error(f"Failed to load BM25 index: {e}")
             self.bm25_index = None
@@ -231,8 +166,7 @@ class HybridContextualRAG:
             metadata = {
                 "last_reindex": datetime.now(),
                 "total_documents": len(self.documents),
-                "total_vectors": self.index.ntotal,
-                "tokenizer": "jieba" if _HAS_JIEBA else "standard"
+                "total_vectors": self.index.ntotal
             }
             with open(self.metadata_path, 'wb') as f:
                 pickle.dump(metadata, f)
@@ -248,16 +182,6 @@ class HybridContextualRAG:
                 with open(self.metadata_path, 'rb') as f:
                     metadata = pickle.load(f)
                 last_reindex = metadata.get("last_reindex")
-                # If tokenizer changed to jieba, rebuild BM25 to ensure compatibility
-                tokenizer_used = metadata.get("tokenizer", "standard")
-                if _HAS_JIEBA and tokenizer_used != "jieba":
-                    logger.info("Detected non-jieba BM25 index metadata. Rebuilding BM25 index with jieba analyzer...")
-                    self._rebuild_bm25_index()
-                    # update metadata immediately
-                    metadata["tokenizer"] = "jieba"
-                    metadata["last_reindex"] = datetime.now()
-                    with open(self.metadata_path, 'wb') as f:
-                        pickle.dump(metadata, f)
                 if last_reindex and isinstance(last_reindex, datetime):
                     hours_since = (datetime.now() - last_reindex).total_seconds() / 3600
                     if hours_since > self.reindex_threshold_hours:
@@ -313,10 +237,10 @@ class HybridContextualRAG:
                 )
             writer.commit()
             
-            # Update searcher with BM25 weighting
+            # Update searcher
             if self.bm25_searcher:
                 self.bm25_searcher.close()
-            self.bm25_searcher = self.bm25_index.searcher(weighting=scoring.BM25F())
+            self.bm25_searcher = self.bm25_index.searcher()
             
         except Exception as e:
             logger.error(f"Failed to rebuild BM25 index: {e}")
@@ -377,7 +301,7 @@ class HybridContextualRAG:
                 self.bm25_index = storage.create_index(self._create_bm25_schema())
                 if self.bm25_searcher:
                     self.bm25_searcher.close()
-                self.bm25_searcher = self.bm25_index.searcher(weighting=scoring.BM25F())
+                self.bm25_searcher = self.bm25_index.searcher()
             
             # Add documents
             writer = self.bm25_index.writer()
@@ -393,10 +317,10 @@ class HybridContextualRAG:
                 )
             writer.commit()
             
-            # Update searcher with BM25 weighting
+            # Update searcher
             if self.bm25_searcher:
                 self.bm25_searcher.close()
-            self.bm25_searcher = self.bm25_index.searcher(weighting=scoring.BM25F())
+            self.bm25_searcher = self.bm25_index.searcher()
             
         except Exception as e:
             logger.error(f"Failed to add to BM25 index: {e}")
@@ -578,93 +502,36 @@ class HybridContextualRAG:
             for exchange in recent_context:
                 conversation_context += f"用戶: {exchange['user']}\nAI: {exchange['assistant']}\n\n"
         
-        # Build document context with improved citations (only include top-N to control prompt size)
+        # Build document context with improved citations
         document_context = ""
         sources = []
-        max_docs = min(len(relevant_docs), 5)
-        for i, doc in enumerate(relevant_docs[:max_docs]):
+        for i, doc in enumerate(relevant_docs):
             source = doc.metadata.get('source', '未知來源')
             sources.append(source)
             chunk_id = doc.metadata.get('chunk_index', 0)
             document_context += f"文檔 [{i+1}] (來源: {source}, 段落: {chunk_id}):\n{doc.page_content}\n\n"
         
-        # Enhanced prompt with citation requirements and stricter fallback/format rules
-        prompt = f"""你是 HR Athena，神通資訊科技股份有限公司（神資／神通資科／神通資訊／MiTAC）的專業人力資源助手。你的目標是提供精確、簡短、專業且友善的人力資源問題解答。你輸出只能使用繁體中文
+        # Enhanced prompt with citation requirements
+        prompt = f"""你是一個專業的繁體中文智能助手。請根據提供的文檔內容回答用戶問題，並嚴格遵循以下要求：
 
+對話歷史:
+{conversation_context}
 
-    以下為系統提供的上下文（僅包含最相關的前 {max_docs} 段）：
+相關文檔內容:
+{document_context}
 
-    對話歷史:
-    {conversation_context}
+用戶問題: {query}
 
-    相關文檔內容 (僅顯示最相關前 {max_docs} 段):
-    {document_context}
+回答要求：
+1. 使用繁體中文回答
+2. 僅基於上述文檔內容回答，不要添加文檔外的信息
+3. 回答時必須引用來源，格式：[來源：文檔名稱]
+4. 如果文檔中沒有相關信息，請明確說明「根據提供的文檔，找不到相關信息」
+5. 回答要條理清晰、結構化呈現
+6. 對於數據、日期、專有名詞等關鍵信息，務必準確引用
 
-    用戶問題: {query}
-
-    回答要求：
-    ###互動模式
-    ##背景知識:使用者是神通資訊科技股份有限公司的員工，尋找答案時優先朝神通資訊科技去搜尋。
-    ##回答流程：
-    - 理解問題：確認問題是否清楚、是否屬於知識庫範圍
-    - 提問澄清：如問題模糊，主動釐清（見「提問引導指南」）
-    - 提取資訊：從知識庫中找出對應資訊，特別留意表格類資料
-    - 組織回答：回覆需簡潔明確，必要時條列或分類說明
-    - 主動補充：如資訊可能不足，提供補充建議或提醒注意事項
-
-    ##拒絕回答情況：
-    - 若問題超出知識庫範圍，回覆：「抱歉，我目前沒有這方面的資訊。建議您直接聯繫人資部門進一步諮詢。」
-    - 不回覆與公司人資政策無關的問題
-
-    ###核心能力
-    ##【對話理解與應對】
-    - 上下文記憶：考慮對話前後文一致性與提問邏輯
-    - 回應風格：專業、簡短、有溫度，不使用過度口語或冗詞
-    - 知識來源限制：僅根據 RAG 知識庫資料回應，不猜測、不補齊
-    - 多輪對話應對：使用者反覆問類似問題時，用不同方式說明
-    - 不確定就釐清：不明確問題需先確認，不可直接臆測回答
-
-    ##【提問引導指南（範例句型）】
-    #如遇語意模糊或資訊不足，請使用以下範例協助釐清：
-    - 請問您目前任職的是神通資訊科技還是其他公司？
-    - 您是查詢自己的資訊還是幫他人詢問？
-    - 您提到「請假」，請問是特休、病假還是其他假別？
-
-    ###表格理解與處理指南
-    - 精確比對表格標題與使用者關鍵詞
-    - 根據公司別、職等、年資等欄位，過濾出適用資料列
-    - 回覆時避免原始表格格式，改用條列、分類或簡單說明
-    - 避免誤將多公司資料混合回答，必要時詢問對方任職公司
-
-    ###混淆辨識與容錯機制
-    ##常見混淆情境處理如下：
-    - 提問中出現「神通」但未明確說明公司，請回問：「請問是神通電腦還是神通資訊科技呢？」
-    - 假別描述與內容不符（如提及病假卻內容描述年假），請提醒使用者可能混用並提供選項
-    - 提問接近常見問題但用語不同，請確認是否輸入錯字或描述錯誤流程
-
-    ###自我回饋與回答補強機制
-    ##回答後請自我檢查是否有以下情況，並適當補充：
-    - 是否資訊不完整？→「若您有更詳細條件，也歡迎補充，我再協助補充說明。」
-    - 是否有多種解釋可能？→「若您指的是其他狀況，也請再說明，我再調整說明方向。」
-    - 是否答案過長或複雜？→「您若需要簡單摘要，我可以再精簡說明一次。」
-
-    ###公司知識關聯
-    ##你應理解以下企業別名對應：
-    - 神通資訊科技股份有限公司 = 神資、神通資科、神通資訊、MiTAC
-    - 新達電腦股份有限公司 = 新達、新達電腦
-    - 肇源股份有限公司 = 肇源
-    - 神耀科技股份有限公司 = 神耀
-
-    ###若提問中僅寫「神通」，請主動釐清：「請問是神通電腦還是神通資訊科技呢？」
-    ##回應準則
-    - 準確性：僅根據知識庫內容回應，不得推測或補齊
-    - 簡潔性：回答須直截了當、清楚明確，避免冗詞
-    - 結構化：資訊複雜時，請使用條列或分段方式協助理解
-    - 友善專業：保持禮貌與溫和語氣，展現人資專業與效率
-    - 後續引導：如可能需要更多協助，主動提供建議或聯繫管道
-
-    請提供回答："""
-
+請提供回答："""
+        
         return prompt
     
     async def call_llm_api(self, prompt: str) -> str:
