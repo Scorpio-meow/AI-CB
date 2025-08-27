@@ -10,7 +10,6 @@ import {
   AdminPanelSettings,
   Chat,
   Description,
-  AccountTree
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -40,14 +39,6 @@ function Layout({ children }) {
               onClick={() => navigate('/documents')}
             >
               知識庫
-            </Button>
-
-            <Button 
-              color="inherit" 
-              startIcon={<AccountTree />}
-              onClick={() => navigate('/workflow')}
-            >
-              工作流
             </Button>
             
             <Button 

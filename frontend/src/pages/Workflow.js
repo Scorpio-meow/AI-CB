@@ -113,8 +113,8 @@ const Workflow = () => {
 
   const connectWebSocket = () => {
     // Ensure you are using the correct WebSocket protocol (ws or wss)
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.host}/api/workflow/ws`;
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = (process.env.REACT_APP_WS_URL && process.env.REACT_APP_WS_URL.replace('/api/workflow/ws','/api/ws')) || `${wsProtocol}//${window.location.host}/api/ws`;
 
     ws.current = new WebSocket(wsUrl);
 

@@ -293,7 +293,6 @@ function Documents() {
     for (const id of selectedDocIds) {
       try {
         await axios.delete(`/api/documents/${id}`);
-        // mark deleted and remove from UI
         setDeletingStatus((prev) => ({ ...prev, [id]: 'deleted' }));
         setDocuments((prev) => prev.filter((d) => d.id !== id));
       } catch (err) {
@@ -311,55 +310,9 @@ function Documents() {
       setError(`部分刪除失敗: ${failed.join(',')}`);
     }
     // remove deleted ids from selection
-    setSelectedDocIds((prev) => prev.filter((id) => !(deletingStatus[id] === 'deleted')));
-    // finally refresh list to sync with server
+    setSelectedDocIds((prev) => prev.filter((id) => deletingStatus[id] !== 'deleted'));
+    // refresh document list
     loadDocuments();
-    if (!selectedDocIds || selectedDocIds.length === 0) return;
-    setBulkDeleting(true);
-    // mark all as deleting
-    setDeletingStatus((prev) => {
-      const next = { ...prev };
-      for (const id of selectedDocIds) next[id] = 'deleting';
-      return next;
-    });
-
-    try {
-      const response = await axios.post('/api/documents/bulk_delete', { ids: selectedDocIds });
-      const results = response.data?.results || [];
-      const failed = [];
-
-      for (const r of results) {
-        if (r.status === 'deleted') {
-          setDeletingStatus((prev) => ({ ...prev, [r.id]: 'deleted' }));
-          setDocuments((prev) => prev.filter((d) => d.id !== r.id));
-        } else {
-          failed.push(r.id);
-          setDeletingStatus((prev) => ({ ...prev, [r.id]: 'failed' }));
-        }
-      }
-
-      if (failed.length === 0) {
-        setSuccess('已刪除選取的文檔');
-      } else {
-        setError(`部分刪除失敗: ${failed.join(',')}`);
-      }
-    } catch (err) {
-      console.error('Bulk delete request failed', err);
-      // mark all as failed
-      setDeletingStatus((prev) => {
-        const next = { ...prev };
-        for (const id of selectedDocIds) next[id] = 'failed';
-        return next;
-      });
-      setError('批次刪除失敗: ' + (err.response?.data?.detail || err.message));
-    } finally {
-      setBulkDeleting(false);
-      setBulkDeleteConfirmOpen(false);
-      // clear selection of those that were deleted
-      setSelectedDocIds((prev) => prev.filter((id) => deletingStatus[id] !== 'deleted'));
-      // sync with server for any unexpected differences
-      loadDocuments();
-    }
   };
 
   const formatFileSize = (bytes) => {

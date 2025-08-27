@@ -172,7 +172,7 @@ REACT_APP_API_URL=http://127.0.0.1:8000
 - `POST /api/documents/upload` - 上傳文件 (支援 TXT, PDF, DOCX)
 - `GET /api/documents/` - 獲取文件列表
 - `DELETE /api/documents/{id}` - 刪除文件
- - `POST /api/documents/bulk_delete` - 批次刪除文件（接受 JSON { ids: [1,2,3] }，回傳每 id 的刪除結果）
+ - `POST /api/documents/bulk_delete` - 已移除，請改用單一刪除 `DELETE /api/documents/{id}`
 
 ### 管理功能
 - `GET /api/admin/users` - 獲取用戶列表

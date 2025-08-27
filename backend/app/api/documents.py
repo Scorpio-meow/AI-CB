@@ -8,7 +8,6 @@ from langchain.schema import Document as LangchainDocument
 import os
 import shutil
 from typing import List, Dict, Any
-from pydantic import BaseModel
 import asyncio
 import logging
 
@@ -186,94 +185,4 @@ async def delete_document(
     return {"message": "文件刪除成功"}
 
 
-class BulkDeleteRequest(BaseModel):
-    ids: List[int]
-
-
-@router.post("/bulk_delete")
-async def bulk_delete_documents(
-    request: BulkDeleteRequest,
-    db: Session = Depends(get_db)
-):
-    """一次刪除多個文件，返回每個 id 的刪除結果。
-
-    流程：
-    1. 以單次查詢找出存在的 Document
-    2. 對每個存在的 Document 並行處理：從 RAG 移除、刪除實體檔案（使用 asyncio.to_thread 執行阻塞 I/O）
-    3. 以批次 SQL 刪除 DocumentChunk 與 Document
-    4. 回傳每個 id 的結果，含錯誤細節
-    """
-    ids = list(dict.fromkeys(request.ids or []))
-    results: List[Dict[str, Any]] = []
-    if not ids:
-        return {"results": results}
-
-    # 查出存在的 documents
-    documents = db.query(Document).filter(Document.id.in_(ids)).all()
-    present_ids = [d.id for d in documents]
-    missing_ids = [i for i in ids if i not in present_ids]
-
-    # 標記不存在的 id
-    for mid in missing_ids:
-        results.append({"id": mid, "status": "not_found", "detail": "文件不存在"})
-
-    # 並行處理 RAG 移除與實體檔案刪除
-    async def handle_doc_removal(doc: Document) -> Dict[str, Any]:
-        doc_id = doc.id
-        detail_msgs = []
-        # 移除 RAG 索引（可能為阻塞）
-        try:
-            await asyncio.to_thread(rag_system.remove_document_by_id, doc_id)
-        except Exception as e:
-            msg = f"RAG remove failed: {e}"
-            logger.warning(msg)
-            detail_msgs.append(msg)
-
-        # 刪除實體檔案
-        try:
-            upload_dir = "data/uploads"
-            file_path = os.path.join(upload_dir, doc.filename)
-            if os.path.exists(file_path):
-                await asyncio.to_thread(os.remove, file_path)
-        except Exception as e:
-            msg = f"File remove failed: {e}"
-            logger.warning(msg)
-            detail_msgs.append(msg)
-
-        return {"id": doc_id, "detail_msgs": detail_msgs}
-
-    tasks = [handle_doc_removal(d) for d in documents]
-    per_doc_results = []
-    if tasks:
-        per_doc_results = await asyncio.gather(*tasks, return_exceptions=False)
-
-    # 批次刪除 DocumentChunk 與 Document
-    try:
-        if present_ids:
-            db.query(DocumentChunk).filter(DocumentChunk.document_id.in_(present_ids)).delete(synchronize_session=False)
-            db.query(Document).filter(Document.id.in_(present_ids)).delete(synchronize_session=False)
-            db.commit()
-            db_operation_ok = True
-        else:
-            db_operation_ok = True
-    except Exception as e:
-        logger.error(f"Batch DB delete failed: {e}")
-        try:
-            db.rollback()
-        except Exception:
-            pass
-        db_operation_ok = False
-
-    # 撰寫最終結果
-    for r in per_doc_results:
-        doc_id = r.get('id')
-        msgs = r.get('detail_msgs') or []
-        if not db_operation_ok:
-            results.append({"id": doc_id, "status": "failed", "detail": "DB delete failed" + (": " + "; ".join(msgs) if msgs else "")})
-        else:
-            if msgs:
-                results.append({"id": doc_id, "status": "deleted_with_warnings", "detail": "; ".join(msgs)})
-            else:
-                results.append({"id": doc_id, "status": "deleted"})
-
-    return {"results": results}
+# Bulk delete endpoint removed. Use individual DELETE /{document_id} for deletions.

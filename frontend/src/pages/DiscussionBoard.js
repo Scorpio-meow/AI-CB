@@ -8,7 +8,7 @@ import ReactFlow, {
   Background,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Box, Paper, Typography, List, ListItem, ListItemText, Menu, MenuItem, Button, Chip } from '@mui/material';
+import { Box, Paper, Typography, List, ListItem, ListItemText, Menu, MenuItem, Chip } from '@mui/material';
 import AgentNode from './AgentNode';
 
 const agentTypes = [
@@ -54,13 +54,14 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
   const socketRef = useRef(null);
   const reactFlowWrapper = useRef(null); 
   const [wsStatus, setWsStatus] = useState('disconnected');
-  const [runStatus, setRunStatus] = useState('idle');
+  const [, setRunStatus] = useState('idle');
   
   const nodeTypes = useMemo(() => ({ agent: AgentNode }), []);
 
   // === WebSocket 連線與事件處理 ===
   useEffect(() => {
-    const websocketURL = 'ws://localhost:8000/api/workflow/ws';
+  // Use environment WS URL if provided, otherwise default to API ws endpoint
+  const websocketURL = (process.env.REACT_APP_WS_URL && process.env.REACT_APP_WS_URL.replace('/api/workflow/ws','/api/ws')) || `ws://${window.location.host}/api/ws`;
     socketRef.current = new WebSocket(websocketURL);
 
     socketRef.current.onopen = () => {
