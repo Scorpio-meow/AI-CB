@@ -1,317 +1,334 @@
+# -*- coding: utf-8 -*-
+"""
+workflow.py (Refactored v3: Dependency Resolution Fix)
 
-import json
+This version adds:
+1.  Extremely detailed logging inside propagate_result to debug dependencies.
+2.  A fix in the node initialization logic to correctly parse dependencies.
+"""
+
 import asyncio
-import time
+import json
 import os
+from typing import List, Dict, Any, Optional
+
 import httpx
-from typing import Dict, List, Any, Tuple
-
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
-from app.models.payloads import WorkflowPayload, Node, Edge
 from app.api.chat import manager
-from app.services.auth_service import AuthService
+from app.models.database import get_db
+from app.services.chat_service import ChatService
 
-# =================================================================
-# === 環境變數設定 (保持不變) =====================================
-# =================================================================
+# --- Constants and System Prompts ---
 OLLAMA_HOST = os.getenv("GITHUB_API_BASE", "https://fc5d1d0fc900.ngrok-free.app")
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-oss:20b")
 
-router = APIRouter()
-auth_service = AuthService()
-
-# =================================================================
-# === ✅ NEW: 增強版 SYSTEM_PROMPTS ===============================
-# =================================================================
-# 新增了 Aggregator 角色，並微調了其他角色的描述
-SYSTEM_PROMPTS = {
-    "PM": "你是一位經驗豐富的專案經理。你的任務是根據初始指令，生成一份詳細的專案計畫。你的所有輸出都必須是一個 JSON 物件，格式為 {\"artical\": \"你的完整專案計畫\"}	extit{",
-    "工程師": "你是一位務實的資深軟體工程師。你的任務是審核上游傳來的內容，並從技術可行性、系統穩定性與開發成本的角度，直接修改內容使其更完善。你的所有輸出都必須是一個 JSON 物件，格式為 {\"artical\": \"修改後的完整內文\"}	extit{",
-    "業務分析師": "你是一位敏銳的業務分析師。你的任務是審核上游傳來的內容，並從市場趨勢、競爭對手與營收模式的角度，直接修改內容使其更完善。你的所有輸出都必須是一個 JSON 物件，格式為 {\"artical\": \"修改後的完整內文\"}	extit{",
-    "Aggregator": "你是一個資訊聚合器。你的任務是將多個上游角色提供的內容整合成一份通順、連貫的文件。直接輸出整合後的完整內容。你的所有輸出都必須是一個 JSON 物件，格式為 {\"artical\": \"整合後的完整內文\"}	extit{",
-    "default": "你是一個通用的 AI 助理。你的任務是審核上游傳來的內容，並直接修改使其更完善。你的所有輸出都必須是一個 JSON 物件，格式為 {\"artical\": \"修改後的完整內文\"}	extit{"
+PROFESSION_PROMPTS = {
+    "PM": "你是一位經驗豐富的專案經理。你的任務是根據收到的內容，生成或優化一份專案計畫。且輸出必須是中文為主，且不管使用者輸入甚麼都已你這角色角度去做思考，你的所有輸出都必須是一個 JSON 物件。格式為 {\"artical\": \"你的完整專案計畫\"}。",
+    "RD": "你是一位務實的資深軟體工程師(RD)。你的任務是審核收到的內容，並從技術可行性、系統穩定性與開發成本的角度，直接修改內容使其更完善。且輸出必須是中文為主，且不管使用者輸入甚麼都已你這角色角度去做思考，你的所有輸出都必須是一個 JSON 物件。格式為 {\"artical\": \"修改後的完整內文\"}。",
+    "BD": "你是一位敏銳的業務分析師(BD)。你的任務是審核收到的內容，並從市場趨勢、競爭對手與營收模式的角度，直接修改內容使其更完善。且輸出必須是中文為主，且不管使用者輸入甚麼都已你這角色角度去做思考，你的所有輸出都必須是一個 JSON 物件。格式為 {\"artical\": \"修改後的完整內文\"}。",
+    "DEFAULT": "你是一個通用的 AI 助理。你的任務是審核收到的內容，並直接修改使其更完善。你的所有輸出都必須是一個 JSON 物件，格式為 {\"artical\": \"修改後的完整內文\"}。"
 }
 
+router = APIRouter()
+chat_service = ChatService()
 
-class WorkflowOrchestrator:
-    def __init__(self, payload: WorkflowPayload, websocket: WebSocket, user_id: int):
-        self.payload = payload
+# =================================================================
+# 1. 數據模型 (Data Models)
+# =================================================================
+
+class AgentInfo(BaseModel):
+    ID: str
+    profession: str
+    gate: bool
+    input: List[str]
+    output: List[str]
+
+class WorkflowProcess(BaseModel):
+    agents: List[AgentInfo]
+    initialPrompt: str
+
+# =================================================================
+# 2. 節點執行器 (Node Executor)
+# =================================================================
+
+class WorkflowNode:
+    def __init__(self, agent_info: AgentInfo, manager: 'DynamicWorkflowManager'):
+
+
+        self.id = agent_info.ID
+        self.profession = agent_info.profession
+        self.is_gate = agent_info.gate
+        
+        # ✅ 修正：確保從 agent_info 正確解析依賴
+        self.is_gate = agent_info.gate
+        
+        self.input_ids = [i.rsplit('_',1)[0] for i in agent_info.input]
+        self.output_ids = [o.rsplit('_',1)[0] for o in agent_info.output]
+
+        # ✅ 核心修正：如果一個節點被指定為 gate，則程序性地忽略其所有上游輸入依賴
+        if self.is_gate:
+            print(f"[節點: {agent_info.ID}] 被指定為入口(gate)，將忽略其所有輸入連線。")
+            self.input_ids = []
+        
+        self.manager = manager
+        self.system_prompt = PROFESSION_PROMPTS.get(self.profession, PROFESSION_PROMPTS["DEFAULT"])
+        self.status = "PENDING"  # PENDING, RUNNING, COMPLETED, FAILED
+        self.received_inputs: Dict[str, str] = {}
+        self.output_content: Optional[str] = None
+        self.log_prefix = f"[節點: {self.id} ({self.profession})]"
+        print(f"{self.log_prefix} 已初始化。輸入源: {self.input_ids}, 輸出目標: {self.output_ids}")
+
+    async def check_and_run(self):
+        # ✅ 修正日誌，使其更清晰
+        print(f"{self.log_prefix} 正在檢查依賴項... (收到 {len(self.received_inputs)} / 需要 {len(self.input_ids)})")
+        
+        if self.status != "PENDING":
+            print(f"{self.log_prefix} 狀態為 {self.status}，跳過執行。")
+            return
+
+        # 核心檢查邏輯：所有在 input_ids 中定義的依賴，都必須是 received_inputs 的 key
+        if all(input_id in self.received_inputs for input_id in self.input_ids):
+            print(f"{self.log_prefix} ✅ 所有依賴項均已滿足，準備執行。")
+            await self.run()
+        else:
+            print(f"{self.log_prefix} 依賴項未完全滿足，繼續等待。")
+
+    async def run(self):
+        print(f"{self.log_prefix} 開始執行 `run` 函數。")
+        self.status = "RUNNING"
+        await self.manager.send_update({
+            "nodeId": self.id,
+            "status": "thinking",
+            "message": f"{self.profession} 正在基於 {len(self.received_inputs)} 個輸入源進行思考..."
+        })
+
+        # ✅ 優化：構建帶有來源標識的 Prompt
+        input_parts = []
+        for sender_id, content in self.received_inputs.items():
+            # 如果是初始指令，來源標示為 "User"
+            sender_node = self.manager.nodes.get(sender_id)
+            sender_role = sender_node.profession if sender_node else "User (初始指令)"
+            input_parts.append(f"--- 來自「{sender_role}」的輸入 ---\n{content}")
+        
+        combined_input = "\n\n".join(input_parts)
+        task_description = f"請基於以下全部內容，從你「{self.profession}」的角度出發，完成你的任務。\n\n{combined_input}"
+        print(f"{self.log_prefix} 構建的任務描述: \n{task_description[:200]}...")
+
+        try:
+            response_data = await self.manager.execute_llm_call(self.system_prompt, task_description)
+            self.output_content = response_data.get("artical", "(內容生成失敗)")
+            self.status = "COMPLETED"
+            print(f"{self.log_prefix} 執行成功。")
+
+            await self.manager.send_update({
+                "nodeId": self.id,
+                "status": "completed",
+                "response": self.output_content
+            })
+
+            await self.manager.propagate_result(self.id, self.output_content)
+
+        except Exception as e:
+            self.status = "FAILED"
+            error_msg = f"{self.profession} 執行失敗: {e}"
+            print(f"{self.log_prefix} {error_msg}")
+            await self.manager.handle_failure(error_msg)
+
+# =================================================================
+# 3. 工作流管理器 (Workflow Manager)
+# =================================================================
+
+class DynamicWorkflowManager:
+    def __init__(self, workflow_process: WorkflowProcess, websocket: WebSocket, user_id: int, db: Session):
+        self.process = workflow_process
         self.websocket = websocket
         self.user_id = user_id
-        self.nodes = {node.id: node for node in payload.nodes}
-        
-        # ✅ NEW: 支援多個下游節點的邊線地圖
-        self.edge_map: Dict[str, List[str]] = {node.id: [] for node in payload.nodes}
-        for edge in payload.edges:
-            self.edge_map[edge.source].append(edge.target)
-
+        self.db = db
         self.master_history: List[Dict[str, str]] = []
-        self.node_outputs: Dict[str, Any] = {}
+        self.is_failed = False
+        self.log_prefix = "[管理器]"
         
-        # ✅ NEW: 追蹤回滾次數
-        self.rollback_counts: Dict[str, int] = {node.id: 0 for node in payload.nodes}
-        self.max_rollbacks = 3
+        print(f"{self.log_prefix} 正在從 payload 初始化節點...")
+        # ✅ 修正：直接在初始化時就創建好節點，確保依賴關係正確
+        self.nodes: Dict[str, WorkflowNode] = {
+            agent.ID: WorkflowNode(agent, self) for agent in self.process.agents
+        }
+        print(f"{self.log_prefix} 所有節點初始化完畢。")
 
-        self.conversation_id = None
+    async def start(self):
+        print(f"{self.log_prefix} 開始執行 `start` 函數。")
+        try:
+            await self.send_update({"status": "started", "message": "工作流啟動，正在尋找入口節點..."})
+            self.master_history.append({"role": "User", "content": self.process.initialPrompt})
 
-    async def _send_update(self, data: dict):
-        """向前端發送更新訊息"""
+            # ✅ 最終版邏輯：只尋找被使用者明確指定的 gate 節點
+            gate_nodes = [node for node in self.nodes.values() if node.is_gate]
+            
+            # 嚴格檢查入口節點的數量
+            if len(gate_nodes) == 0:
+                raise ValueError("錯誤：工作流中未指定任何入口節點 (gate)。請左鍵點擊一個節點將其設為入口。")
+            if len(gate_nodes) > 1:
+                raise ValueError(f"錯誤：工作流中指定了 {len(gate_nodes)} 個入口節點，只能有唯一一個。")
+            
+            gate_node = gate_nodes[0]
+            print(f"{self.log_prefix} 找到唯一起始節點: {gate_node.id} ({gate_node.profession})。")
+
+            # 將初始指令傳遞給該入口節點並啟動
+            print(f"{self.log_prefix} 將初始指令傳遞給起始節點 {gate_node.id}")
+            gate_node.received_inputs["user_prompt"] = self.process.initialPrompt
+            await gate_node.check_and_run()
+
+        except Exception as e:
+            await self.handle_failure(f"工作流初始化失敗: {e}")
+
+    async def propagate_result(self, completed_node_id: str, result: str):
+        print(f"\n{self.log_prefix} ===== 開始執行 `propagate_result` (來源: {completed_node_id}) =====")
+        if self.is_failed: return
+
+        # ✅ 新增：超詳細日誌，打印出所有節點當前的依賴狀態
+        print(f"{self.log_prefix} 當前所有節點的依賴列表:")
+        for nid, n in self.nodes.items():
+            print(f"  - 節點 {nid} ({n.profession}) 需要輸入: {n.input_ids}")
+
+        self.master_history.append({
+            "role": self.nodes[completed_node_id].profession,
+            "content": result
+        })
+
+        downstream_tasks = []
+        for downstream_node in self.nodes.values():
+            # 核心檢查邏輯不變
+            if completed_node_id in downstream_node.input_ids:
+                print(f"{self.log_prefix} ✅ 找到下游: 節點 {downstream_node.id} 需要 {completed_node_id} 的輸出。 ")
+                downstream_node.received_inputs[completed_node_id] = result
+                downstream_tasks.append(downstream_node.check_and_run())
+        
+        if downstream_tasks:
+            print(f"{self.log_prefix} 觸發了 {len(downstream_tasks)} 個下游節點的檢查。")
+            await asyncio.gather(*downstream_tasks)
+        else:
+            print(f"{self.log_prefix} 節點 {completed_node_id} 沒有找到任何下游，檢查工作流是否結束。")
+            await self.check_completion()
+        print(f"{self.log_prefix} ===== `propagate_result` 執行完畢 =====\n")
+
+    async def check_completion(self):
+        print(f"{self.log_prefix} 開始執行 `check_completion` 函數。")
+        all_completed = all(node.status in ["COMPLETED", "FAILED"] for node in self.nodes.values())
+        
+        if all_completed and not self.is_failed:
+            print(f"{self.log_prefix} 所有節點均已完成，工作流結束。 ")
+            final_node = self._find_final_node()
+            final_artical = final_node.output_content if final_node else "(未能確定最終輸出)"
+            
+            conv_id = await self._save_workflow_history()
+
+            await self.send_update({
+                "status": "finished",
+                "response": "工作流執行完畢",
+                "final_artical": final_artical,
+                "conversation_id": conv_id
+            })
+        else:
+            print(f"{self.log_prefix} 尚有未完成的節點，工作流繼續。 সন")
+
+    def _find_final_node(self) -> Optional[WorkflowNode]:
+        for node in self.nodes.values():
+            if not node.output_ids:
+                return node
+        return list(self.nodes.values())[-1] # Fallback
+
+    async def handle_failure(self, error_message: str):
+        if not self.is_failed:
+            self.is_failed = True
+            print(f"{self.log_prefix} 工作流失敗: {error_message}")
+            await self.send_update({"status": "error", "response": error_message})
+
+    async def send_update(self, data: dict):
         await self.websocket.send_json(data)
 
-    def _build_contextual_prompt(self, task_description: str, role_history: List[Dict[str, str]]) -> str:
-        """建立包含上下文的 Prompt"""
-        history_str = "\n".join([f"【{msg['role']}】:\n{msg['content']}" for msg in role_history])
-        prompt = f"""
-        ---"對話背景"---
-        {history_str}\n
-        --- END ---\n
-        --- 當前任務 ---
-        {task_description}\n
-        --- END ---
-        """
-        return prompt
-
-    async def _execute_agent_turn(self, node_id: str, task_description: str, role_history: List[Dict[str, str]]) -> Dict[str, any]:
-        """執行單個 Agent 的回合，包含 API 呼叫"""
-        node = self.nodes[node_id]
-        role = node.data.originalLabel
-        system_prompt = SYSTEM_PROMPTS.get(role, SYSTEM_PROMPTS["default"])
-        
-        await self._send_update({"nodeId": node_id, "status": "thinking", "message": f"{role} 正在思考..."})
-        
-        contextual_prompt = self._build_contextual_prompt(task_description, role_history)
-        final_prompt = f"System Prompt: {system_prompt}\n\n{contextual_prompt}"
-        
+    async def execute_llm_call(self, system_prompt: str, task_description: str) -> Dict[str, Any]:
+        print(f"{self.log_prefix} 開始執行 `execute_llm_call`。 সন")
+        full_prompt = f"System Prompt: {system_prompt}\n\n--- 對話歷史與當前任務 ---\n{task_description}"
         response_content = ""
-        
         try:
             async with httpx.AsyncClient() as client:
                 url = f"{OLLAMA_HOST}/api/generate"
-                payload = {"model": MODEL_NAME, "prompt": final_prompt, "stream": False}
+                payload = {"model": MODEL_NAME, "prompt": full_prompt, "stream": False}
                 response = await client.post(url, json=payload, timeout=180.0)
                 response.raise_for_status()
                 data = response.json()
-                response_content = data.get("response", "{}").strip()
-
-            response_data = json.loads(response_content)
-            artical = response_data.get("artical", f"解析失敗或內容為空: {response_content}")
-            
-            self.node_outputs[node_id] = artical # 儲存節點輸出
-            self.master_history.append({"role": role, "content": artical})
-
-            await self._send_update({
-                "nodeId": node_id, "status": "completed", "response": artical, "can_rollback": True
-            })
-            return response_data
-            
+                response_content = data.get("response", "{} ").strip()
+            print(f"{self.log_prefix} LLM API 調用成功。 সন")
+            return json.loads(response_content)
         except httpx.RequestError as e:
-            error_msg = f"呼叫 OLLAMA API 失敗: {e}"
-            await self._send_update({"nodeId": node_id, "status": "error", "response": error_msg})
-            raise
+            raise Exception(f"請求 LLM API 失敗: {e}")
         except json.JSONDecodeError:
-            error_msg = f"模型未回傳有效的 JSON 格式。收到內容: {response_content[:300]}..."
-            await self._send_update({"nodeId": node_id, "status": "error", "response": error_msg})
-            raise
-        except Exception as e:
-            error_msg = f"模型呼叫或處理失敗: {e}"
-            await self._send_update({"nodeId": node_id, "status": "error", "response": error_msg})
-            raise
+            raise Exception(f"模型未回傳有效的 JSON。收到內容: {response_content[:200]}...")
 
-    # =================================================================
-    # === ✅✅✅ NEW: 核心邏輯 - 工作流執行 ============================
-    # =================================================================
-    async def start(self):
-        """開始執行工作流"""
-        try:
-            self.conversation_id = int(time.time())
-            self.master_history.append({"role": "User", "content": self.payload.initialPrompt})
-            await self._send_update({"status": "started", "conversationId": self.conversation_id})
-            
-            entry_point_id = self.payload.entryPointId
-            if not entry_point_id:
-                raise ValueError("未定義進入點 (entryPointId)")
-
-            # 從進入點開始，逐層執行
-            await self._process_node(entry_point_id, self.payload.initialPrompt, [self.master_history[0]])
-
-            final_artical = self.node_outputs.get(list(self.nodes.keys())[-1], "工作流未產生最終結果。")
-            await self._send_update({"status": "finished", "response": "工作流執行完畢", "final_artical": final_artical})
-
-        except Exception as e:
-            print(f"工作流發生嚴重錯誤: {e}")
-            await self._send_update({"status": "error", "response": str(e)})
-
-    async def _process_node(self, node_id: str, input_content: str, history: List[Dict[str, str]]):
-        """遞歸處理單個節點及其下游節點"""
-        node = self.nodes[node_id]
-        role = node.data.originalLabel
-
-        # 1. 執行當前節點
-        if role == "Aggregator":
-            # Aggregator 的輸入是多個上游內容的列表
-            task = f"請將以下多份內容整合成一份連貫的文件：\n\n---\n{input_content}\n---"
-        else:
-            task = f"請基於以下內容，從你的「{role}」角度出發，完成你的任務。\n\n---\n{input_content}\n---"
-        
-        await self._execute_agent_turn(node_id, task, history)
-        
-        # 2. 處理下游節點
-        downstream_nodes = self.edge_map.get(node_id, [])
-        if not downstream_nodes:
-            # 如果是最後一個節點，流程結束
-            return
-
-        # 獲取當前節點的輸出，作為下游節點的輸入
-        current_output = self.node_outputs[node_id]
-        
-        if len(downstream_nodes) == 1:
-            # 如果只有一個下游節點，直接遞歸處理
-            next_node_id = downstream_nodes[0]
-            await self._process_node(next_node_id, current_output, self.master_history)
-        
-        elif len(downstream_nodes) > 1:
-            # ✅ NEW: 並發處理多個下游節點
-            await self._send_update({"nodeId": node_id, "status": "info", "message": f"正在將任務分發給 {len(downstream_nodes)} 個下游角色..."})
-            
-            # 建立並發執行的任務列表
-            parallel_tasks = []
-            for next_node_id in downstream_nodes:
-                # 每個並發任務都是一個獨立的 agent turn
-                next_node = self.nodes[next_node_id]
-                next_role = next_node.data.originalLabel
-                parallel_task_desc = f"請基於以下內容，從你的「{next_role}」角度出發，完成你的任務。\n\n---\n{current_output}\n---"
-                parallel_tasks.append(self._execute_agent_turn(next_node_id, parallel_task_desc, self.master_history))
-            
-            # 使用 asyncio.gather 執行並發任務
-            parallel_results = await asyncio.gather(*parallel_tasks, return_exceptions=True)
-
-            # 檢查並發任務是否有異常
-            for result in parallel_results:
-                if isinstance(result, Exception):
-                    # 如果有異常，整個工作流失敗
-                    raise result
-
-            # ✅ NEW: 尋找聚合器 (Aggregator) 來合併結果
-            # 假設第一個並發節點的下游是聚合器
-            aggregator_node_id = None
-            if downstream_nodes:
-                first_parallel_node_id = downstream_nodes[0]
-                potential_aggregators = self.edge_map.get(first_parallel_node_id, [])
-                if potential_aggregators and self.nodes[potential_aggregators[0]].data.originalLabel == "Aggregator":
-                    aggregator_node_id = potential_aggregators[0]
-
-            if aggregator_node_id:
-                # 將所有並發結果合併成單一輸入，交給聚合器
-                combined_input = "\n\n---\n\n".join([self.node_outputs[nid] for nid in downstream_nodes])
-                await self._process_node(aggregator_node_id, combined_input, self.master_history)
-            else:
-                # 如果沒有聚合器，並發分支結束後，整個流程就結束
-                await self._send_update({"status": "info", "message": "並行任務已完成，但未找到下游聚合器，流程結束。"})
-
-
-    # =================================================================
-    # === ✅✅✅ NEW: 核心邏輯 - 處理回滾 ============================
-    # =================================================================
-    async def handle_rollback(self, node_id: str, user_feedback: str):
-        """處理用戶請求的回滾"""
-        if self.rollback_counts.get(node_id, 0) >= self.max_rollbacks:
-            await self._send_update({"nodeId": node_id, "status": "error", "response": "已達到最大回滾次數限制。"})
-            return
-
-        self.rollback_counts[node_id] = self.rollback_counts.get(node_id, 0) + 1
-        
-        node = self.nodes[node_id]
-        role = node.data.originalLabel
-        original_output = self.node_outputs.get(node_id, "沒有找到原始輸出。")
-        
-        await self._send_update({
-            "nodeId": node_id, 
-            "status": "revising", 
-            "message": f"收到回滾請求，正在第 {self.rollback_counts[node_id]}/{self.max_rollbacks} 次修正...",
-            "can_rollback": False # 修訂期間暫時禁止再次回滾
-        })
-
-        # 找到觸發此節點的上一個節點的輸出作為輸入
-        input_content = "無法確定此節點的原始輸入。"
-        for source, targets in self.edge_map.items():
-            if node_id in targets:
-                # 找到上游節點
-                input_content = self.node_outputs.get(source, input_content)
-                break
-        else: # 如果是入口節點
-            input_content = self.payload.initialPrompt
-
-
-        # 建立用於修正的 Prompt
-        task_description = (
-            f"你先前對以下內容的處理結果未獲批准。\n"
-            f"--- 原始輸入 ---"
-            f"{input_content}\n--- END ---\n"
-            f"--- 你先前失敗的輸出 ---{original_output}\n--- END ---\n"
-            f"--- 用戶提供的修改回饋 ---{user_feedback}\n--- END ---\n"
-            f"請根據用戶的回饋，從你「{role}」的角度，徹底地重寫並改進你的輸出。不要只是評論，請直接產出修正後的完整內容。"
-        )
-
-        # 重新執行 Agent Turn
-        history_for_revision = [msg for msg in self.master_history if msg.get("content") != original_output]
-        await self._execute_agent_turn(node_id, task_description, history_for_revision)
-
-        # 回滾後，需要重新觸發下游流程
-        await self._send_update({"status": "info", "message": f"{role} 已修正，正在重新觸發下游流程..."})
-        await self._process_node(node_id, "", history_for_revision) # 重新啟動從此節點開始的流程
-
+    async def _save_workflow_history(self) -> int:
+        print(f"{self.log_prefix} 開始執行 `_save_workflow_history`。 সন")
+        title = f"工作流: {self.process.initialPrompt[:30]}..."
+        conversation = await chat_service.create_conversation(self.db, self.user_id, title)
+        for msg in self.master_history:
+            is_user = msg["role"] == "User"
+            formatted_content = f"**【{msg['role']}】**\n\n{msg['content']}"
+            await chat_service.save_message(self.db, self.user_id, formatted_content, is_user, conversation.id)
+        print(f"{self.log_prefix} 工作流歷史已存入對話 ID: {conversation.id}")
+        return conversation.id
 
 # =================================================================
-# === WebSocket 端點與主處理邏輯 (更新) ===========================
+# WebSocket 端點 (Endpoint)
 # =================================================================
-# @router.websocket("/ws")
-# async def workflow_websocket_endpoint(websocket: WebSocket, user_id: int = Depends(AuthService.get_current_user_from_token)):
+
+def get_db_session():
+    db = next(get_db())
+    try:
+        yield db
+    finally:
+        db.close()
+
 @router.websocket("/ws")
-async def workflow_websocket_endpoint(websocket: WebSocket):
-    user_id = 1 # 繞過驗證，使用預設用戶
+async def workflow_websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db_session)):
+    user_id = 1  # 繞過驗證
     await manager.connect(websocket, user_id)
-    print(f"使用者 {user_id} 的 Workflow WebSocket 連線成功 (驗證已繞過)。")
-    orchestrator: WorkflowOrchestrator = None
-
+    print(f"使用者 {user_id} 的 Workflow WebSocket 連線成功 (驗證已繞過)。 সন")
+    
     try:
         while True:
             data = await websocket.receive_text()
+            print(f"收到的數據:{data} ")
             message = json.loads(data)
             msg_type = message.get("type")
-            payload_data = message.get("payload")
 
             if msg_type == "start_workflow":
+                payload_data = message.get("payload")
                 if not payload_data:
                     await websocket.send_json({"status": "error", "response": "Payload 不得為空"})
                     continue
                 
-                payload = WorkflowPayload(**payload_data)
-                orchestrator = WorkflowOrchestrator(payload, websocket, user_id)
-                asyncio.create_task(orchestrator.start())
-            
-            # ✅ NEW: 處理回滾請求
-            elif msg_type == "request_rollback":
-                if not orchestrator:
-                    await websocket.send_json({"status": "error", "response": "工作流尚未啟動，無法回滾。"})
-                    continue
-                
-                node_id = payload_data.get("nodeId")
-                feedback = payload_data.get("feedback", "無具體回饋，請改進。")
-                if not node_id:
-                    await websocket.send_json({"status": "error", "response": "回滾請求中缺少 nodeId。"})
-                    continue
+                # 使用新的 Pydantic 模型驗證 payload
+                print(f"payload_data: {payload_data} ")
 
-                asyncio.create_task(orchestrator.handle_rollback(node_id, feedback))
+                workflow_process = WorkflowProcess(**payload_data)
+                
+                # 創建並啟動新的管理器
+                manager_instance = DynamicWorkflowManager(workflow_process, websocket, user_id, db)
+                asyncio.create_task(manager_instance.start())
+            
+            # 注意：此版本暫未實現運行中的 rollback，因為動態圖的回滾邏輯更複雜
+            # 需要考慮狀態重置和依賴重新觸發，可在未來版本中添加。
 
     except WebSocketDisconnect:
         manager.disconnect(websocket, user_id)
-        print(f"使用者 {user_id} 的 WebSocket 連線已斷開。")
+        print(f"使用者 {user_id} 的 WebSocket 連線已斷開。 সন")
     except Exception as e:
         print(f"WebSocket 發生錯誤: {e}")
-        if websocket and websocket.client_state.value != 3:
-             try:
-                 await websocket.send_json({"status": "error", "response": f"伺服器內部錯誤: {e}"})
-             except Exception as send_e:
-                 print(f"傳送錯誤訊息時失敗: {send_e}")
+        if websocket.client_state.value != 3:
+            try:
+                await websocket.send_json({"status": "error", "response": f"伺服器內部錯誤: {e}"})
+            except Exception as send_e:
+                print(f"傳送錯誤訊息時失敗: {send_e}")
         manager.disconnect(websocket, user_id)

@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Box, TextField, Button, Paper, Typography, CircularProgress, Card, CardContent, CardActions, IconButton, Collapse, Alert } from '@mui/material';
-import { PlayArrow, Replay, AccountTree, Send } from '@mui/icons-material';
+import { PlayArrow, Replay, AccountTree, Send, DoneAll } from '@mui/icons-material';
 
 // A simple, hardcoded workflow definition for demonstration
 const hardcodedWorkflow = {
@@ -100,8 +101,11 @@ const Workflow = () => {
   const [prompt, setPrompt] = useState('');
   const [workflowState, setWorkflowState] = useState({});
   const [isStarted, setIsStarted] = useState(false);
+  const [isFinished, setIsFinished] = useState(false); // ✅ NEW
   const [finalResult, setFinalResult] = useState('');
+  const [finalConversationId, setFinalConversationId] = useState(null); // ✅ NEW
   const ws = useRef(null);
+  const navigate = useNavigate(); // ✅ NEW
 
   useEffect(() => {
     return () => {
@@ -112,15 +116,12 @@ const Workflow = () => {
   }, []);
 
   const connectWebSocket = () => {
-    // Ensure you are using the correct WebSocket protocol (ws or wss)
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${wsProtocol}//${window.location.host}/api/workflow/ws`;
 
     ws.current = new WebSocket(wsUrl);
 
-    ws.current.onopen = () => {
-      console.log('WebSocket connected');
-    };
+    ws.current.onopen = () => console.log('WebSocket connected');
 
     ws.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -139,16 +140,20 @@ const Workflow = () => {
             error: data.status === 'error' ? data.response : null,
             can_rollback: data.can_rollback,
           };
-        } else if (data.status === 'finished') {
-            setIsStarted(false);
-            setFinalResult(data.final_artical);
-        } else if (data.status === 'error') {
-            setIsStarted(false);
-            // Handle global errors
-            setFinalResult(`工作流出錯: ${data.response}`);
-        }
+        } 
         return newState;
       });
+
+      // ✅ NEW: Handle finished state
+      if (data.status === 'finished') {
+        setIsStarted(false);
+        setIsFinished(true);
+        setFinalResult(data.final_artical);
+        setFinalConversationId(data.conversation_id);
+      } else if (data.status === 'error') {
+        setIsStarted(false);
+        setFinalResult(`工作流出錯: ${data.response}`);
+      }
     };
 
     ws.current.onclose = () => {
@@ -169,10 +174,7 @@ const Workflow = () => {
     }
     if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
         connectWebSocket();
-        // Wait for connection to be established
-        setTimeout(() => {
-            sendStartMessage();
-        }, 1000);
+        setTimeout(() => sendStartMessage(), 1000);
     } else {
         sendStartMessage();
     }
@@ -182,6 +184,8 @@ const Workflow = () => {
     setWorkflowState({});
     setFinalResult('');
     setIsStarted(true);
+    setIsFinished(false);
+    setFinalConversationId(null);
 
     const payload = { ...hardcodedWorkflow, initialPrompt: prompt };
     ws.current.send(JSON.stringify({ type: 'start_workflow', payload }));
@@ -190,6 +194,13 @@ const Workflow = () => {
   const handleRollback = (nodeId, feedback) => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify({ type: 'request_rollback', payload: { nodeId, feedback } }));
+    }
+  };
+
+  // ✅ NEW: Handle finalize button click
+  const handleFinalize = () => {
+    if (finalConversationId) {
+      navigate('/chat', { state: { conversationId: finalConversationId } });
     }
   };
 
@@ -205,12 +216,12 @@ const Workflow = () => {
           onChange={(e) => setPrompt(e.target.value)}
           multiline
           rows={3}
-          disabled={isStarted}
+          disabled={isStarted || isFinished}
         />
         <Button
           variant="contained"
           onClick={startWorkflow}
-          disabled={isStarted}
+          disabled={isStarted || isFinished}
           startIcon={isStarted ? <CircularProgress size={20} /> : <PlayArrow />}
           sx={{ mt: 2 }}
         >
@@ -218,7 +229,7 @@ const Workflow = () => {
         </Button>
       </Paper>
 
-      {isStarted && (
+      {(isStarted || isFinished) && (
         <Box>
           {hardcodedWorkflow.nodes.map(node => (
             workflowState[node.id] && (
@@ -233,10 +244,19 @@ const Workflow = () => {
         </Box>
       )}
 
-      {finalResult && (
+      {isFinished && (
         <Paper sx={{ p: 3, mt: 3, backgroundColor: '#e8f5e9' }} elevation={3}>
-            <Typography variant="h5" gutterBottom>最終結果</Typography>
+            <Typography variant="h5" gutterBottom>最終結論</Typography>
             <Typography sx={{whiteSpace: 'pre-wrap'}}>{finalResult}</Typography>
+            <Button
+              variant="contained"
+              color="success"
+              onClick={handleFinalize}
+              startIcon={<DoneAll />}
+              sx={{ mt: 2 }}
+            >
+              將此結論存入對話紀錄
+            </Button>
         </Paper>
       )}
     </Box>
