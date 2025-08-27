@@ -61,7 +61,15 @@ class HybridContextualRAG:
             self.reindex_threshold_hours = int(os.getenv("REINDEX_HOURS", "24"))
             
             # Storage paths
-            self.data_dir = "data"
+            # Use explicit DATA_DIR env var if provided; otherwise resolve to repo-root/data
+            env_data_dir = os.getenv("DATA_DIR")
+            if env_data_dir:
+                self.data_dir = env_data_dir
+            else:
+                # __file__ is backend/app/rag/contextual_rag.py -> repo root is three levels up
+                repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+                self.data_dir = os.path.join(repo_root, 'data')
+
             self.faiss_index_path = os.path.join(self.data_dir, "faiss_index.bin")
             self.documents_path = os.path.join(self.data_dir, "documents.pkl")
             self.bm25_index_dir = os.path.join(self.data_dir, "bm25_index")
@@ -146,8 +154,54 @@ class HybridContextualRAG:
         """Load existing BM25 index"""
         try:
             storage = FileStorage(self.bm25_index_dir)
-            self.bm25_index = storage.open_index()
+
+            # If the storage reports no index, log and return gracefully
+            try:
+                exists = storage.index_exists()
+            except Exception:
+                exists = False
+
+            if not exists:
+                # Try to discover any index names that may exist (fallback for non-standard names)
+                index_names = []
+                try:
+                    # Whoosh FileStorage implementations may provide list_indexes()
+                    if hasattr(storage, 'list_indexes'):
+                        index_names = storage.list_indexes()
+                    # older/other implementations may expose indexes()
+                    elif hasattr(storage, 'indexes'):
+                        index_names = storage.indexes()
+                except Exception:
+                    index_names = []
+
+                if index_names:
+                    # Attempt to open the first available index name
+                    idx_name = index_names[0]
+                    try:
+                        self.bm25_index = storage.open_index(indexname=idx_name)
+                        logger.info(f"Opened BM25 index using fallback index name: {idx_name}")
+                    except Exception as e:
+                        logger.error(f"Failed to open BM25 index with fallback name '{idx_name}': {e}")
+                        self.bm25_index = None
+                        self.bm25_searcher = None
+                        return
+                else:
+                    logger.info("BM25 index does not exist, will be created when documents are added")
+                    self.bm25_index = None
+                    self.bm25_searcher = None
+                    return
+            else:
+                # Normal path: index exists under the default name
+                self.bm25_index = storage.open_index()
+
+            # close previous searcher if any
+            if self.bm25_searcher:
+                try:
+                    self.bm25_searcher.close()
+                except Exception:
+                    pass
             self.bm25_searcher = self.bm25_index.searcher()
+            logger.info("Successfully loaded BM25 index")
         except Exception as e:
             logger.error(f"Failed to load BM25 index: {e}")
             self.bm25_index = None
@@ -215,15 +269,49 @@ class HybridContextualRAG:
     def _rebuild_bm25_index(self):
         """Rebuild BM25 index"""
         try:
-            # Remove old index
+            # Close any open searcher/index handles before removing files to
+            # avoid Windows "file in use" (WinError 32) errors.
+            try:
+                if self.bm25_searcher:
+                    try:
+                        self.bm25_searcher.close()
+                    except Exception:
+                        # best-effort close
+                        pass
+                    self.bm25_searcher = None
+
+                # Some Whoosh Index objects may expose a close method; try to
+                # call it if present.
+                if self.bm25_index and hasattr(self.bm25_index, "close"):
+                    try:
+                        self.bm25_index.close()
+                    except Exception:
+                        pass
+                    self.bm25_index = None
+            except Exception:
+                # Continue even if closing fails; we'll retry removals below.
+                pass
+
+            # Remove old index directory with retries on Windows where files
+            # can be temporarily locked by other processes.
             if os.path.exists(self.bm25_index_dir):
-                shutil.rmtree(self.bm25_index_dir)
-            
+                max_retries = 5
+                for attempt in range(1, max_retries + 1):
+                    try:
+                        shutil.rmtree(self.bm25_index_dir)
+                        break
+                    except PermissionError as e:
+                        if attempt == max_retries:
+                            raise
+                        sleep_seconds = 0.1 * (2 ** (attempt - 1))
+                        logger.warning(f"PermissionError removing BM25 index (attempt {attempt}/{max_retries}), retrying in {sleep_seconds:.2f}s: {e}")
+                        time.sleep(sleep_seconds)
+
             # Create new index
             os.makedirs(self.bm25_index_dir, exist_ok=True)
             storage = FileStorage(self.bm25_index_dir)
             self.bm25_index = storage.create_index(self._create_bm25_schema())
-            
+
             # Add documents
             writer = self.bm25_index.writer()
             for i, doc in enumerate(self.documents):
@@ -235,10 +323,13 @@ class HybridContextualRAG:
                     chunk_index=doc.metadata.get('chunk_index', 0)
                 )
             writer.commit()
-            
+
             # Update searcher
             if self.bm25_searcher:
-                self.bm25_searcher.close()
+                try:
+                    self.bm25_searcher.close()
+                except Exception:
+                    pass
             self.bm25_searcher = self.bm25_index.searcher()
             
         except Exception as e:
@@ -299,7 +390,10 @@ class HybridContextualRAG:
                 storage = FileStorage(self.bm25_index_dir)
                 self.bm25_index = storage.create_index(self._create_bm25_schema())
                 if self.bm25_searcher:
-                    self.bm25_searcher.close()
+                    try:
+                        self.bm25_searcher.close()
+                    except Exception:
+                        pass
                 self.bm25_searcher = self.bm25_index.searcher()
             
             # Add documents
@@ -318,7 +412,10 @@ class HybridContextualRAG:
             
             # Update searcher
             if self.bm25_searcher:
-                self.bm25_searcher.close()
+                try:
+                    self.bm25_searcher.close()
+                except Exception:
+                    pass
             self.bm25_searcher = self.bm25_index.searcher()
             
         except Exception as e:
@@ -648,7 +745,10 @@ class HybridContextualRAG:
         
         # Close BM25 searcher
         if self.bm25_searcher:
-            self.bm25_searcher.close()
+            try:
+                self.bm25_searcher.close()
+            except Exception:
+                pass
             self.bm25_searcher = None
         
         # Remove files
@@ -657,7 +757,19 @@ class HybridContextualRAG:
                 os.remove(path)
         
         if os.path.exists(self.bm25_index_dir):
-            shutil.rmtree(self.bm25_index_dir)
+            # Retry rmtree on Windows to handle transient file locks
+            max_retries = 5
+            for attempt in range(1, max_retries + 1):
+                try:
+                    shutil.rmtree(self.bm25_index_dir)
+                    break
+                except PermissionError as e:
+                    if attempt == max_retries:
+                        logger.error(f"Failed to remove BM25 index dir after {max_retries} attempts: {e}")
+                        raise
+                    sleep_seconds = 0.1 * (2 ** (attempt - 1))
+                    logger.warning(f"PermissionError removing BM25 index dir (attempt {attempt}/{max_retries}), retrying in {sleep_seconds:.2f}s: {e}")
+                    time.sleep(sleep_seconds)
         
         self.bm25_index = None
         logger.info("Vector store cleared completely")
