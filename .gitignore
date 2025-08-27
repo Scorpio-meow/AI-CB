@@ -48,14 +48,6 @@ backend/CBvenv/
 secrets.json
 config/*.secret
 
-##############################
-# Project-specific large/generated data
-##############################
-# SQLite DBs
-*.db
-chatbot.db
-backend/chatbot.db
-
 # FAISS / vector/index files
 data/faiss_index.bin
 data/index_metadata.pkl
@@ -64,10 +56,6 @@ data/documents.pkl
 # Whoosh / BM25 index folder
 data/bm25_index/
 data/bm25_index/*
-
-# Uploads / temporary data (if used)
-backend/data/uploads/
-data/uploads/
 
 ##############################
 # Node / Frontend
