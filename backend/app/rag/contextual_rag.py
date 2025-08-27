@@ -366,21 +366,50 @@ class HybridContextualRAG:
             
         # Chunk documents
         all_chunks = []
+        preserved_count = 0
+        preserved_sources = set()
         for doc in documents:
-            chunks = self.text_splitter.split_text(doc.page_content)
-            for i, chunk in enumerate(chunks):
+            # If metadata requests preserving the whole content, skip splitting
+            preserve = bool(doc.metadata.get('preserve_whole')) if doc.metadata and isinstance(doc.metadata, dict) else False
+            if preserve:
+                preserved_count += 1
+                try:
+                    preserved_sources.add(doc.metadata.get('source', 'unknown'))
+                except Exception:
+                    pass
                 chunk_doc = Document(
-                    page_content=chunk,
+                    page_content=doc.page_content,
                     metadata={
                         **doc.metadata,
-                        "chunk_id": f"{doc.metadata.get('source', 'unknown')}_{i}",
-                        "chunk_index": i,
+                        "chunk_id": f"{doc.metadata.get('source', 'unknown')}_0",
+                        "chunk_index": 0,
                         "original_doc_id": doc.metadata.get('document_id'),
                         "added_timestamp": datetime.now().isoformat()
                     }
                 )
                 all_chunks.append(chunk_doc)
+            else:
+                chunks = self.text_splitter.split_text(doc.page_content)
+                for i, chunk in enumerate(chunks):
+                    chunk_doc = Document(
+                        page_content=chunk,
+                        metadata={
+                            **doc.metadata,
+                            "chunk_id": f"{doc.metadata.get('source', 'unknown')}_{i}",
+                            "chunk_index": i,
+                            "original_doc_id": doc.metadata.get('document_id'),
+                            "added_timestamp": datetime.now().isoformat()
+                        }
+                    )
+                    all_chunks.append(chunk_doc)
         
+        # log debug info if any preserve_whole was used
+        if preserved_count > 0:
+            try:
+                logger.debug(f"preserve_whole used for {preserved_count} document(s); sources={list(preserved_sources)}")
+            except Exception:
+                logger.debug(f"preserve_whole used for {preserved_count} document(s)")
+
         if not all_chunks:
             return
         
@@ -683,83 +712,26 @@ class HybridContextualRAG:
             chunk_id = doc.metadata.get('chunk_index', 0)
             document_context += f"文檔 [{i+1}] (來源: {source}, 段落: {chunk_id}):\n{doc.page_content}\n\n"
         
-        # Enhanced prompt with citation requirements and stricter fallback/format rules
-        prompt = f"""你是 HR Athena，神通資訊科技股份有限公司（神資／神通資科／神通資訊／MiTAC）的專業人力資源助手。你的目標是提供精確、簡短、專業且友善的人力資源問題解答。你輸出只能使用繁體中文
+        prompt = f"""你是企業內部的知識型助理，負責根據下列用戶問題、對話上下文與檔案片段，產出準確、可追溯中文回答。
 
+規則：
+1) 以中文回答問題。
+2) 在回答末尾列出使用到的來源，格式為："[n] 來源名稱 (段落: m)"。若來源未知請標示為「未知來源」。
+3) 避免編造事實；若資料不足或為推論，請在回覆中明確標註「推論」或回報「無法確定」，並建議下一步可查詢的關鍵字或資料位置。
+4) 回應中不得包含任何系統內部實作細節、索引 id 或未經驗證的 URL。
 
-    以下為系統提供的上下文（僅包含最相關的前 {max_docs} 段）：
+以下資料：
+用戶問題:
+{query}
 
-    對話歷史:
-    {conversation_context}
+對話上下文（僅供參考）:
+{conversation_context}
 
-    相關文檔內容 (僅顯示最相關前 {max_docs} 段):
-    {document_context}
+檔案片段（僅包含最相關的段落，按重要性排序）：
+{document_context}
 
-    用戶問題: {query}
-
-    回答要求：
-    ###互動模式
-    ##背景知識:使用者是神通資訊科技股份有限公司的員工，尋找答案時優先朝神通資訊科技去搜尋。
-    ##回答流程：
-    - 理解問題：確認問題是否清楚、是否屬於知識庫範圍
-    - 提問澄清：如問題模糊，主動釐清（見「提問引導指南」）
-    - 提取資訊：從知識庫中找出對應資訊，特別留意表格類資料
-    - 組織回答：回覆需簡潔明確，必要時條列或分類說明
-    - 主動補充：如資訊可能不足，提供補充建議或提醒注意事項
-
-    ##拒絕回答情況：
-    - 若問題超出知識庫範圍，回覆：「抱歉，我目前沒有這方面的資訊。建議您直接聯繫人資部門進一步諮詢。」
-    - 不回覆與公司人資政策無關的問題
-
-    ###核心能力
-    ##【對話理解與應對】
-    - 上下文記憶：考慮對話前後文一致性與提問邏輯
-    - 回應風格：專業、簡短、有溫度，不使用過度口語或冗詞
-    - 知識來源限制：僅根據 RAG 知識庫資料回應，不猜測、不補齊
-    - 多輪對話應對：使用者反覆問類似問題時，用不同方式說明
-    - 不確定就釐清：不明確問題需先確認，不可直接臆測回答
-
-    ##【提問引導指南（範例句型）】
-    #如遇語意模糊或資訊不足，請使用以下範例協助釐清：
-    - 請問您目前任職的是神通資訊科技還是其他公司？
-    - 您是查詢自己的資訊還是幫他人詢問？
-    - 您提到「請假」，請問是特休、病假還是其他假別？
-
-    ###表格理解與處理指南
-    - 精確比對表格標題與使用者關鍵詞
-    - 根據公司別、職等、年資等欄位，過濾出適用資料列
-    - 回覆時避免原始表格格式，改用條列、分類或簡單說明
-    - 避免誤將多公司資料混合回答，必要時詢問對方任職公司
-
-    ###混淆辨識與容錯機制
-    ##常見混淆情境處理如下：
-    - 提問中出現「神通」但未明確說明公司，請回問：「請問是神通電腦還是神通資訊科技呢？」
-    - 假別描述與內容不符（如提及病假卻內容描述年假），請提醒使用者可能混用並提供選項
-    - 提問接近常見問題但用語不同，請確認是否輸入錯字或描述錯誤流程
-
-    ###自我回饋與回答補強機制
-    ##回答後請自我檢查是否有以下情況，並適當補充：
-    - 是否資訊不完整？→「若您有更詳細條件，也歡迎補充，我再協助補充說明。」
-    - 是否有多種解釋可能？→「若您指的是其他狀況，也請再說明，我再調整說明方向。」
-    - 是否答案過長或複雜？→「您若需要簡單摘要，我可以再精簡說明一次。」
-
-    ###公司知識關聯
-    ##你應理解以下企業別名對應：
-    - 神通資訊科技股份有限公司 = 神資、神通資科、神通資訊、MiTAC
-    - 新達電腦股份有限公司 = 新達、新達電腦
-    - 肇源股份有限公司 = 肇源
-    - 神耀科技股份有限公司 = 神耀
-
-    ###若提問中僅寫「神通」，請主動釐清：「請問是神通電腦還是神通資訊科技呢？」
-    ##回應準則
-    - 準確性：僅根據知識庫內容回應，不得推測或補齊
-    - 簡潔性：回答須直截了當、清楚明確，避免冗詞
-    - 結構化：資訊複雜時，請使用條列或分段方式協助理解
-    - 友善專業：保持禮貌與溫和語氣，展現人資專業與效率
-    - 後續引導：如可能需要更多協助，主動提供建議或聯繫管道
-
-    請提供回答："""
-
+請依上述規則開始回答。
+"""
         return prompt
     
     async def call_llm_api(self, prompt: str) -> str:

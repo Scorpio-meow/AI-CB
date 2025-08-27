@@ -153,11 +153,21 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
   };
 
   useEffect(() => {
-    const websocketURL = 'ws://localhost:8001/api/workflow/ws';
-    socketRef.current = new WebSocket(websocketURL);
-    socketRef.current.onopen = () => { console.log("WebSocket 連線已建立"); setWsStatus('connected'); };
-    socketRef.current.onclose = () => { console.log("WebSocket 連線已關閉"); setWsStatus('disconnected'); };
-    socketRef.current.onerror = (error) => { console.error("WebSocket 錯誤:", error); setWsStatus('error'); };
+    // build ws url based on current location to support different hosts and wss in production
+    try {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host || 'localhost:8001';
+      const websocketURL = `${protocol}//${host}/api/workflow/ws`;
+      socketRef.current = new WebSocket(websocketURL);
+      socketRef.current.onopen = () => { console.log("WebSocket 連線已建立"); setWsStatus('connected'); };
+      socketRef.current.onclose = () => { console.log("WebSocket 連線已關閉"); setWsStatus('disconnected'); };
+      socketRef.current.onerror = (error) => { console.error("WebSocket 錯誤:", error); setWsStatus('error'); };
+    } catch (err) {
+      console.error('建立 WebSocket 時發生錯誤', err);
+      setWsStatus('error');
+      socketRef.current = null;
+      return;
+    }
 
     socketRef.current.onmessage = (event) => {
       const data = JSON.parse(event.data);

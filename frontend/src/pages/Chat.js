@@ -57,8 +57,11 @@ function Chat() {
           loadConversation(response.data[0]);
         }
       }
+      // return fresh list to avoid callers using stale closure
+      return response.data;
     } catch (error) {
       setError('載入對話失敗');
+      return [];
     }
   }, [currentConversation, viewMode, loadConversation]);
 
@@ -105,9 +108,10 @@ function Chat() {
         conversation_id: currentConversation?.id
       });
       setMessages(prev => [...prev.slice(0, -1), response.data.message]);
+      // If server returned/created a different conversation id, refresh using fresh data
       if (!currentConversation || response.data.conversation_id !== currentConversation.id) {
-        await loadConversations();
-        const newConv = conversations.find(c => c.id === response.data.conversation_id);
+        const updatedConvs = await loadConversations();
+        const newConv = (updatedConvs || []).find(c => c.id === response.data.conversation_id) || response.data.conversation;
         if (newConv) {
           setCurrentConversation(newConv);
         }
@@ -118,7 +122,7 @@ function Chat() {
     } finally {
       setLoading(false);
     }
-  }, [newMessage, viewMode, currentConversation, conversations, loadConversations]);
+  }, [newMessage, viewMode, currentConversation, loadConversations]);
 
   const deleteConversation = useCallback(async (conversationId) => {
     try {
@@ -137,8 +141,8 @@ function Chat() {
   // Simple preprocessing: convert HTML <br> tags to Markdown newlines
   const preprocessContent = (content) => {
     if (!content || typeof content !== 'string') return '';
-    // This is a simplified placeholder. The original complex logic is maintained.
-    return content.replace(/<br\s*\/?>(?=>)?/gi, '\n\n').replace(/<[^>]+>/g, '');
+    // replace common <br> variants with double newlines for markdown, then strip other tags
+    return content.replace(/<br\s*\/?>/gi, '\n\n').replace(/<[^>]+>/g, '');
   };
 
   const handleStartWorkflow = () => {
@@ -188,8 +192,8 @@ function Chat() {
 
   return (
     <Box sx={{ height: '100vh', display: 'flex' }}>
-      {/* 側邊欄 - 這部分不變 */}
-      <Box sx={{ width: 300, borderRight: 1, borderColor: 'divider', display: 'flex', flexDirection: 'column' }}>
+  {/* 側邊欄 - 這部分不變 */}
+  <Box sx={{ width: 300, display: 'flex', flexDirection: 'column' }}>
         <Paper sx={{ height: '100%', borderRadius: 0 }}>
           <Box sx={{ p: 2, display: "flex", columnGap: 1 }}>
             <Button
@@ -237,10 +241,13 @@ function Chat() {
             ))}
           </List>
         </Paper>
-      </Box>
+  </Box>
 
-      {/* 主區域 */}
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+  {/* 中間分隔線（垂直） */}
+  <Divider orientation="vertical" flexItem />
+
+  {/* 主區域 */}
+  <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         
         {/* 主要內容區域 (會變動) */}
         <Box sx={{ flex: 1, overflow: 'hidden' }}>
@@ -284,13 +291,13 @@ function Chat() {
         {/* 輸入區域 (固定在底部) */}
         <Paper sx={{ p: 2, borderRadius: 0, borderTop: 1, borderColor: 'divider' }} elevation={2}>
             <Box sx={{ display: 'flex', gap: 1 }}>
-            <TextField
+      <TextField
                 fullWidth
                 multiline
                 maxRows={4}
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
+        onKeyDown={handleKeyPress}
                 disabled={loading}
                 placeholder={
                     viewMode === 'discussion' 
