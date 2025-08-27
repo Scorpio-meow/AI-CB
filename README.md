@@ -44,7 +44,7 @@
 - **FastAPI**: 高性能 Web 框架
 - **SQLAlchemy**: ORM 數據庫操作
 - **LangChain**: RAG 實現框架
-- **Ollama/GitHub Models**: 大型語言模型支援
+- **Ollama/LLM Models**: 大型語言模型支援
 - **FAISS**: 向量數據庫 (IndexFlatIP, 384維)
 - **Whoosh**: BM25 全文檢索引擎
 - **Cross-Encoder**: ms-marco-MiniLM-L-6-v2 重新排序
@@ -118,17 +118,8 @@ npm start
 #### 後端 (.env)
 ```env
 # Ollama API 配置（推薦）
-GITHUB_TOKEN=your-token-here
 MODEL_NAME=gpt-oss:20b
 LLM_API_BASE=https://your-ngrok-url.ngrok-free.app
-
-# 或 GitHub Models API
-GITHUB_TOKEN=your_github_token_here
-MODEL_NAME=gpt-4o-mini
-LLM_API_BASE=https://models.inference.ai.azure.com
-
-# 或 OpenAI API
-OPENAI_API_KEY=your_openai_api_key_here
 
 # JWT 密鑰
 SECRET_KEY=your_jwt_secret_key_here
