@@ -83,7 +83,7 @@
 2. 啟動虛擬環境：`.\CBvenv\Scripts\Activate.ps1`
 3. 運行 `start-all.ps1` 啟動完整系統
 4. 或使用 VS Code 任務面板啟動各個服務
-5. 訪問 http://localhost:3000 (前端) 和 http://127.0.0.1:8000 (後端)
+5. 訪問 http://localhost:3000 (前端) 和 http://127.0.0.1:8001 (後端)
 
 ## 專案結構
 ```
@@ -115,7 +115,7 @@ chatbot/
 
 ## 常用命令
 - **重置 FAISS**: `python scripts/reset_faiss.py`
-- **啟動後端**: `python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000`
+- **啟動後端**: `python -m uvicorn main:app --reload --host 127.0.0.1 --port 8001`
 - **啟動前端**: `npm start`
 - **安裝套件**: `pip install whoosh==2.7.4 scikit-learn==1.3.2`
 - **測試 RAG**: `python scripts/test_rag_improvements.py`
@@ -123,6 +123,6 @@ chatbot/
 
 ## 常用命令
 - **重置 FAISS**: `python scripts/reset_faiss.py`
-- **啟動後端**: `python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000`
+- **啟動後端**: `python -m uvicorn main:app --reload --host 127.0.0.1 --port 8001`
 - **啟動前端**: `npm start`
 - **安裝套件**: `pip install PyPDF2==3.0.1 python-docx==1.1.0`
