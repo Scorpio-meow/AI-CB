@@ -94,6 +94,20 @@ async def get_conversation(
     
     return conversation
 
+@router.post("/conversations", response_model=ConversationResponse)
+async def create_conversation(
+    db: Session = Depends(get_db)
+):
+    """建立新對話"""
+    conversation = await chat_service.create_conversation(db, 1)
+    return ConversationResponse(
+        id=conversation.id,
+        title=conversation.title,
+        created_at=conversation.created_at,
+        updated_at=conversation.updated_at,
+        messages=[]
+    )
+
 @router.delete("/conversations/{conversation_id}")
 async def delete_conversation(
     conversation_id: int,

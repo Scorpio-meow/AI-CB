@@ -163,9 +163,20 @@ function Chat() {
   }, [loadConversation]);
 
   const startNewConversation = () => {
-    setCurrentConversation(null);
-    setMessages([]);
+    // Create a new conversation on the server, then load it
     setViewMode('chat');
+    (async () => {
+      try {
+        const resp = await axios.post('/api/chat/conversations');
+        const newConv = resp.data;
+        // refresh list and set current
+        await loadConversations();
+        setCurrentConversation(newConv);
+        setMessages([]);
+      } catch (e) {
+        setError('建立新對話失敗');
+      }
+    })();
   };
 
   const handleKeyPress = (e) => {
