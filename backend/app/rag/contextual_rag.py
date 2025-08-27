@@ -22,6 +22,49 @@ try:
 except Exception:
     _HAS_JIEBA = False
 
+# Define Jieba-based analyzer at module level to ensure picklability in Whoosh schema
+if _HAS_JIEBA:
+    class JiebaTokenizer(Tokenizer):
+        def __call__(self, value, positions=False, chars=False, keeporiginal=False,
+                     removestops=False, start_pos=0, start_char=0, tokenize=True,
+                     mode="default", **kwargs):
+            t = Token(positions, chars, removestops=removestops)
+            if not tokenize:
+                return
+            if isinstance(value, bytes):
+                try:
+                    value = value.decode("utf-8", "ignore")
+                except Exception:
+                    value = value.decode(errors="ignore")
+            pos = start_pos
+            char_pos = start_char
+            for w in jieba.cut(value, cut_all=False):
+                w = w.strip()
+                if not w:
+                    continue
+                t.original = w
+                t.text = w
+                t.boost = 1.0
+                if positions:
+                    t.pos = pos
+                    pos += 1
+                if chars:
+                    # best-effort char positions
+                    idx = value.find(w, char_pos)
+                    if idx < 0:
+                        idx = char_pos
+                    t.startchar = idx
+                    t.endchar = idx + len(w)
+                    char_pos = t.endchar
+                yield t
+
+    class JiebaAnalyzer(Analyzer):
+        def __init__(self):
+            self._tokenizer = JiebaTokenizer()
+
+        def __call__(self, value, **kwargs):
+            return self._tokenizer(value, **kwargs)
+
 logger = logging.getLogger(__name__)
 
 class HybridContextualRAG:
@@ -59,10 +102,20 @@ class HybridContextualRAG:
             
             # Configuration
             self.similarity_threshold = float(os.getenv("SIMILARITY_THRESHOLD", "0.25"))
-            self.top_k = int(os.getenv("TOP_K", "50"))  # Retrieve more for reranking
-            self.final_k = int(os.getenv("FINAL_K", "5"))  # Final documents to use
-            self.chunk_size = int(os.getenv("CHUNK_SIZE", "600"))
-            self.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "150"))
+            # how many candidates to retrieve before reranking
+            self.top_k = int(os.getenv("TOP_K", "50"))
+            self.rerank_top_k = int(os.getenv("RERANK_TOP_K", str(self.top_k)))
+            # final docs used downstream
+            self.final_k = int(os.getenv("FINAL_K", "5"))
+            # reranker weighting and acceptance threshold
+            self.rerank_weight = float(os.getenv("RERANK_WEIGHT", "0.8"))  # 0..1 weight for cross-encoder
+            self.final_threshold = float(os.getenv("FINAL_THRESHOLD", "0.3"))  # threshold on normalized combined score
+            # hybrid fusion controls
+            self.hybrid_alpha = float(os.getenv("HYBRID_ALPHA", "0.7"))
+            self.normalization = os.getenv("NORMALIZATION", "max").lower()  # 'max' or 'softmax'
+            # chunking
+            self.chunk_size = int(os.getenv("CHUNK_SIZE", "300"))
+            self.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "100"))
             self.reindex_threshold_hours = int(os.getenv("REINDEX_HOURS", "24"))
             
             # Storage paths
@@ -148,47 +201,6 @@ class HybridContextualRAG:
     def _get_chinese_analyzer(self) -> Analyzer:
         """Return a Whoosh analyzer optimized for Chinese using jieba when available."""
         if _HAS_JIEBA:
-            class JiebaTokenizer(Tokenizer):
-                def __call__(self, value, positions=False, chars=False, keeporiginal=False,
-                             removestops=False, start_pos=0, start_char=0, tokenize=True,
-                             mode="default", **kwargs):
-                    t = Token(positions, chars, removestops=removestops)
-                    if not tokenize:
-                        return
-                    if isinstance(value, bytes):
-                        try:
-                            value = value.decode("utf-8", "ignore")
-                        except Exception:
-                            value = value.decode(errors="ignore")
-                    pos = start_pos
-                    char_pos = start_char
-                    for w in jieba.cut(value, cut_all=False):
-                        w = w.strip()
-                        if not w:
-                            continue
-                        t.original = w
-                        t.text = w
-                        t.boost = 1.0
-                        if positions:
-                            t.pos = pos
-                            pos += 1
-                        if chars:
-                            # best-effort char positions
-                            idx = value.find(w, char_pos)
-                            if idx < 0:
-                                idx = char_pos
-                            t.startchar = idx
-                            t.endchar = idx + len(w)
-                            char_pos = t.endchar
-                        yield t
-
-            class JiebaAnalyzer(Analyzer):
-                def __init__(self):
-                    self._tokenizer = JiebaTokenizer()
-
-                def __call__(self, value, **kwargs):
-                    return self._tokenizer(value, **kwargs)
-
             return JiebaAnalyzer()
         # Fallback to StandardAnalyzer when jieba is not available
         return StandardAnalyzer()
@@ -292,6 +304,13 @@ class HybridContextualRAG:
     def _rebuild_bm25_index(self):
         """Rebuild BM25 index"""
         try:
+            # Ensure previous searcher is closed to avoid file locks (Windows)
+            if self.bm25_searcher:
+                try:
+                    self.bm25_searcher.close()
+                except Exception:
+                    pass
+                self.bm25_searcher = None
             # Remove old index
             if os.path.exists(self.bm25_index_dir):
                 shutil.rmtree(self.bm25_index_dir)
@@ -401,7 +420,7 @@ class HybridContextualRAG:
         except Exception as e:
             logger.error(f"Failed to add to BM25 index: {e}")
     
-    def vector_search(self, query: str, top_k: int = None) -> List[Tuple[Document, float]]:
+    def vector_search(self, query: str, top_k: int = None, apply_threshold: bool = True) -> List[Tuple[Document, float]]:
         """Pure vector search"""
         if self.index.ntotal == 0:
             return []
@@ -419,7 +438,7 @@ class HybridContextualRAG:
         # Filter and return
         results = []
         for similarity, idx in zip(similarities[0], indices[0]):
-            if similarity > self.similarity_threshold and idx < len(self.documents):
+            if (not apply_threshold or similarity > self.similarity_threshold) and idx < len(self.documents):
                 results.append((self.documents[idx], float(similarity)))
         
         return results
@@ -454,43 +473,62 @@ class HybridContextualRAG:
             logger.error(f"BM25 search failed: {e}")
             return []
     
-    def hybrid_search(self, query: str, alpha: float = 0.7) -> List[Tuple[Document, float]]:
+    def _normalize_scores(self, scores: List[float], method: str = "max") -> List[float]:
+        """Normalize a list of scores into 0..1 using max or softmax."""
+        if not scores:
+            return []
+        if method == "softmax":
+            a = np.array(scores, dtype=np.float32)
+            a = a - np.max(a)
+            exp = np.exp(a)
+            denom = np.sum(exp)
+            if denom <= 0:
+                return [0.0 for _ in scores]
+            prob = exp / denom
+            # re-scale to 0..1 while preserving order (softmax already 0..1)
+            return prob.tolist()
+        # default: max-normalization
+        max_v = max(scores)
+        return [(s / max_v) if max_v > 0 else 0.0 for s in scores]
+
+    def hybrid_search(self, query: str, alpha: float = None) -> List[Tuple[Document, float]]:
         """
         Hybrid search combining vector and BM25
         alpha: weight for vector search (1-alpha for BM25)
         """
+        alpha = self.hybrid_alpha if alpha is None else alpha
         # Get results from both methods
-        vector_results = self.vector_search(query, self.top_k)
-        bm25_results = self.bm25_search(query, self.top_k)
+        vector_results = self.vector_search(query, self.rerank_top_k, apply_threshold=False)
+        bm25_results = self.bm25_search(query, self.rerank_top_k)
         
         # Create score mapping
         doc_scores = {}
         
         # Normalize and combine vector scores
         if vector_results:
-            max_vec_score = max(score for _, score in vector_results)
-            for doc, score in vector_results:
+            vec_scores = [score for _, score in vector_results]
+            vec_norms = self._normalize_scores(vec_scores, method=self.normalization)
+            for (doc, _), norm in zip(vector_results, vec_norms):
                 doc_id = id(doc)
-                normalized_score = score / max_vec_score if max_vec_score > 0 else 0
                 doc_scores[doc_id] = {
                     'doc': doc,
-                    'vector_score': normalized_score,
+                    'vector_score': float(norm),
                     'bm25_score': 0.0
                 }
         
         # Normalize and combine BM25 scores
         if bm25_results:
-            max_bm25_score = max(score for _, score in bm25_results)
-            for doc, score in bm25_results:
+            bm_scores = [score for _, score in bm25_results]
+            bm_norms = self._normalize_scores(bm_scores, method=self.normalization)
+            for (doc, _), norm in zip(bm25_results, bm_norms):
                 doc_id = id(doc)
-                normalized_score = score / max_bm25_score if max_bm25_score > 0 else 0
                 if doc_id in doc_scores:
-                    doc_scores[doc_id]['bm25_score'] = normalized_score
+                    doc_scores[doc_id]['bm25_score'] = float(norm)
                 else:
                     doc_scores[doc_id] = {
                         'doc': doc,
                         'vector_score': 0.0,
-                        'bm25_score': normalized_score
+                        'bm25_score': float(norm)
                     }
         
         # Calculate hybrid scores
@@ -503,8 +541,7 @@ class HybridContextualRAG:
         
         # Sort by hybrid score
         hybrid_results.sort(key=lambda x: x[1], reverse=True)
-        
-        return hybrid_results[:self.top_k]
+        return hybrid_results[: self.rerank_top_k]
     
     def rerank_with_cross_encoder(self, query: str, doc_score_pairs: List[Tuple[Document, float]]) -> List[Tuple[Document, float]]:
         """Rerank using cross-encoder"""
@@ -517,24 +554,34 @@ class HybridContextualRAG:
             
             # Get cross-encoder scores
             cross_scores = self.cross_encoder.predict(pairs)
-            
-            # Combine with original scores
+            # Normalize both original and cross scores to 0..1 (min-max per batch)
+            orig_scores = [s for _, s in doc_score_pairs]
+            def _minmax(arr):
+                mn, mx = float(np.min(arr)), float(np.max(arr))
+                if mx - mn <= 1e-8:
+                    return [0.0 for _ in arr]
+                return [float((x - mn) / (mx - mn)) for x in arr]
+            cross_norm = _minmax(cross_scores)
+            orig_norm = _minmax(orig_scores)
+
+            w = min(max(self.rerank_weight, 0.0), 1.0)
             reranked = []
-            for i, (doc, original_score) in enumerate(doc_score_pairs):
-                # Weighted combination: 70% cross-encoder, 30% original
-                combined_score = 0.7 * cross_scores[i] + 0.3 * original_score
-                reranked.append((doc, combined_score))
-            
-            # Sort by combined score
+            for (doc, _), cs, os in zip(doc_score_pairs, cross_norm, orig_norm):
+                combined = w * cs + (1 - w) * os
+                reranked.append((doc, float(combined)))
+
+            # threshold filter then sort
+            reranked = [x for x in reranked if x[1] >= self.final_threshold]
             reranked.sort(key=lambda x: x[1], reverse=True)
-            
-            return reranked[:self.final_k]
+            return reranked[: self.final_k]
             
         except Exception as e:
             logger.error(f"Cross-encoder reranking failed: {e}")
-            return doc_score_pairs[:self.final_k]
+            # Fallback: original order with cap
+            doc_score_pairs.sort(key=lambda x: x[1], reverse=True)
+            return doc_score_pairs[: self.final_k]
     
-    def smart_search(self, query: str) -> List[Document]:
+    def smart_search(self, query: str) -> List[Tuple[Document, float]]:
         """
         Smart search that chooses the best strategy:
         1. Hybrid search for general queries
@@ -548,25 +595,60 @@ class HybridContextualRAG:
         has_exact_terms = has_quotes or re.search(r'\b(exactly|precisely|具體|確切)\b', query, re.I)
         
         # Choose search strategy
+        strategy = ""
         if has_exact_terms and not has_chinese:
             # Prefer BM25 for exact searches
-            results = self.bm25_search(query, self.top_k)
-            logger.debug(f"Using BM25 search for exact query: {query}")
+            results = self.bm25_search(query, self.rerank_top_k)
+            strategy = "bm25"
+            logger.info(f"Retrieval strategy=BM25 query='{query}' candidates={len(results)}")
         elif has_chinese and not has_exact_terms:
             # Prefer vector for semantic Chinese queries
-            results = self.vector_search(query, self.top_k)
-            logger.debug(f"Using vector search for semantic query: {query}")
+            results = self.vector_search(query, self.rerank_top_k, apply_threshold=False)
+            strategy = "vector"
+            logger.info(f"Retrieval strategy=VECTOR query='{query}' candidates={len(results)}")
         else:
             # Use hybrid for balanced queries
-            results = self.hybrid_search(query)
-            logger.debug(f"Using hybrid search for query: {query}")
+            results = self.hybrid_search(query, alpha=self.hybrid_alpha)
+            strategy = "hybrid"
+            logger.info(f"Retrieval strategy=HYBRID(alpha={self.hybrid_alpha}) query='{query}' candidates={len(results)}")
         
         # Apply cross-encoder reranking
         if results:
+            # keep some debug info before rerank
+            try:
+                preview = [
+                    {
+                        "source": d.metadata.get('source', '未知'),
+                        "chunk": d.metadata.get('chunk_index', 0),
+                        "score": round(float(s), 4)
+                    }
+                    for d, s in results[:5]
+                ]
+                logger.info(f"Retrieval pre-rerank top5: {preview}")
+            except Exception:
+                pass
             results = self.rerank_with_cross_encoder(query, results)
+            # after rerank
+            try:
+                preview = [
+                    {
+                        "source": d.metadata.get('source', '未知'),
+                        "chunk": d.metadata.get('chunk_index', 0),
+                        "score": round(float(s), 4)
+                    }
+                    for d, s in results[:5]
+                ]
+                logger.info(f"Retrieval post-rerank top5: {preview}")
+            except Exception:
+                pass
+
+        # expose last strategy for external inspection
+        try:
+            self._last_retrieval_strategy = strategy or "unknown"
+        except Exception:
+            pass
         
-        # Return only documents (extract from tuples)
-        return [doc for doc, score in results] if results else []
+        return results if results else []
     
     def build_context_prompt(self, query: str, relevant_docs: List[Document], 
                            conversation_id: Optional[int] = None) -> str:
@@ -703,8 +785,10 @@ class HybridContextualRAG:
         """Generate response using enhanced RAG pipeline"""
         start_time = time.time()
         
-        # Smart retrieval
-        relevant_docs = self.smart_search(query)
+        # Smart retrieval (with scores)
+        doc_score_pairs = self.smart_search(query)
+        retrieval_strategy = getattr(self, "_last_retrieval_strategy", None)
+        relevant_docs = [doc for doc, _ in doc_score_pairs]
         retrieval_time = time.time() - start_time
         
         # Build context prompt
@@ -736,10 +820,12 @@ class HybridContextualRAG:
         
         # Prepare sources info
         sources_info = []
-        for doc in relevant_docs[:3]:  # Top 3 sources
+        for i, doc in enumerate(relevant_docs[:3]):  # Top 3 sources
+            score = doc_score_pairs[i][1] if i < len(doc_score_pairs) else None
             sources_info.append({
                 "source": doc.metadata.get('source', '未知'),
                 "chunk": doc.metadata.get('chunk_index', 0),
+                "score": round(float(score), 4) if score is not None else None,
                 "snippet": doc.page_content[:200] + "..." if len(doc.page_content) > 200 else doc.page_content
             })
         
@@ -750,7 +836,8 @@ class HybridContextualRAG:
             "sources_detail": sources_info,
             "retrieval_time": retrieval_time,
             "generation_time": generation_time,
-            "total_time": time.time() - start_time
+            "total_time": time.time() - start_time,
+            "retrieval_strategy": retrieval_strategy
         }
     
     def remove_document_by_id(self, document_id: int):
@@ -843,7 +930,9 @@ class HybridContextualRAG:
         
         for query, gold_ids in zip(test_queries, gold_doc_ids):
             # Get retrieval results
-            doc_score_pairs = self.hybrid_search(query, alpha=0.7)
+            doc_score_pairs = self.hybrid_search(query, alpha=self.hybrid_alpha)
+            # apply reranking if available
+            doc_score_pairs = self.rerank_with_cross_encoder(query, doc_score_pairs)
             retrieved_doc_ids = [doc.metadata.get('document_id', doc.metadata.get('original_doc_id', -1)) 
                                for doc, _ in doc_score_pairs]
             
@@ -878,6 +967,19 @@ class HybridContextualRAG:
         avg_results["evaluation_timestamp"] = datetime.now().isoformat()
         
         return avg_results
+
+    def auto_tune_alpha(self, test_queries: List[str], gold_doc_ids: List[List[int]], 
+                         alphas: List[float] = None) -> Dict[str, Any]:
+        """Grid search alpha to maximize avg_mrr. Returns best alpha and metrics."""
+        if alphas is None:
+            alphas = [round(x, 2) for x in np.linspace(0.3, 0.9, 13)]  # 0.3..0.9 step 0.05
+        best = {"alpha": None, "avg_mrr": -1, "metrics": None}
+        for a in alphas:
+            self.hybrid_alpha = a
+            metrics = self.evaluate_retrieval(test_queries, gold_doc_ids)
+            if metrics.get("avg_mrr", 0) > best["avg_mrr"]:
+                best = {"alpha": a, "avg_mrr": metrics.get("avg_mrr", 0), "metrics": metrics}
+        return best
     
     def force_reindex(self):
         """Force immediate reindexing"""

@@ -231,3 +231,12 @@ async def clear_vector_store():
     """清空向量庫"""
     rag_system.clear_vector_store()
     return {"message": "向量庫已清空"}
+
+@router.post("/vector-store/reindex")
+async def force_reindex():
+    """重建向量與BM25索引（基於現有 documents.pkl）。"""
+    try:
+        ok = rag_system.force_reindex()
+        return {"message": "索引重建已觸發", "ok": bool(ok), "info": rag_system.get_vector_store_info()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"重建失敗: {e}")

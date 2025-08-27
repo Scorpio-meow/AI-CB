@@ -17,10 +17,18 @@ import argparse
 from typing import List, Dict, Any
 import logging
 
-# Add backend to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add backend root to sys.path (to import app.*)
+BACKEND_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if BACKEND_ROOT not in sys.path:
+    sys.path.insert(0, BACKEND_ROOT)
 
-from app.rag.contextual_rag import HybridContextualRAG
+try:
+    from app.rag.contextual_rag import HybridContextualRAG
+except ModuleNotFoundError:
+    PROJECT_ROOT = os.path.dirname(BACKEND_ROOT)
+    if PROJECT_ROOT not in sys.path:
+        sys.path.insert(0, PROJECT_ROOT)
+    from backend.app.rag.contextual_rag import HybridContextualRAG
 from langchain.schema import Document
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -66,7 +74,7 @@ class RAGEvaluator:
             ("Vector Search", lambda q: self.rag.vector_search(q, 5)),
             ("BM25 Search", lambda q: self.rag.bm25_search(q, 5)),
             ("Hybrid Search", lambda q: self.rag.hybrid_search(q, alpha=0.7)),
-            ("Smart Search", lambda q: [(doc, 1.0) for doc in self.rag.smart_search(q)])
+            ("Smart Search", lambda q: self.rag.smart_search(q))
         ]
         
         results = {}
@@ -177,11 +185,13 @@ class RAGEvaluator:
                 docs = self.rag.smart_search(query)
                 elapsed = time.time() - start_time
                 
+                # smart_search returns list of (doc, score)
+                top = docs[:3]
                 results[key].append({
                     "query": query,
                     "time_ms": elapsed * 1000,
                     "num_results": len(docs),
-                    "top_sources": [doc.metadata.get('source', 'unknown') for doc in docs[:3]]
+                    "top_sources": [doc.metadata.get('source', 'unknown') for doc, _ in top]
                 })
         
         # 恢復原始設置
