@@ -53,7 +53,7 @@ if (-not (Test-Path "node_modules")) {
 # 檢查環境配置
 if (-not (Test-Path ".env")) {
     Write-Host "正在創建前端環境配置..." -ForegroundColor Yellow
-    "REACT_APP_API_URL=http://127.0.0.1:8000" | Out-File -FilePath ".env" -Encoding UTF8
+    "REACT_APP_API_URL=http://127.0.0.1:8001" | Out-File -FilePath ".env" -Encoding UTF8
     Write-Host "✓ 已創建 .env 文件" -ForegroundColor Green
 }
 
@@ -61,7 +61,7 @@ if (-not (Test-Path ".env")) {
 Write-Host ""
 Write-Host "正在啟動 React 開發服務器..." -ForegroundColor Green
 Write-Host "前端地址：http://localhost:3000" -ForegroundColor Cyan
-Write-Host "後端 API：http://127.0.0.1:8000" -ForegroundColor Cyan
+Write-Host "後端 API：http://127.0.0.1:8001" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "按 Ctrl+C 停止服務" -ForegroundColor Yellow
 Write-Host ""

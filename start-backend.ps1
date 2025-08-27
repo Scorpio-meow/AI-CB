@@ -64,14 +64,14 @@ try {
 # 啟動服務
 Write-Host ""
 Write-Host "正在啟動 FastAPI 服務器..." -ForegroundColor Green
-Write-Host "服務地址：http://127.0.0.1:8000" -ForegroundColor Cyan
-Write-Host "API 文檔：http://127.0.0.1:8000/docs" -ForegroundColor Cyan
+Write-Host "服務地址：http://127.0.0.1:8001" -ForegroundColor Cyan
+Write-Host "API 文檔：http://127.0.0.1:8001/docs" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "按 Ctrl+C 停止服務" -ForegroundColor Yellow
 Write-Host ""
 
 try {
-    & python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
+    & python -m uvicorn main:app --reload --host 127.0.0.1 --port 8001
 } catch {
     Write-Host ""
     Write-Host "錯誤：無法啟動服務" -ForegroundColor Red
