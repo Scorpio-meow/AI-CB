@@ -5,6 +5,16 @@
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
+    <!--
+      注意：
+      - `meta[name="theme-color"]` 在 Chrome、Edge 與大多數行動瀏覽器上支援，可用來設定瀏覽器 UI（例如 Android 工具列）的主題色。
+      - 某些瀏覽器（例如 Firefox、Firefox for Android、部分 Opera 版本）並不支援此標籤；這是編輯器診斷的來源。
+      保留此標籤對支援的瀏覽器仍有用，無需移除。下方提供少量額外 meta，用於改善 PWA / 平台外觀兼容性。
+    -->
+    <!-- Windows 平鋪/磁貼顏色 -->
+    <meta name="msapplication-TileColor" content="#000000" />
+    <!-- iOS 狀態列樣式（部分情況下可改善 Safari 顯示） -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta
       name="description"
       content="ChatBot 應用程式 - 智能對話系統"
