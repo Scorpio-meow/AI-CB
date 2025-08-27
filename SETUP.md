@@ -12,7 +12,7 @@ copy .env.example .env
 編輯 `.env` 文件，配置以下必要項目：
 - `GITHUB_TOKEN`: 您的 GitHub Personal Access Token 或任意值（用於 Ollama）
 - `MODEL_NAME`: 模型名稱（如 gpt-oss:20b 用於 Ollama 或 gpt-4o-mini 用於 GitHub Models）
-- `GITHUB_API_BASE`: API 基地址（Ollama ngrok 地址或 GitHub Models API）
+- `LLM_API_BASE`: API 基地址（Ollama ngrok 地址或 GitHub Models API）
 - 或 `OPENAI_API_KEY`: 您的 OpenAI API 密鑰
 - `SECRET_KEY`: JWT 加密密鑰（建議使用隨機字符串）
 - `DATABASE_URL`: 數據庫連接字符串（默認 SQLite）
@@ -65,8 +65,8 @@ docker-compose up -d
 
 ### 3. 訪問應用程式
 - 前端界面: http://localhost:3000
-- 後端 API: http://127.0.0.1:8000
-- API 文檔: http://127.0.0.1:8000/docs
+- 後端 API: http://127.0.0.1:8001
+- API 文檔: http://127.0.0.1:8001/docs
 
 ### 4. 管理員設置
 目前系統沒有啟用用戶認證系統，所有功能都是開放使用的。如需啟用認證功能，需要：
@@ -85,13 +85,13 @@ docker-compose up -d
 
 ```powershell
 # 單檔上傳範例
-curl -X POST "http://127.0.0.1:8000/api/documents/upload" -F "file=@C:/path/to/file.pdf"
+curl -X POST "http://127.0.0.1:8001/api/documents/upload" -F "file=@C:/path/to/file.pdf"
 ```
 
 - 測試批次刪除：可使用下列 curl 範例呼叫新的批次刪除 API：
 
 ```powershell
-curl -X POST "http://127.0.0.1:8000/api/documents/bulk_delete" -H "Content-Type: application/json" -d "{ \"ids\": [1,2,3] }"
+curl -X POST "http://127.0.0.1:8001/api/documents/bulk_delete" -H "Content-Type: application/json" -d "{ \"ids\": [1,2,3] }"
 ```
 
 回傳格式範例：
@@ -166,7 +166,7 @@ A: 請確認 `GITHUB_TOKEN` 已正確設置在 `.env` 文件中，並且 token �
 A: 請確認 `OPENAI_API_KEY` 已正確設置在 `.env` 文件中。
 
 ### Q: 前端無法連接到後端
-A: 檢查後端服務是否正常運行在 http://127.0.0.1:8000
+A: 檢查後端服務是否正常運行在 http://127.0.0.1:8001
 
 ### Q: 數據庫連接失敗
 A: 確認 PostgreSQL 服務正在運行，或使用 SQLite（默認配置）。

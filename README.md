@@ -120,12 +120,12 @@ npm start
 # Ollama API 配置（推薦）
 GITHUB_TOKEN=your-token-here
 MODEL_NAME=gpt-oss:20b
-GITHUB_API_BASE=https://your-ngrok-url.ngrok-free.app
+LLM_API_BASE=https://your-ngrok-url.ngrok-free.app
 
 # 或 GitHub Models API
 GITHUB_TOKEN=your_github_token_here
 MODEL_NAME=gpt-4o-mini
-GITHUB_API_BASE=https://models.inference.ai.azure.com
+LLM_API_BASE=https://models.inference.ai.azure.com
 
 # 或 OpenAI API
 OPENAI_API_KEY=your_openai_api_key_here

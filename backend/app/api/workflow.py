@@ -22,7 +22,7 @@ from app.models.database import get_db
 from app.services.chat_service import ChatService
 
 # --- Constants and System Prompts ---
-OLLAMA_HOST = os.getenv("GITHUB_API_BASE", "https://fc5d1d0fc900.ngrok-free.app")
+OLLAMA_HOST = os.getenv("LLM_API_BASE", "https://fc5d1d0fc900.ngrok-free.app")
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-oss:20b")
 
 PROFESSION_PROMPTS = {

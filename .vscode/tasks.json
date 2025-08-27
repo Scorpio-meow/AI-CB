@@ -37,7 +37,7 @@
             "label": "啟動後端開發服務器",
             "type": "shell",
             "command": "${workspaceFolder}/CBvenv/Scripts/python.exe",
-            "args": ["-m", "uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"],
+            "args": ["-m", "uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "8001"],
             "options": {
                 "cwd": "${workspaceFolder}/backend"
             },
