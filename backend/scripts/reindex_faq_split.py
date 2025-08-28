@@ -5,6 +5,7 @@ import os
 import sys
 import re
 import asyncio
+import argparse
 from pathlib import Path
 
 # Ensure backend imports
@@ -50,11 +51,20 @@ async def main():
         print('Uploads directory not found:', uploads.resolve())
         return
 
+    parser = argparse.ArgumentParser(
+        description='Reindex uploads into RAG. By default it will add documents incrementally without clearing the existing vector store. Use --rebuild to clear the vector store first.'
+    )
+    parser.add_argument('--rebuild', action='store_true', help='Clear vector store before adding documents')
+    args = parser.parse_args()
+
     rag = ContextualRAG()
 
-    # Clear existing vector store
-    print('[1] Clearing existing vector store...')
-    rag.clear_vector_store()
+    # Clear existing vector store only when explicitly requested
+    if args.rebuild:
+        print('[1] Clearing existing vector store...')
+        rag.clear_vector_store()
+    else:
+        print('[1] Skipping clear of vector store (incremental add). Use --rebuild to clear before indexing.')
 
     docs = []
     total_pairs = 0

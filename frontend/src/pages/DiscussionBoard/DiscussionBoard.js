@@ -153,38 +153,109 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
   };
 
   useEffect(() => {
-    const websocketURL = 'ws://localhost:8001/api/workflow/ws';
-    socketRef.current = new WebSocket(websocketURL);
-    socketRef.current.onopen = () => { console.log("WebSocket 連線已建立"); setWsStatus('connected'); };
-    socketRef.current.onclose = () => { console.log("WebSocket 連線已關閉"); setWsStatus('disconnected'); };
-    socketRef.current.onerror = (error) => { console.error("WebSocket 錯誤:", error); setWsStatus('error'); };
+    // build ws url based on current location to support different hosts and wss in production
+    // If frontend runs on localhost:3000 (dev), prefer backend default port 8001
+    let isMounted = true;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 6;
+    let reconnectTimer = null;
 
-    socketRef.current.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      console.log("收到後端更新:", data);
-      
-      if (data.status === 'finished') {
-        setInfoMessage('');
-        setIsFinished(true);
-        setFinalConversationId(data.conversation_id);
-      } else if (data.status === 'error') {
-        setInfoMessage('工作流執行出錯');
-        setIsFinished(true);
-      } else if (data.status === 'info') {
-        setInfoMessage(data.message);
-      } else if (data.nodeId) {
-        setNodes((nds) =>
-          nds.map((node) => {
-            if (node.id === data.nodeId) {
-              return { ...node, data: { ...node.data, status: data.status, response: data.response || node.data.response } };
+    const connect = () => {
+      try {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        // when frontend is served from localhost:3000 during development, connect to backend at 8001
+        let host;
+        try {
+          const hostname = window.location.hostname;
+          const port = window.location.port;
+          if (hostname === 'localhost' && port === '3000') {
+            host = `${hostname}:8001`;
+          } else {
+            host = window.location.host || `${hostname}:8001`;
+          }
+        } catch (e) {
+          host = 'localhost:8001';
+        }
+        const websocketURL = `${protocol}//${host}/api/workflow/ws`;
+        console.log('建立 WebSocket，URL:', websocketURL);
+
+        // close existing socket if any
+        if (socketRef.current) {
+          try { socketRef.current.onopen = null; socketRef.current.onclose = null; socketRef.current.onerror = null; socketRef.current.onmessage = null; socketRef.current.close(); } catch (e) {}
+        }
+
+        socketRef.current = new WebSocket(websocketURL);
+
+        socketRef.current.onopen = () => {
+          console.log('WebSocket 連線已建立');
+          reconnectAttempts = 0;
+          setWsStatus('connected');
+        };
+
+        socketRef.current.onclose = (ev) => {
+          console.log('WebSocket 連線已關閉', ev);
+          setWsStatus('disconnected');
+          if (!isMounted) return;
+          if (reconnectAttempts < maxReconnectAttempts) {
+            reconnectAttempts += 1;
+            const backoff = 1000 * Math.min(5, reconnectAttempts); // linear backoff up to 5s
+            console.log(`嘗試重連 WebSocket (#${reconnectAttempts})，${backoff}ms 後重試`);
+            reconnectTimer = setTimeout(connect, backoff);
+          } else {
+            console.warn('已達到最大重連次數，停止重連');
+          }
+        };
+
+        socketRef.current.onerror = (error) => {
+          console.error('WebSocket 錯誤:', error);
+          setWsStatus('error');
+          // onerror may be followed by onclose which triggers reconnect
+        };
+
+        socketRef.current.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            console.log('收到後端更新:', data);
+            if (data.status === 'finished') {
+              setInfoMessage('');
+              setIsFinished(true);
+              setFinalConversationId(data.conversation_id);
+            } else if (data.status === 'error') {
+              setInfoMessage('工作流執行出錯');
+              setIsFinished(true);
+            } else if (data.status === 'info') {
+              setInfoMessage(data.message);
+            } else if (data.nodeId) {
+              setNodes((nds) =>
+                nds.map((node) => {
+                  if (node.id === data.nodeId) {
+                    return { ...node, data: { ...node.data, status: data.status, response: data.response || node.data.response } };
+                  }
+                  return node;
+                })
+              );
             }
-            return node;
-          })
-        );
+          } catch (e) {
+            console.error('解析 WebSocket 訊息失敗', e);
+          }
+        };
+
+      } catch (err) {
+        console.error('建立 WebSocket 時發生錯誤', err);
+        setWsStatus('error');
+        socketRef.current = null;
       }
     };
 
-    return () => { if (socketRef.current) socketRef.current.close(); };
+    connect();
+
+    return () => {
+      isMounted = false;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (socketRef.current) {
+        try { socketRef.current.close(); } catch (e) {}
+      }
+    };
   }, [setNodes]);
 
   const handleStartWorkflow = () => {

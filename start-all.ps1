@@ -44,9 +44,9 @@ Write-Host ""
 Write-Host "=====================================" -ForegroundColor Green
 Write-Host "ChatBot 系統啟動完成！" -ForegroundColor Green
 Write-Host "=====================================" -ForegroundColor Green
-Write-Host "後端服務: http://127.0.0.1:8000" -ForegroundColor Cyan
+Write-Host "後端服務: http://127.0.0.1:8001" -ForegroundColor Cyan
 Write-Host "前端服務: http://localhost:3000" -ForegroundColor Cyan
-Write-Host "API 文檔: http://127.0.0.1:8000/docs" -ForegroundColor Cyan
+Write-Host "API 文檔: http://127.0.0.1:8001/docs" -ForegroundColor Cyan
 Write-Host "=====================================" -ForegroundColor Green
 
 Read-Host "按任意鍵退出"

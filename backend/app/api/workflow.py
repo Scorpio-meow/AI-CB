@@ -168,10 +168,10 @@ class DynamicWorkflowManager:
         self.nodes: Dict[str, WorkflowNode] = {
             agent.ID: WorkflowNode(agent, self) for agent in self.process.agents
         }
-        print(f"{self.log_prefix} 所有節點初始化完畢。 সন")
+        print(f"{self.log_prefix} 所有節點初始化完畢。 ")
 
     async def start(self):
-        print(f"{self.log_prefix} 開始執行 `start` 函數。 সন")
+        print(f"{self.log_prefix} 開始執行 `start` 函數。 ")
         try:
             await self.send_update({"status": "started", "message": "工作流啟動..."})
             self.master_history.append({"role": "User", "content": self.process.initialPrompt})
@@ -179,10 +179,10 @@ class DynamicWorkflowManager:
             gate_nodes = [node for node in self.nodes.values() if node.is_gate]
             
             if len(gate_nodes) != 1:
-                raise ValueError(f"錯誤：工作流必須有且僅有一個入口節點(gate)，但找到了 {len(gate_nodes)} 個。 সন")
+                raise ValueError(f"錯誤：工作流必須有且僅有一個入口節點(gate)，但找到了 {len(gate_nodes)} 個。 ")
             
             gate_node = gate_nodes[0]
-            print(f"{self.log_prefix} 找到唯一起始節點: {gate_node.id}。 সন")
+            print(f"{self.log_prefix} 找到唯一起始節點: {gate_node.id}。 ")
 
             gate_node.received_inputs["user_prompt"] = self.process.initialPrompt
             await gate_node.check_and_run(sender_id="_start_workflow")
@@ -201,7 +201,7 @@ class DynamicWorkflowManager:
 
         output_target_ids = self.nodes[completed_node_id].output_ids
         if not output_target_ids:
-            print(f"{self.log_prefix} 節點 {completed_node_id} 沒有下游，檢查工作流是否結束。 সন")
+            print(f"{self.log_prefix} 節點 {completed_node_id} 沒有下游，檢查工作流是否結束。 ")
             await self.check_completion()
             return
 
@@ -209,25 +209,25 @@ class DynamicWorkflowManager:
         for target_id in output_target_ids:
             downstream_node = self.nodes.get(target_id)
             if downstream_node:
-                print(f"{self.log_prefix} ✅ 找到下游: 將結果從 {completed_node_id} 傳遞到 {downstream_node.id}。 সন")
+                print(f"{self.log_prefix} ✅ 找到下游: 將結果從 {completed_node_id} 傳遞到 {downstream_node.id}。 ")
                 downstream_node.received_inputs[completed_node_id] = result
                 downstream_tasks.append(downstream_node.check_and_run(sender_id=completed_node_id))
         
         if downstream_tasks:
-            print(f"{self.log_prefix} 觸發了 {len(downstream_tasks)} 個下游節點的檢查。 সন")
+            print(f"{self.log_prefix} 觸發了 {len(downstream_tasks)} 個下游節點的檢查。 ")
             await asyncio.gather(*downstream_tasks)
         else:
-            print(f"{self.log_prefix} 警告：節點 {completed_node_id} 有輸出目標但未找到對應節點實例。 সন")
+            print(f"{self.log_prefix} 警告：節點 {completed_node_id} 有輸出目標但未找到對應節點實例。 ")
             await self.check_completion()
         
         print(f"{self.log_prefix} ===== 結果傳播完畢 =====\n")
 
     async def check_completion(self):
-        print(f"{self.log_prefix} 開始執行 `check_completion` 函數。 সন")
+        print(f"{self.log_prefix} 開始執行 `check_completion` 函數。 ")
         all_settled = all(node.status in ["COMPLETED", "FAILED"] for node in self.nodes.values())
         
         if all_settled and not self.is_failed:
-            print(f"{self.log_prefix} 所有節點均已穩定，準備進行最終總結。 সন")
+            print(f"{self.log_prefix} 所有節點均已穩定，準備進行最終總結。 ")
             final_node = self._find_final_node()
             content_to_summarize = final_node.output_content if final_node else "(未能確定用於總結的內容)"
 
@@ -238,7 +238,7 @@ class DynamicWorkflowManager:
             
             try:
                 final_summary = await self.execute_llm_call(default_system_prompt, summary_task)
-                print(f"{self.log_prefix} DEFAULT Agent 總結完成。 সন")
+                print(f"{self.log_prefix} DEFAULT Agent 總結完成。 ")
                 self.master_history.append({"role": "最終總結 (DEFAULT)", "content": final_summary})
             except Exception as e:
                 print(f"{self.log_prefix} DEFAULT Agent 總結失敗: {e}")
@@ -253,7 +253,7 @@ class DynamicWorkflowManager:
                 "conversation_id": conv_id
             })
         else:
-            print(f"{self.log_prefix} 尚有 PENDING 或 RUNNING 的節點，工作流繼續。 সন")
+            print(f"{self.log_prefix} 尚有 PENDING 或 RUNNING 的節點，工作流繼續。 ")
 
     def _find_final_node(self) -> Optional[WorkflowNode]:
         for node in self.nodes.values():
@@ -272,7 +272,7 @@ class DynamicWorkflowManager:
 
     async def execute_llm_call(self, system_prompt: str, task_description: str) -> str:
         """獨立的 LLM 調用函數，返回純文本。"""
-        print(f"{self.log_prefix} 開始執行 `execute_llm_call`。 সন")
+        print(f"{self.log_prefix} 開始執行 `execute_llm_call`。 ")
         full_prompt = f"System Prompt: {system_prompt}\n\n--- 對話歷史與當前任務 ---\n{task_description}"
         try:
             async with httpx.AsyncClient() as client:
@@ -282,7 +282,7 @@ class DynamicWorkflowManager:
                 response.raise_for_status()
                 data = response.json()
                 response_text = data.get("response", "").strip()
-            print(f"{self.log_prefix} LLM API 調用成功。 সন")
+            print(f"{self.log_prefix} LLM API 調用成功。 ")
             return response_text
         except httpx.RequestError as e:
             raise Exception(f"請求 LLM API 失敗: {e}")
@@ -290,14 +290,14 @@ class DynamicWorkflowManager:
             raise Exception(f"處理 LLM 回應時出錯: {e}")
 
     async def _save_workflow_history(self) -> int:
-        print(f"{self.log_prefix} 開始執行 `_save_workflow_history`。 সন")
+        print(f"{self.log_prefix} 開始執行 `_save_workflow_history`。 ")
         title = f"工作流: {self.process.initialPrompt[:30]}..."
         conversation = await chat_service.create_conversation(self.db, self.user_id, title)
         for msg in self.master_history:
             is_user = msg["role"] == "User"
             formatted_content = f"**【{msg['role']}】**\n\n{msg['content']}"
             await chat_service.save_message(self.db, self.user_id, formatted_content, is_user, conversation.id)
-        print(f"{self.log_prefix} 工作流歷史已存入對話 ID: {conversation.id} সন")
+        print(f"{self.log_prefix} 工作流歷史已存入對話 ID: {conversation.id} ")
         return conversation.id
 
 # =================================================================
@@ -315,7 +315,7 @@ def get_db_session():
 async def workflow_websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db_session)):
     user_id = 1
     await manager.connect(websocket, user_id)
-    print(f"使用者 {user_id} 的 Workflow WebSocket 連線成功 (驗證已繞過)。 সন")
+    print(f"使用者 {user_id} 的 Workflow WebSocket 連線成功 (驗證已繞過)。 ")
     
     try:
         while True:
@@ -336,7 +336,7 @@ async def workflow_websocket_endpoint(websocket: WebSocket, db: Session = Depend
 
     except WebSocketDisconnect:
         manager.disconnect(websocket, user_id)
-        print(f"使用者 {user_id} 的 WebSocket 連線已斷開。 সন")
+        print(f"使用者 {user_id} 的 WebSocket 連線已斷開。 ")
     except Exception as e:
         print(f"WebSocket 發生錯誤: {e}")
         if websocket.client_state.value != 3:

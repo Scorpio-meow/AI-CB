@@ -44,7 +44,7 @@
 - **FastAPI**: 高性能 Web 框架
 - **SQLAlchemy**: ORM 數據庫操作
 - **LangChain**: RAG 實現框架
-- **Ollama/GitHub Models**: 大型語言模型支援
+- **Ollama/LLM Models**: 大型語言模型支援
 - **FAISS**: 向量數據庫 (IndexFlatIP, 384維)
 - **Whoosh**: BM25 全文檢索引擎
 - **Cross-Encoder**: ms-marco-MiniLM-L-6-v2 重新排序
@@ -118,17 +118,8 @@ npm start
 #### 後端 (.env)
 ```env
 # Ollama API 配置（推薦）
-GITHUB_TOKEN=your-token-here
 MODEL_NAME=gpt-oss:20b
 LLM_API_BASE=https://your-ngrok-url.ngrok-free.app
-
-# 或 GitHub Models API
-GITHUB_TOKEN=your_github_token_here
-MODEL_NAME=gpt-4o-mini
-LLM_API_BASE=https://models.inference.ai.azure.com
-
-# 或 OpenAI API
-OPENAI_API_KEY=your_openai_api_key_here
 
 # JWT 密鑰
 SECRET_KEY=your_jwt_secret_key_here
@@ -270,14 +261,32 @@ chatbot/
 3. 整合測試
 4. 部署上線
 
-## 貢獻
 
-歡迎提交 Issue 和 Pull Request！
+`reindex_faq_split.py`
+- 作用（一句話）：從 uploads 的檔案中解析 FAQ（Q/A）對，將每對 Q/A 當作一個 chunk 重建並加入 RAG 的向量索引。
+- 主要流程：
+  - 設定 chunk 大小與重疊（環境變數預設為大 chunk、0 overlap）。
+  - 讀取 uploads 目錄，對支援的副檔名抽取文字。
+  - 用正規表達式拆出 Q/A 對，若有則把每對做成單一 chunk（metadata 包含 question、來源等）；否則把整個文件當 fallback chunk。
+  - 清空現有向量庫，非同步呼叫 `rag.add_documents` 把 chunk 加入索引。
+- 執行範例（PowerShell）：
+```powershell
+python .\backend\scripts\reindex_faq_split.py
+```
 
-## 授權
+`evaluate_faq_retrieval.py`
+- 作用（一句話）：以已索引的每個 QA 的 question 作為查詢，評估該 QA chunk 是否能被檢索回來（計算 Hit@1/3/5 與 MRR），並列出失敗樣本。
+- 主要流程：
+  - 建立 `HybridContextualRAG()`，從其 `documents` 選出含有 `question` metadata 的 QA chunks。
+  - 對每個 question 執行 `rag.smart_search(q)`，找出原始 chunk 的排名，累計 hit/count 與 MRR，記錄檢索策略統計與失敗樣本。
+  - 印出摘要報表與若干失敗示例。
+- 執行範例（PowerShell）：
+```powershell
+python .\backend\scripts\evaluate_faq_retrieval.py
+```
 
-MIT License
+注意事項（快速）
+- 兩腳本皆依賴專案中的 RAG 實作與已存在的向量索引 / documents；`reindex_faq_split.py` 會重建索引，`evaluate_faq_retrieval.py` 要在索引存在且包含 QA chunk 時使用。
+- 需安裝並可載入的模型與套件（sentence-transformers, faiss 等）；第一次載入模型可能會耗時或需網路。
 
-## 聯絡
-
-如有問題，請聯絡開發團隊。
+完成 — 如果要我執行或把輸出做成 CSV/報表，我可以接著幫你加上。

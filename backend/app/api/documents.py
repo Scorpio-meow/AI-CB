@@ -4,6 +4,7 @@ from app.models.database import get_db
 from app.models import Document, DocumentChunk
 from app.rag.contextual_rag import ContextualRAG
 from app.services.document_processor import DocumentProcessor
+import re
 from langchain.schema import Document as LangchainDocument
 import os
 import shutil
@@ -15,6 +16,20 @@ import logging
 logger = logging.getLogger(__name__)
 router = APIRouter()
 rag_system = ContextualRAG()
+
+# QA detection pattern (supports Q/A or Ｑ/Ａ with Chinese/fullwidth punctuation)
+QA_PATTERN = re.compile(r"(?:^|\n)\s*[QＱ]\s*[：:]\s*(.*?)\s*[\r\n]+\s*[AＡ]\s*[：:]\s*(.*?)(?=(?:\n\s*[QＱ]\s*[：:]|\Z))",
+                        re.DOTALL)
+
+
+def split_faq(text: str):
+    pairs = []
+    for m in QA_PATTERN.finditer(text):
+        q = m.group(1).strip()
+        a = m.group(2).strip()
+        if q and a:
+            pairs.append((q, a))
+    return pairs
 
 @router.post("/upload")
 async def upload_document(
@@ -101,29 +116,56 @@ async def upload_document(
             db.commit()
             db.refresh(document)
 
-            # 添加到 RAG 系統
-            langchain_doc = LangchainDocument(
-                page_content=content,
-                metadata={
-                    "source": safe_filename,
-                    "document_id": document.id,
-                    "uploaded_by": 1,
-                    "content_type": up.content_type,
-                    "original_filename": up.filename
-                }
-            )
-            await rag_system.add_documents([langchain_doc])
+            # Detect FAQ/Q&A pairs and add as individual QA chunks when appropriate
+            try:
+                qa_pairs = split_faq(content)
+            except Exception:
+                qa_pairs = []
+
+            if qa_pairs:
+                langchain_docs = []
+                for i, (q, a) in enumerate(qa_pairs):
+                    chunk_content = f"Q：{q}\nA：{a}"
+                    md = {
+                        "source": safe_filename,
+                        "document_id": document.id,
+                        "uploaded_by": 1,
+                        "content_type": up.content_type,
+                        "original_filename": up.filename,
+                        "qa_index": i,
+                        "question": q[:2000],
+                        "preserve_whole": True
+                    }
+                    langchain_docs.append(LangchainDocument(page_content=chunk_content, metadata=md))
+                await rag_system.add_documents(langchain_docs)
+            else:
+                # 添加整個文件到 RAG
+                langchain_doc = LangchainDocument(
+                    page_content=content,
+                    metadata={
+                        "source": safe_filename,
+                        "document_id": document.id,
+                        "uploaded_by": 1,
+                        "content_type": up.content_type,
+                        "original_filename": up.filename
+                    }
+                )
+                await rag_system.add_documents([langchain_doc])
 
             # 標記為已處理
             document.is_processed = True
             db.commit()
 
+            # include QA detection info for traceability
+            qa_count = len(qa_pairs) if 'qa_pairs' in locals() and qa_pairs else 0
             results.append({
                 "filename": safe_filename,
                 "status": "success",
                 "document_id": document.id,
                 "content_length": len(content),
-                "content_type": up.content_type
+                "content_type": up.content_type,
+                "qa_detected": qa_count > 0,
+                "qa_pairs": qa_count
             })
 
         except Exception as e:

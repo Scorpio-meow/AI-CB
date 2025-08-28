@@ -10,10 +10,8 @@ copy .env.example .env
 ```
 
 編輯 `.env` 文件，配置以下必要項目：
-- `GITHUB_TOKEN`: 您的 GitHub Personal Access Token 或任意值（用於 Ollama）
-- `MODEL_NAME`: 模型名稱（如 gpt-oss:20b 用於 Ollama 或 gpt-4o-mini 用於 GitHub Models）
-- `LLM_API_BASE`: API 基地址（Ollama ngrok 地址或 GitHub Models API）
-- 或 `OPENAI_API_KEY`: 您的 OpenAI API 密鑰
+- `MODEL_NAME`: 模型名稱（如 gpt-oss:20b 用於 Ollama 或 gpt-4o-mini 用於 LLM Models）
+- `LLM_API_BASE`: API 基地址（Ollama ngrok 地址或 LLM Models API）
 - `SECRET_KEY`: JWT 加密密鑰（建議使用隨機字符串）
 - `DATABASE_URL`: 數據庫連接字符串（默認 SQLite）
 
@@ -158,12 +156,6 @@ python scripts/reset_faiss.py
 - 手動重建：執行上述重置腳本
 
 ## 常見問題
-
-### Q: 無法連接到 GitHub Models API
-A: 請確認 `GITHUB_TOKEN` 已正確設置在 `.env` 文件中，並且 token 有必要權限。
-
-### Q: 無法連接到 OpenAI API
-A: 請確認 `OPENAI_API_KEY` 已正確設置在 `.env` 文件中。
 
 ### Q: 前端無法連接到後端
 A: 檢查後端服務是否正常運行在 http://127.0.0.1:8001
