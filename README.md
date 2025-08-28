@@ -119,7 +119,7 @@ npm start
 ```env
 # Ollama API 配置（推薦）
 MODEL_NAME=gpt-oss:20b
-LLM_API_BASE=https://your-ngrok-url.ngrok-free.app
+LLM_API_BASE=https://b6838af9164c.ngrok-free.app
 
 # JWT 密鑰
 SECRET_KEY=your_jwt_secret_key_here
