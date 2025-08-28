@@ -3,7 +3,6 @@ import {
   Box,
   Paper,
   Typography,
-  Checkbox,
   Button,
   List,
   ListItem,
@@ -37,9 +36,6 @@ function Documents() {
   const [success, setSuccess] = useState('');
   const [uploadDialog, setUploadDialog] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
-  const [selectedDocIds, setSelectedDocIds] = useState([]);
-  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
-  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [deletingStatus, setDeletingStatus] = useState({});
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
 
@@ -254,7 +250,6 @@ function Documents() {
       setDeletingStatus((prev) => ({ ...prev, [documentId]: 'deleted' }));
       // remove from list immediately for fast UX
       setDocuments((prev) => prev.filter((d) => d.id !== documentId));
-      setSelectedDocIds((prev) => prev.filter((id) => id !== documentId));
       setSuccess('文檔刪除成功');
     } catch (err) {
       console.error('刪除文檔錯誤:', err);
@@ -263,102 +258,9 @@ function Documents() {
     }
   };
 
-  const toggleSelectDoc = (documentId) => {
-    setSelectedDocIds((prev) => {
-      if (prev.includes(documentId)) return prev.filter((id) => id !== documentId);
-      return [...prev, documentId];
-    });
-  };
+  // document selection removed - users delete individually
 
-  const openBulkDeleteConfirm = () => {
-    if (!selectedDocIds || selectedDocIds.length === 0) return;
-    setBulkDeleteConfirmOpen(true);
-  };
-
-  const cancelBulkDelete = () => setBulkDeleteConfirmOpen(false);
-
-  const bulkDeleteSelected = async () => {
-    if (!selectedDocIds || selectedDocIds.length === 0) return;
-    setBulkDeleting(true);
-    // mark all as deleting
-    setDeletingStatus((prev) => {
-      const next = { ...prev };
-      for (const id of selectedDocIds) next[id] = 'deleting';
-      return next;
-    });
-
-    const failed = [];
-    for (const id of selectedDocIds) {
-      try {
-        await axios.delete(`/api/documents/${id}`);
-        // mark deleted and remove from UI
-        setDeletingStatus((prev) => ({ ...prev, [id]: 'deleted' }));
-        setDocuments((prev) => prev.filter((d) => d.id !== id));
-      } catch (err) {
-        console.error('Bulk delete error for', id, err);
-        failed.push(id);
-        setDeletingStatus((prev) => ({ ...prev, [id]: 'failed' }));
-      }
-    }
-
-    setBulkDeleting(false);
-    setBulkDeleteConfirmOpen(false);
-    if (failed.length === 0) {
-      setSuccess('已刪除選取的文檔');
-    } else {
-      setError(`部分刪除失敗: ${failed.join(',')}`);
-    }
-    // remove deleted ids from selection
-    setSelectedDocIds((prev) => prev.filter((id) => !(deletingStatus[id] === 'deleted')));
-    // finally refresh list to sync with server
-    loadDocuments();
-    if (!selectedDocIds || selectedDocIds.length === 0) return;
-    setBulkDeleting(true);
-    // mark all as deleting
-    setDeletingStatus((prev) => {
-      const next = { ...prev };
-      for (const id of selectedDocIds) next[id] = 'deleting';
-      return next;
-    });
-
-    try {
-      const response = await axios.post('/api/documents/bulk_delete', { ids: selectedDocIds });
-      const results = response.data?.results || [];
-      const failed = [];
-
-      for (const r of results) {
-        if (r.status === 'deleted') {
-          setDeletingStatus((prev) => ({ ...prev, [r.id]: 'deleted' }));
-          setDocuments((prev) => prev.filter((d) => d.id !== r.id));
-        } else {
-          failed.push(r.id);
-          setDeletingStatus((prev) => ({ ...prev, [r.id]: 'failed' }));
-        }
-      }
-
-      if (failed.length === 0) {
-        setSuccess('已刪除選取的文檔');
-      } else {
-        setError(`部分刪除失敗: ${failed.join(',')}`);
-      }
-    } catch (err) {
-      console.error('Bulk delete request failed', err);
-      // mark all as failed
-      setDeletingStatus((prev) => {
-        const next = { ...prev };
-        for (const id of selectedDocIds) next[id] = 'failed';
-        return next;
-      });
-      setError('批次刪除失敗: ' + (err.response?.data?.detail || err.message));
-    } finally {
-      setBulkDeleting(false);
-      setBulkDeleteConfirmOpen(false);
-      // clear selection of those that were deleted
-      setSelectedDocIds((prev) => prev.filter((id) => deletingStatus[id] !== 'deleted'));
-      // sync with server for any unexpected differences
-      loadDocuments();
-    }
-  };
+  // bulk delete removed; users should delete individually via the delete icon
 
   const formatFileSize = (bytes) => {
     if (bytes === 0) return '0 Bytes';
@@ -422,9 +324,7 @@ function Documents() {
             已上傳的文檔 ({documents.length})
           </Typography>
           <Box>
-            <Button variant="outlined" color="error" onClick={openBulkDeleteConfirm} disabled={!selectedDocIds.length} sx={{ mr: 1 }}>
-              刪除選取
-            </Button>
+            {/* Bulk delete removed - users should delete individually */}
           </Box>
         </Box>
         
@@ -443,7 +343,6 @@ function Documents() {
             {documents.map((doc, index) => (
               <React.Fragment key={doc.id}>
                 <ListItem>
-                  <Checkbox checked={selectedDocIds.includes(doc.id)} onChange={() => toggleSelectDoc(doc.id)} />
                   <ListItemText
                     primary={
                       <Box display="flex" alignItems="center" gap={1}>
@@ -626,19 +525,7 @@ function Documents() {
           <Button onClick={confirmRemoveSelectedFiles} variant="contained" color="error">確定移除</Button>
         </DialogActions>
       </Dialog>
-      {/* 批量刪除確認 */}
-      <Dialog open={bulkDeleteConfirmOpen} onClose={cancelBulkDelete}>
-        <DialogTitle>確認刪除選取的文檔？</DialogTitle>
-        <DialogContent>
-          <Typography>將刪除 {selectedDocIds.length} 個檔案，操作不可逆，確定要刪除嗎？</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={cancelBulkDelete}>取消</Button>
-          <Button onClick={bulkDeleteSelected} variant="contained" color="error" disabled={bulkDeleting}>
-            {bulkDeleting ? '刪除中...' : '確認刪除'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+  {/* Bulk delete UI removed */}
     </Box>
   );
 }

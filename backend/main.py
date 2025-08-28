@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import chat, admin, documents,workflow
 from app.models.database import create_tables
+from app.tasks.uploads_watcher import scan_and_cleanup_uploads
+import asyncio
 import os
 from dotenv import load_dotenv
 
@@ -27,6 +29,19 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     await create_tables()
+    # start background uploads watcher
+    app.state._uploads_watcher_task = asyncio.create_task(scan_and_cleanup_uploads(30))
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    task = getattr(app.state, '_uploads_watcher_task', None)
+    if task:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
 # Include routers
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])

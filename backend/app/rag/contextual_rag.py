@@ -15,6 +15,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from whoosh import index, fields, qparser, scoring
 from whoosh.analysis import StandardAnalyzer, Analyzer, Tokenizer, Token
 from whoosh.filedb.filestore import FileStorage
+from whoosh.writing import AsyncWriter
 import tempfile
 try:
     import jieba
@@ -159,9 +160,16 @@ class HybridContextualRAG:
             
             # Load existing indices
             self._load_indices()
-            
-            # Auto-reindex check
-            self._check_auto_reindex()
+
+            # Auto-reindex check: disabled by default to avoid reindex during
+            # FastAPI/uvicorn reload or when multiple processes start.
+            # Enable explicitly in a single indexer process by setting
+            # environment variable ENABLE_AUTO_REINDEX=1, or call
+            # `force_reindex()` / `_rebuild_indices()` from a startup hook.
+            if os.getenv("ENABLE_AUTO_REINDEX", "0") == "1":
+                self._check_auto_reindex()
+            else:
+                logger.info("Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook")
             
         except Exception as e:
             logger.error(f"Failed to initialize HybridContextualRAG: {e}")
@@ -336,23 +344,66 @@ class HybridContextualRAG:
             os.makedirs(self.bm25_index_dir, exist_ok=True)
             storage = FileStorage(self.bm25_index_dir)
             self.bm25_index = storage.create_index(self._create_bm25_schema())
-            
-            # Add documents
-            writer = self.bm25_index.writer()
-            for i, doc in enumerate(self.documents):
-                writer.add_document(
-                    doc_id=f"doc_{i}",
-                    content=doc.page_content,
-                    title=doc.metadata.get('source', ''),
-                    source=doc.metadata.get('source', ''),
-                    chunk_index=doc.metadata.get('chunk_index', 0)
-                )
-            writer.commit()
-            
+
+            # Add documents using AsyncWriter and optional external file lock.
+            # Close existing searcher first to avoid Windows file handle locks.
+            if self.bm25_searcher:
+                try:
+                    self.bm25_searcher.close()
+                except Exception:
+                    pass
+                self.bm25_searcher = None
+
+            # Try to use a file lock if available to serialize cross-process writes.
+            lock_path = os.path.join(self.bm25_index_dir, "bm25_write.lock")
+            use_filelock = False
+            try:
+                from filelock import FileLock, Timeout
+                use_filelock = True
+            except Exception:
+                FileLock = None
+                Timeout = None
+
+            write_attempts = 3
+            for attempt in range(write_attempts):
+                try:
+                    if use_filelock:
+                        with FileLock(lock_path, timeout=5):
+                            with AsyncWriter(self.bm25_index) as writer:
+                                for i, doc in enumerate(self.documents):
+                                    writer.add_document(
+                                        doc_id=f"doc_{i}",
+                                        content=doc.page_content,
+                                        title=doc.metadata.get('source', ''),
+                                        source=doc.metadata.get('source', ''),
+                                        chunk_index=doc.metadata.get('chunk_index', 0)
+                                    )
+                    else:
+                        with AsyncWriter(self.bm25_index) as writer:
+                            for i, doc in enumerate(self.documents):
+                                writer.add_document(
+                                    doc_id=f"doc_{i}",
+                                    content=doc.page_content,
+                                    title=doc.metadata.get('source', ''),
+                                    source=doc.metadata.get('source', ''),
+                                    chunk_index=doc.metadata.get('chunk_index', 0)
+                                )
+                    # success, break out
+                    break
+                except Exception as e:
+                    logger.warning(f"BM25 write attempt {attempt+1} failed: {e}")
+                    time.sleep(0.5)
+
             # Update searcher with BM25 weighting
             if self.bm25_searcher:
-                self.bm25_searcher.close()
-            self.bm25_searcher = self.bm25_index.searcher(weighting=scoring.BM25F())
+                try:
+                    self.bm25_searcher.close()
+                except Exception:
+                    pass
+            try:
+                self.bm25_searcher = self.bm25_index.searcher(weighting=scoring.BM25F())
+            except Exception as e:
+                logger.warning(f"Failed to open BM25 searcher after rebuild: {e}")
             
         except Exception as e:
             logger.error(f"Failed to rebuild BM25 index: {e}")
@@ -444,24 +495,66 @@ class HybridContextualRAG:
                     self.bm25_searcher.close()
                 self.bm25_searcher = self.bm25_index.searcher(weighting=scoring.BM25F())
             
-            # Add documents
-            writer = self.bm25_index.writer()
-            start_id = len(self.documents)
-            
-            for i, chunk in enumerate(chunks):
-                writer.add_document(
-                    doc_id=f"doc_{start_id + i}",
-                    content=chunk.page_content,
-                    title=chunk.metadata.get('source', ''),
-                    source=chunk.metadata.get('source', ''),
-                    chunk_index=chunk.metadata.get('chunk_index', 0)
-                )
-            writer.commit()
-            
-            # Update searcher with BM25 weighting
+            # Add documents using AsyncWriter; close existing searcher first to avoid file locks on Windows
             if self.bm25_searcher:
-                self.bm25_searcher.close()
-            self.bm25_searcher = self.bm25_index.searcher(weighting=scoring.BM25F())
+                try:
+                    self.bm25_searcher.close()
+                except Exception:
+                    pass
+                self.bm25_searcher = None
+
+            start_id = len(self.documents)
+
+            # Optional external file lock to serialize multi-process writes
+            lock_path = os.path.join(self.bm25_index_dir, "bm25_write.lock")
+            use_filelock = False
+            try:
+                from filelock import FileLock, Timeout
+                use_filelock = True
+            except Exception:
+                FileLock = None
+                Timeout = None
+
+            write_attempts = 3
+            for attempt in range(write_attempts):
+                try:
+                    if use_filelock:
+                        with FileLock(lock_path, timeout=5):
+                            with AsyncWriter(self.bm25_index) as writer:
+                                for i, chunk in enumerate(chunks):
+                                    writer.add_document(
+                                        doc_id=f"doc_{start_id + i}",
+                                        content=chunk.page_content,
+                                        title=chunk.metadata.get('source', ''),
+                                        source=chunk.metadata.get('source', ''),
+                                        chunk_index=chunk.metadata.get('chunk_index', 0)
+                                    )
+                    else:
+                        with AsyncWriter(self.bm25_index) as writer:
+                            for i, chunk in enumerate(chunks):
+                                writer.add_document(
+                                    doc_id=f"doc_{start_id + i}",
+                                    content=chunk.page_content,
+                                    title=chunk.metadata.get('source', ''),
+                                    source=chunk.metadata.get('source', ''),
+                                    chunk_index=chunk.metadata.get('chunk_index', 0)
+                                )
+                    # success
+                    break
+                except Exception as e:
+                    logger.warning(f"BM25 add attempt {attempt+1} failed: {e}")
+                    time.sleep(0.3)
+
+            # Update searcher with BM25 weighting
+            try:
+                if self.bm25_searcher:
+                    try:
+                        self.bm25_searcher.close()
+                    except Exception:
+                        pass
+                self.bm25_searcher = self.bm25_index.searcher(weighting=scoring.BM25F())
+            except Exception as e:
+                logger.warning(f"Failed to open BM25 searcher after add: {e}")
             
         except Exception as e:
             logger.error(f"Failed to add to BM25 index: {e}")
@@ -825,25 +918,60 @@ class HybridContextualRAG:
             "retrieval_strategy": retrieval_strategy
         }
     
-    def remove_document_by_id(self, document_id: int):
-        """Enhanced document removal with proper index rebuilding"""
+    def remove_document_by_id(self, document_id: int, rebuild_bm25: bool = True):
+        """Enhanced document removal with optional BM25 rebuild.
+
+        Parameters:
+        - document_id: id of the original document to remove
+        - rebuild_bm25: whether to rebuild the BM25 index immediately. On Windows
+          rebuilding BM25 may fail due to file locks; set to False to skip BM25
+          rebuild and only rebuild the FAISS/vector index and persist documents.
+        """
         # Find documents to remove
         docs_to_remove_indices = []
         for i, doc in enumerate(self.documents):
             if doc.metadata.get('document_id') == document_id or doc.metadata.get('original_doc_id') == document_id:
                 docs_to_remove_indices.append(i)
-        
+
         if not docs_to_remove_indices:
             logger.warning(f"No documents found with document_id: {document_id}")
             return
-        
+
         # Remove documents (reverse order to maintain indices)
         for i in sorted(docs_to_remove_indices, reverse=True):
             del self.documents[i]
-        
-        # Rebuild indices
-        self._rebuild_indices()
-        
+
+        # Rebuild FAISS (vector) index and persist documents.
+        try:
+            if not self.documents:
+                # Nothing left: clear store
+                self.clear_vector_store()
+            else:
+                # Recompute embeddings and rebuild FAISS index
+                all_texts = [doc.page_content for doc in self.documents]
+                embeddings = self.local_embeddings.encode(all_texts, show_progress_bar=False)
+                embeddings = embeddings.astype('float32')
+                faiss.normalize_L2(embeddings)
+
+                self.index = faiss.IndexFlatIP(self.embedding_dimension)
+                self.index.add(embeddings)
+
+                # Optionally rebuild BM25 (may be skipped by callers)
+                if rebuild_bm25:
+                    try:
+                        self._rebuild_bm25_index()
+                    except Exception as e:
+                        logger.warning(f"BM25 rebuild skipped/failed during remove: {e}")
+
+                # Persist FAISS and documents/metadata (safe even if BM25 skipped)
+                try:
+                    self._save_indices()
+                except Exception as e:
+                    logger.error(f"Failed to save indices after removal: {e}")
+
+        except Exception as e:
+            logger.error(f"Failed to rebuild indices after removal: {e}")
+
         logger.info(f"Removed {len(docs_to_remove_indices)} chunks for document_id {document_id}")
     
     def clear_vector_store(self):
