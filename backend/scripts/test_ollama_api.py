@@ -8,9 +8,15 @@ from dotenv import load_dotenv
 
 # 載入環境變數
 load_dotenv()
+try:
+    OLLAMA_HOST = os.environ["LLM_API_BASE"]
+except KeyError:
+    raise RuntimeError("Environment variable LLM_API_BASE is required for test_ollama_api.py. Please copy .env.example to .env and set it.")
 
-OLLAMA_HOST = os.getenv("GITHUB_API_BASE", "https://fc5d1d0fc900.ngrok-free.app")
-MODEL_NAME = os.getenv("MODEL_NAME", "gpt-oss:20b")
+try:
+    MODEL_NAME = os.environ["MODEL_NAME"]
+except KeyError:
+    raise RuntimeError("Environment variable MODEL_NAME is required for test_ollama_api.py. Please copy .env.example to .env and set it.")
 
 def check_model(model_name=None):
     """檢查指定模型是否存在"""

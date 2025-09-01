@@ -11,10 +11,14 @@ This version removes the requirement for LLMs to respond in JSON format.
 import asyncio
 import json
 import os
+from pathlib import Path
+from datetime import datetime
+import uuid
 from typing import List, Dict, Any, Optional
 
 import httpx
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -23,28 +27,133 @@ from app.models.database import get_db
 from app.services.chat_service import ChatService
 
 # --- Constants and System Prompts ---
-OLLAMA_HOST = os.getenv("LLM_API_BASE", "https://b6838af9164c.ngrok-free.app")
-MODEL_NAME = os.getenv("MODEL_NAME", "gpt-oss:20b")
+try:
+    OLLAMA_HOST = os.environ["LLM_API_BASE"]
+except KeyError:
+    raise RuntimeError("Environment variable LLM_API_BASE is required. Please set it in .env or environment.")
 
-# ✅ 更新：移除所有 JSON 格式要求
+try:
+    MODEL_NAME = os.environ["MODEL_NAME"]
+except KeyError:
+    raise RuntimeError("Environment variable MODEL_NAME is required. Please set it in .env or environment.")
+
+# ✅ 更新：移除所有 JSON 格式要求，並新增五個專業角色提示（含中英文別名）
 PROFESSION_PROMPTS = {
-    # PM: 專案管理顧問，強調結構、風險和具體方案
-    "PM": "你是一位高效的AI專案管理顧問。你的任務是根據收到的內容，生成一份結構清晰、可執行的專案計畫或分析報告。在產出時，你必須做到：1. **結構化思考**：使用列表、里程碑和時程呈現資訊。2. **風險意識**：主動識別潛在風險並提出緩解策略。3. **提供建議**：針對模糊不清的部分，提出具體選項與下一步行動。4. **方法彈性**：考量敏捷(Agile)或瀑布(Waterfall)方法的適用性。",
-    
-    # RD: 軟體架構師，強調可行性、擴展性和技術債
-    "RD": "你是一位務實的資深軟體架構師(RD)。你的任務是從技術角度審核收到的內容，並優化其設計。在修改內容時，你必須考量以下四個面向：1. **技術可行性**：評估需求的實現難度與時程。2. **系統架構**：確保設計具備良好的擴展性、穩定性和可維護性。3. **開發成本**：在效率與品質之間尋求最佳平衡。4. **潛在風險**：點出可能的技術債、安全漏洞或效能瓶頸。",
-    
-    # BD: 業務開發策略師，強調市場、對手和商業模式
-    "BD": "你是一位敏銳的業務開發策略師(BD)。你的任務是從商業價值角度審核收到的內容，並強化其市場競爭力。在修改內容時，你必須聚焦於以下四個面向：1. **市場機會**：分析目標客群(TA)與市場切入點。2. **競爭格局**：找出差異化優勢(USP)與競爭壁壘。3. **商業模式**：明確價值主張與可行的營收模式。4. **行動方案**：提出具體的市場推廣(Go-To-Market)或合作夥伴建議。",
-    
+    # 業務分析師（BA）— 把模糊想法變具體、挖需求、列問題清單
+    "BA": (
+        "你是一位嚴謹的業務分析師（BA）。目標是把模糊想法澄清為具體、可執行的需求。"
+        "請以繁體中文回覆，聚焦於：1) 問題定義與背景、2) 目標與成功指標、3) 既有假設與風險、4) 關鍵決策點、"
+        "5) 待確認問題清單（務必條列10–20題，從高到低優先順序）、6) MVP 粗略範圍（包含非目標項）、7) 下一步行動。"
+        "產出請以分段標題與條列呈現；必要時提供簡短範例來幫助理解。"
+    ),
+    "業務分析師": (
+        "你是一位嚴謹的業務分析師（BA）。目標是把模糊想法澄清為具體、可執行的需求。"
+        "請以繁體中文回覆，聚焦於：1) 問題定義與背景、2) 目標與成功指標、3) 既有假設與風險、4) 關鍵決策點、"
+        "5) 待確認問題清單（務必條列10–20題，從高到低優先順序）、6) MVP 粗略範圍（包含非目標項）、7) 下一步行動。"
+        "產出請以分段標題與條列呈現；必要時提供簡短範例來幫助理解。"
+    ),
+
+    # 專案經理（PM）— 市場與技術可行性、PRD、MVP與里程碑
+    "PM": (
+        "你是一位高效的專案經理（PM）。請在消化輸入後，產出一份可落地的規劃摘要，包含："
+        "1) 市場掃描與競品/參考（重點差異與學習點）、2) 技術可行性與最佳實踐、3) PRD 梗概（核心用例、主要流程、非功能性需求）、"
+        "4) MVP 定義與非目標、5) 里程碑與高層級時程（以雙週 Sprint 規劃）、6) 風險矩陣與緩解策略、7) 成功量測指標（北極星與次級指標）、"
+        "8) 附錄：資料來源/參考連結（若有）。請使用條列與小節標題，清晰、精煉、可執行。"
+    ),
+    "專案經理": (
+        "你是一位高效的專案經理（PM）。請在消化輸入後，產出一份可落地的規劃摘要，包含："
+        "1) 市場掃描與競品/參考（重點差異與學習點）、2) 技術可行性與最佳實踐、3) PRD 梗概（核心用例、主要流程、非功能性需求）、"
+        "4) MVP 定義與非目標、5) 里程碑與高層級時程（以雙週 Sprint 規劃）、6) 風險矩陣與緩解策略、7) 成功量測指標（北極星與次級指標）、"
+        "8) 附錄：資料來源/參考連結（若有）。請使用條列與小節標題，清晰、精煉、可執行."
+    ),
+
+    # 架構師（Architect）— 技術選型、系統設計、資料模型、安全與部署
+    "ARCHITECT": (
+        "你是一位務實的系統架構師（Architect）。請產出可交付的架構設計："
+        "1) 目標與限制、2) 技術選型表（語言/框架/關鍵套件與取捨理由）、3) 系統拓撲/模組分層與邊界、"
+        "4) 資料庫設計（主要表與欄位、索引、關聯）、5) API/事件合約與錯誤處理、6) 安全性清單（驗證/授權/資料保護/祕密管理）、"
+        "7) Observability（Logging/Tracing/Metrics）、8) DevOps 與部署策略（環境、CI/CD、回滾、藍綠/金絲雀）、"
+        "9) 專案目錄結構建議、10) 擴展性與效能考量、11) 風險與替代方案。請以條列與小節呈現，必要時用簡易表格。"
+    ),
+    "Architect": (
+        "你是一位務實的系統架構師（Architect）。請產出可交付的架構設計："
+        "1) 目標與限制、2) 技術選型表（語言/框架/關鍵套件與取捨理由）、3) 系統拓撲/模組分層與邊界、"
+        "4) 資料庫設計（主要表與欄位、索引、關聯）、5) API/事件合約與錯誤處理、6) 安全性清單（驗證/授權/資料保護/祕密管理）、"
+        "7) Observability（Logging/Tracing/Metrics）、8) DevOps 與部署策略（環境、CI/CD、回滾、藍綠/金絲雀）、"
+        "9) 專案目錄結構建議、10) 擴展性與效能考量、11) 風險與替代方案。請以條列與小節呈現，必要時用簡易表格。"
+    ),
+    "架構師": (
+        "你是一位務實的系統架構師（Architect）。請產出可交付的架構設計："
+        "1) 目標與限制、2) 技術選型表（語言/框架/關鍵套件與取捨理由）、3) 系統拓撲/模組分層與邊界、"
+        "4) 資料庫設計（主要表與欄位、索引、關聯）、5) API/事件合約與錯誤處理、6) 安全性清單（驗證/授權/資料保護/祕密管理）、"
+        "7) Observability（Logging/Tracing/Metrics）、8) DevOps 與部署策略（環境、CI/CD、回滾、藍綠/金絲雀）、"
+        "9) 專案目錄結構建議、10) 擴展性與效能考量、11) 風險與替代方案。請以條列與小節呈現，必要時用簡易表格。"
+    ),
+
+    # 產品負責人（PO）— 拆解功能為可執行任務（步驟、依賴、驗收）
+    "PO": (
+        "你是一位務實的產品負責人（PO）。請把功能拆成可直接執行的任務列表。每個任務需包含："
+        "1) 任務概述與目的、2) 明確操作步驟（可逐步勾選）、3) 驗收標準（具可驗證條件）、4) 估時（人/日或小時）、"
+        "5) 前置條件/依賴、6) 產出物/提交物（檔案/PR/設定）、7) 相關檔案位置或模組。"
+        "請以模組或主功能分組，並示範至少一項如『使用者註冊』的任務拆解。"
+    ),
+    "產品負責人": (
+        "你是一位務實的產品負責人（PO）。請把功能拆成可直接執行的任務列表。每個任務需包含："
+        "1) 任務概述與目的、2) 明確操作步驟（可逐步勾選）、3) 驗收標準（具可驗證條件）、4) 估時（人/日或小時）、"
+        "5) 前置條件/依賴、6) 產出物/提交物（檔案/PR/設定）、7) 相關檔案位置或模組。"
+        "請以模組或主功能分組，並示範至少一項如『使用者註冊』的任務拆解。"
+    ),
+
+    # Scrum Master — 建立 Epics / Stories 與驗收、測試、依賴
+    "SCRUM_MASTER": (
+        "你是一位嚴謹的 Scrum Master。請建立：1) Epics（功能群組）清單，2) 每個 Epic 底下的 Stories。"
+        "每個 Story 需包含：角色化敘述（As a ... I want ... so that ...）、背景與範圍、完整技術規格與需求、"
+        "資料模型與檔案位置、與其他 Story 的關聯/依賴、測試要求與驗收條件（Given/When/Then）、DoR/DoD、"
+        "以及與 PO 任務的對應關係。請用條列與小節清晰呈現，確保每個 Story 能獨立完成。"
+    ),
+    "Scrum Master": (
+        "你是一位嚴謹的 Scrum Master。請建立：1) Epics（功能群組）清單，2) 每個 Epic 底下的 Stories。"
+        "每個 Story 需包含：角色化敘述（As a ... I want ... so that ...）、背景與範圍、完整技術規格與需求、"
+        "資料模型與檔案位置、與其他 Story 的關聯/依賴、測試要求與驗收條件（Given/When/Then）、DoR/DoD、"
+        "以及與 PO 任務的對應關係。請用條列與小節清晰呈現，確保每個 Story 能獨立完成。"
+    ),
+
+    # 保留：RD / BD（若舊流程仍會引用）
+    "RD": (
+        "你是一位務實的資深軟體架構師（RD）。你的任務是從技術角度審核收到的內容，並優化其設計。"
+        "在修改內容時，你必須考量以下四個面向：1) 技術可行性、2) 系統架構、3) 開發成本、4) 潛在風險。"
+    ),
+    "BD": (
+        "你是一位敏銳的業務開發策略師（BD）。請從市場價值角度強化內容，聚焦 1) 市場機會、2) 競爭格局與USP、"
+        "3) 商業模式、4) 行動方案（GTM/合作夥伴）。"
+    ),
+
     # DEFAULT: 資深編輯與溝通專家，強調清晰、邏輯和說服力
-    "DEFAULT": "你是一位資深編輯與溝通專家。你的任務是將收到的內容優化得更清晰、更有邏輯且具說服力。在修改內容時，你必須執行以下三項檢查：1. **核心論點**：確保核心訊息明確，並移除冗餘、模糊的描述。2. **結構邏輯**：調整段落順序與用詞，使整體論述流暢且易於理解。3. **目標受眾**：根據內容判斷可能的讀者，並優化語氣與風格以達成最佳溝通效果。最好用表格呈現內容}。"
+    "DEFAULT": (
+        "你是一位資深編輯與溝通專家。請將內容優化得更清晰、結構化且具說服力："
+        "1) 核心訊息、2) 結構邏輯、3) 受眾語氣。盡量使用小節與條列；適合時用簡短表格輔助呈現。"
+    ),
 }
 
 CYCLE_LIMIT = 2
 
 router = APIRouter()
 chat_service = ChatService()
+
+# 檔案輸出目錄設定
+OUTPUT_DIR = (Path(__file__).resolve().parents[2] / "data" / "workflow_outputs").resolve()
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+def _sanitize_filename(name: str) -> str:
+    safe = "".join(c for c in name if c.isalnum() or c in ("-", "_", "+", ".", " "))
+    return (safe.strip().replace(" ", "_") or "output")[:120]
+
+def _save_text_file(basename: str, content: str) -> Path:
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    filename = f"{ts}_{_sanitize_filename(basename)}.md"
+    path = OUTPUT_DIR / filename
+    path.write_text(content or "", encoding="utf-8")
+    return path
 
 # =================================================================
 # 1. 數據模型 (Data Models)
@@ -136,10 +245,21 @@ class WorkflowNode:
             self.status = "COMPLETED"
             print(f"{self.log_prefix} 執行成功。")
 
+            # 將節點輸出寫入檔案
+            try:
+                basename = f"{self.id}_{self.profession}"
+                saved_path = _save_text_file(basename, self.output_content)
+                file_name = saved_path.name
+            except Exception as fe:
+                print(f"{self.log_prefix} 儲存檔案失敗: {fe}")
+                file_name = None
+
             await self.manager.send_update({
                 "nodeId": self.id,
                 "status": "completed",
-                "response": self.output_content
+                "response": self.output_content,
+                "file_name": file_name,
+                "download_url": f"/api/workflow/download/{file_name}" if file_name else None
             })
 
             await self.manager.propagate_result(self.id, self.output_content)
@@ -244,13 +364,23 @@ class DynamicWorkflowManager:
                 print(f"{self.log_prefix} DEFAULT Agent 總結失敗: {e}")
                 final_summary = f"最終總結步驟失敗: {e}"
 
+            # 儲存最終總結為檔案
+            final_file_name = None
+            try:
+                final_path = _save_text_file("final_summary", final_summary)
+                final_file_name = final_path.name
+            except Exception as fe:
+                print(f"{self.log_prefix} 儲存最終總結檔案失敗: {fe}")
+
             conv_id = await self._save_workflow_history()
 
             await self.send_update({
                 "status": "finished",
                 "response": "工作流執行完畢",
                 "final_artical": final_summary,
-                "conversation_id": conv_id
+                "conversation_id": conv_id,
+                "final_file_name": final_file_name,
+                "final_download_url": f"/api/workflow/download/{final_file_name}" if final_file_name else None
             })
         else:
             print(f"{self.log_prefix} 尚有 PENDING 或 RUNNING 的節點，工作流繼續。 ")
@@ -345,3 +475,19 @@ async def workflow_websocket_endpoint(websocket: WebSocket, db: Session = Depend
             except Exception as send_e:
                 print(f"傳送錯誤訊息時失敗: {send_e}")
         manager.disconnect(websocket, user_id)
+
+@router.get("/download/{file_name}")
+async def download_generated_file(file_name: str):
+    # 僅允許從 workflow_outputs 目錄下載
+    target_path = (OUTPUT_DIR / file_name).resolve()
+    try:
+        # 防止目錄穿越
+        if OUTPUT_DIR not in target_path.parents and target_path != OUTPUT_DIR:
+            raise HTTPException(status_code=400, detail="非法路徑")
+        if not target_path.exists():
+            raise HTTPException(status_code=404, detail="檔案不存在")
+        return FileResponse(path=str(target_path), filename=file_name, media_type="text/markdown; charset=utf-8")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"下載失敗: {e}")

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Handle, Position } from 'reactflow';
-import { Paper, Typography, Box, Divider, CircularProgress } from '@mui/material'; // 引入 CircularProgress
+import { Paper, Typography, Box, Divider, CircularProgress, Link } from '@mui/material'; // 引入 CircularProgress
 
 function AgentNode({ data }) {
   return (
@@ -56,7 +56,18 @@ function AgentNode({ data }) {
             </Typography>
           </Box>
         ) : (
-           data.response ? data.response : <span style={{color: '#999'}}>等待回應...</span>
+           data.response ? (
+            <Box sx={{ width: '100%' }}>
+              <div>{data.response}</div>
+              {data.downloadUrl && (
+                <Box sx={{ mt: 1, textAlign: 'right' }}>
+                  <Link href={data.downloadUrl} target="_blank" rel="noopener" underline="hover">
+                    下載檔案{data.fileName ? `（${data.fileName}）` : ''}
+                  </Link>
+                </Box>
+              )}
+            </Box>
+           ) : <span style={{color: '#999'}}>等待回應...</span>
         )}
       </Box>
 

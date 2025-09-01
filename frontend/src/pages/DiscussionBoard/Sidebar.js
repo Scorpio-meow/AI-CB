@@ -4,11 +4,13 @@ import React from 'react';
 import { Box, Paper, Typography, List, ListItem, ListItemText, ListItemIcon } from '@mui/material';
 import { DragIndicator } from '@mui/icons-material';
 
-// 定義可用的 AI 角色
+// 定義可用的 AI 角色（同步後端：BA、PM、Architect、PO、Scrum Master）
 const agentRoles = [
+  { name: '業務分析師', profession: 'BA' },
   { name: '專案經理', profession: 'PM' },
-  { name: '軟體工程師', profession: 'RD' },
-  { name: '業務分析師', profession: 'BD' },
+  { name: '架構師', profession: 'Architect' },
+  { name: '產品負責人', profession: 'PO' },
+  { name: 'Scrum Master', profession: 'Scrum Master' },
 ];
 
 const Sidebar = () => {

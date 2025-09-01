@@ -220,6 +220,10 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
               setInfoMessage('');
               setIsFinished(true);
               setFinalConversationId(data.conversation_id);
+              // 暫存最終下載連結於 socket 物件，避免全域狀態污染
+              if (socketRef.current) {
+                socketRef.current.lastFinalDownloadUrl = data.final_download_url || null;
+              }
             } else if (data.status === 'error') {
               setInfoMessage('工作流執行出錯');
               setIsFinished(true);
@@ -229,7 +233,16 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
               setNodes((nds) =>
                 nds.map((node) => {
                   if (node.id === data.nodeId) {
-                    return { ...node, data: { ...node.data, status: data.status, response: data.response || node.data.response } };
+                    return { 
+                      ...node, 
+                      data: { 
+                        ...node.data, 
+                        status: data.status, 
+                        response: data.response || node.data.response,
+                        fileName: data.file_name || node.data.fileName,
+                        downloadUrl: data.download_url || node.data.downloadUrl,
+                      } 
+                    };
                   }
                   return node;
                 })
@@ -349,6 +362,16 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
             >
               看最終結果
             </Button>
+            {infoMessage === '' && (
+              <Button 
+                variant="outlined" 
+                sx={{ ml: 1 }}
+                href={socketRef.current?.lastFinalDownloadUrl}
+                onClick={(e) => { if (!socketRef.current?.lastFinalDownloadUrl) e.preventDefault(); }}
+              >
+                下載最終總結
+              </Button>
+            )}
           </Paper>
         )}
         <Menu open={Boolean(contextMenu.anchorEl)} onClose={handleCloseContextMenu} anchorEl={contextMenu.anchorEl} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }} transformOrigin={{ vertical: 'top', horizontal: 'center' }}>

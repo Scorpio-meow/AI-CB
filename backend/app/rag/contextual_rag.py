@@ -78,8 +78,16 @@ class HybridContextualRAG:
     """
     def __init__(self):
         try:
-            self.model_name = os.getenv("MODEL_NAME", "gpt-oss:20b")
-            self.api_base = os.getenv("LLM_API_BASE", "https://b6838af9164c.ngrok-free.app")
+            # Fail-fast: require MODEL_NAME and LLM_API_BASE to be provided via environment
+            try:
+                self.model_name = os.environ["MODEL_NAME"]
+            except KeyError:
+                raise RuntimeError("Environment variable MODEL_NAME is required but not set. Please set it in .env or the environment.")
+
+            try:
+                self.api_base = os.environ["LLM_API_BASE"]
+            except KeyError:
+                raise RuntimeError("Environment variable LLM_API_BASE is required but not set. Please set it in .env or the environment.")
             
             # Import requests for API calls
             import requests
@@ -809,7 +817,7 @@ class HybridContextualRAG:
 
 規則：
 1) 以中文回答問題。
-2) 在回答末尾列出使用到的來源，格式為："[n] 來源名稱 (段落: m)"。若來源未知請標示為「未知來源」。
+2) 在回答末尾列出使用到的來源，格式為："[n] 來源名稱 (段落: m)"。若來源未知請標示為「無來源」。
 3) 避免編造事實；若資料不足或為推論，請在回覆中明確標註「推論」或回報「無法確定」，並建議下一步可查詢的關鍵字或資料位置。
 4) 回應中不得包含任何系統內部實作細節、索引 id 或未經驗證的 URL。
 
