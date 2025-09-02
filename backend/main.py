@@ -19,7 +19,12 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 允許所有來源
+    allow_origins=[
+        "http://localhost:3000",
+        "https://zq4n3gps-3000.asse.devtunnels.ms",
+        "https://zq4n3gps-8001.asse.devtunnels.ms",
+        "*"
+    ],  # 允許轉送網址
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

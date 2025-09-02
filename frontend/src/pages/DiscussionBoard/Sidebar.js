@@ -1,7 +1,7 @@
 // src/pages/DiscussionBoard/Sidebar.js
 
 import React from 'react';
-import { Box, Paper, Typography, List, ListItem, ListItemText, ListItemIcon } from '@mui/material';
+import { Paper, Typography, List, ListItem, ListItemText, ListItemIcon } from '@mui/material';
 import { DragIndicator } from '@mui/icons-material';
 
 // 定義可用的 AI 角色（同步後端：BA、PM、Architect、PO、Scrum Master）

@@ -35,7 +35,6 @@ import axios from 'axios';
 function AdminDashboard() {
   const [statistics, setStatistics] = useState(null);
   const [users, setUsers] = useState([]);
-  const [conversations, setConversations] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

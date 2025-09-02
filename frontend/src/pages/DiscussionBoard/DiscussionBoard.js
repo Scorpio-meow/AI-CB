@@ -21,7 +21,7 @@ const getUniqueId = () => `dndnode_${idCounter++}`;
 
 const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete }, ref) => { 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [edges, setEdges] = useEdgesState([]);
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
   const [workflowProcess, setWorkflowProcess] = useState([]);
   const [entryPointId, setEntryPointId] = useState(null);
@@ -163,19 +163,28 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
     const connect = () => {
       try {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        // when frontend is served from localhost:3000 during development, connect to backend at 8001
         let host;
-        try {
-          const hostname = window.location.hostname;
-          const port = window.location.port;
-          if (hostname === 'localhost' && port === '3000') {
-            host = `${hostname}:8001`;
-          } else {
-            host = window.location.host || `${hostname}:8001`;
+        
+        // 檢查是否使用環境變數的 API URL
+        const apiUrl = process.env.REACT_APP_API_URL;
+        if (apiUrl) {
+          // 從 API URL 提取 host (移除 https:// 和 /api)
+          host = apiUrl.replace(/^https?:\/\//, '').replace('/api', '');
+        } else {
+          // 原有邏輯
+          try {
+            const hostname = window.location.hostname;
+            const port = window.location.port;
+            if (hostname === 'localhost' && port === '3000') {
+              host = `${hostname}:8001`;
+            } else {
+              host = window.location.host || `${hostname}:8001`;
+            }
+          } catch (e) {
+            host = 'localhost:8001';
           }
-        } catch (e) {
-          host = 'localhost:8001';
         }
+        
         const websocketURL = `${protocol}//${host}/api/workflow/ws`;
         console.log('建立 WebSocket，URL:', websocketURL);
 

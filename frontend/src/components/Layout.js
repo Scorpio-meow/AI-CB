@@ -9,8 +9,7 @@ import {
 import {
   AdminPanelSettings,
   Chat,
-  Description,
-  AccountTree
+  Description
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 

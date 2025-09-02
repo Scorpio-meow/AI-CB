@@ -116,8 +116,11 @@ const Workflow = () => {
   }, []);
 
   const connectWebSocket = () => {
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.host}/api/workflow/ws`;
+    // 使用環境變數或當前 host
+    const apiUrl = process.env.REACT_APP_API_URL || `${window.location.protocol}//${window.location.host}/api`;
+    const wsProtocol = apiUrl.startsWith('https') ? 'wss:' : 'ws:';
+    const baseUrl = apiUrl.replace(/^https?:\/\//, '').replace('/api', '');
+    const wsUrl = `${wsProtocol}//${baseUrl}/api/workflow/ws`;
 
     ws.current = new WebSocket(wsUrl);
 

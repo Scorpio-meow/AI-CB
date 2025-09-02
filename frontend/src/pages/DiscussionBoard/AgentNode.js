@@ -37,7 +37,6 @@ function AgentNode({ data }) {
           padding: '8px',
           border:"0.1px solid black",
           borderRadius: '4px',
-          borderRadius: '4px',
           whiteSpace: 'pre-wrap',
           wordBreak: 'break-word',
           display: 'flex', // 使用 flex 來置中
