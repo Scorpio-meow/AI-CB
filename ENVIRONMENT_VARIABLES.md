@@ -1,4 +1,8 @@
-# 環境變數說明文件
+# 環境變數### LLM Models API Configuration
+- `MODEL_NAME`: 使用的 LLM 模型名稱 (預設: gpt-oss:20b)
+- `LLM_API_BASE`: LLM API 的基礎 URL
+- `LLM_TIMEOUT`: LLM API 請求超時時間（秒）(預設: 120)
+- `AVAILABLE_MODELS`: 可用的模型列表，用逗號分隔 (預設: gpt-oss:20b,gemma3:27b,qwen2.5:32b,llama3.2:3b)
 
 此文件說明 AI-CB 專案中所有環境變數的用途和配置方式。
 

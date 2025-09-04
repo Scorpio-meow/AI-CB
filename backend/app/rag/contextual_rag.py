@@ -838,13 +838,16 @@ class HybridContextualRAG:
 """
         return prompt
     
-    async def call_llm_api(self, prompt: str) -> str:
-        """Enhanced LLM API call with Ollama format"""
+    async def call_llm_api(self, prompt: str, model_name: str = None) -> str:
+        """Enhanced LLM API call with Ollama format and optional model override"""
         try:
+            # Use provided model or fall back to default
+            model_to_use = model_name or self.model_name
+            
             # Use Ollama format directly
             url = f"{self.api_base}/api/generate"
             payload = {
-                "model": self.model_name,
+                "model": model_to_use,
                 "prompt": prompt,
                 "stream": False  # Get complete response at once
             }
@@ -870,8 +873,8 @@ class HybridContextualRAG:
             logger.error(f"LLM API error: {e}")
             return f"抱歉，生成回應時出現錯誤: {str(e)}"
     
-    async def generate_response(self, query: str, conversation_id: Optional[int] = None) -> Dict[str, Any]:
-        """Generate response using enhanced RAG pipeline"""
+    async def generate_response(self, query: str, conversation_id: Optional[int] = None, model_name: str = None) -> Dict[str, Any]:
+        """Generate response using enhanced RAG pipeline with optional model override"""
         start_time = time.time()
         
         # Smart retrieval (with scores)
@@ -885,7 +888,7 @@ class HybridContextualRAG:
         
         # Generate response
         generation_start = time.time()
-        answer = await self.call_llm_api(context_prompt)
+        answer = await self.call_llm_api(context_prompt, model_name)
         generation_time = time.time() - generation_start
         
         # Update conversation memory

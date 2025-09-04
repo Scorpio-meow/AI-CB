@@ -13,7 +13,11 @@ import {
   Divider,
   CircularProgress,
   Alert,
-  Chip
+  Chip,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel
 } from '@mui/material';
 import { FaRobot } from "react-icons/fa";
 import { Send as SendIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material';
@@ -31,9 +35,25 @@ function Chat() {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [availableModels, setAvailableModels] = useState([]);
+  const [selectedModel, setSelectedModel] = useState('');
   const messagesEndRef = useRef(null);
   const [viewMode, setViewMode] = useState('chat');
   const discussionBoardRef = useRef(null);
+
+  // Load available models
+  const loadAvailableModels = useCallback(async () => {
+    try {
+      const response = await axios.get('/api/chat/models');
+      setAvailableModels(response.data.models);
+      setSelectedModel(response.data.default);
+    } catch (error) {
+      console.error('載入可用模型失敗:', error);
+      // Set fallback models if API fails
+      setAvailableModels(['gpt-oss:20b', 'gemma3:27b']);
+      setSelectedModel('gpt-oss:20b');
+    }
+  }, []);
 
   // Define all functions before they are used in effects
   const loadConversation = useCallback(async (conversation) => {
@@ -66,6 +86,10 @@ function Chat() {
   }, [currentConversation, viewMode, loadConversation]);
 
   // Effects should be after function definitions
+  useEffect(() => {
+    loadAvailableModels();
+  }, [loadAvailableModels]);
+
   useEffect(() => {
     loadConversations();
   }, [loadConversations]);
@@ -105,7 +129,8 @@ function Chat() {
     try {
       const response = await axios.post('/api/chat/send', {
         content: messageToSend,
-        conversation_id: currentConversation?.id
+        conversation_id: currentConversation?.id,
+        model_name: selectedModel
       });
       setMessages(prev => [...prev.slice(0, -1), response.data.message]);
       // If server returned/created a different conversation id, refresh using fresh data
@@ -290,28 +315,48 @@ function Chat() {
 
         {/* 輸入區域 (固定在底部) */}
         <Paper sx={{ p: 2, borderRadius: 0, borderTop: 1, borderColor: 'divider' }} elevation={2}>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-      <TextField
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
+              {/* 模型選擇選單 */}
+              {viewMode === 'chat' && (
+                <FormControl sx={{ minWidth: 140 }}>
+                  <InputLabel size="small">模型</InputLabel>
+                  <Select
+                    size="small"
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    label="模型"
+                    disabled={loading}
+                  >
+                    {availableModels.map((model) => (
+                      <MenuItem key={model} value={model}>
+                        {model}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+              
+              <TextField
                 fullWidth
                 multiline
                 maxRows={4}
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-        onKeyDown={handleKeyPress}
+                onKeyDown={handleKeyPress}
                 disabled={loading}
                 placeholder={
                     viewMode === 'discussion' 
                       ? '在此輸入工作流的初始指令...' 
                       : '輸入你的問題...'
                 }
-            />
-            <Button
-                variant="contained"
-                onClick={handleSendMessage}
-                sx={{ minWidth: 60 }}
-            >
-              <SendIcon />
-            </Button>
+              />
+              <Button
+                  variant="contained"
+                  onClick={handleSendMessage}
+                  sx={{ minWidth: 60 }}
+              >
+                <SendIcon />
+              </Button>
             </Box>
         </Paper>
       </Box>
