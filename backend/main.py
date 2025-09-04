@@ -23,6 +23,8 @@ app.add_middleware(
         "http://localhost:3000",
         "https://zq4n3gps-3000.asse.devtunnels.ms",
         "https://zq4n3gps-8001.asse.devtunnels.ms",
+        "https://1848b1fg-3000.asse.devtunnels.ms",
+        "https://1848b1fg-8001.asse.devtunnels.ms",
         "*"
     ],  # 允許轉送網址
     allow_credentials=True,
@@ -61,6 +63,11 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+# Handle Socket.IO polling requests (for dev tools/HMR)
+@app.get("/socket.io/")
+async def socket_io_fallback():
+    return {"error": "Socket.IO not supported. Use WebSocket at /api/workflow/ws"}
 
 if __name__ == "__main__":
     import uvicorn

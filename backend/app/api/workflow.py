@@ -433,16 +433,11 @@ class DynamicWorkflowManager:
 # =================================================================
 # WebSocket 端點 (Endpoint)
 # =================================================================
-
-def get_db_session():
-    db = next(get_db())
-    try:
-        yield db
-    finally:
-        db.close()
+# WebSocket 端點 (Endpoint)
+# =================================================================
 
 @router.websocket("/ws")
-async def workflow_websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db_session)):
+async def workflow_websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
     user_id = 1
     await manager.connect(websocket, user_id)
     print(f"使用者 {user_id} 的 Workflow WebSocket 連線成功 (驗證已繞過)。 ")

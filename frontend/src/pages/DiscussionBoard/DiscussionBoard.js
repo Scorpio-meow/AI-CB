@@ -162,26 +162,33 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
 
     const connect = () => {
       try {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        let host;
+        let protocol = 'ws:';
+        let host = 'localhost:8001';
         
-        // 檢查是否使用環境變數的 API URL
-        const apiUrl = process.env.REACT_APP_API_URL;
-        if (apiUrl) {
-          // 從 API URL 提取 host (移除 https:// 和 /api)
-          host = apiUrl.replace(/^https?:\/\//, '').replace('/api', '');
+        // 檢查是否為本地開發環境
+        const isLocalDevelopment = window.location.hostname === 'localhost' || 
+                                   window.location.hostname === '127.0.0.1';
+        
+        if (isLocalDevelopment) {
+          // 本地開發環境
+          protocol = 'ws:';
+          host = 'localhost:8001';
         } else {
-          // 原有邏輯
-          try {
-            const hostname = window.location.hostname;
-            const port = window.location.port;
-            if (hostname === 'localhost' && port === '3000') {
-              host = `${hostname}:8001`;
+          // 生產環境或 DevTunnels 環境
+          protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          
+          // 檢查是否為 DevTunnels 環境
+          if (window.location.hostname.includes('devtunnels.ms')) {
+            // DevTunnels 環境：將端口 3000 替換為 8001
+            host = window.location.hostname.replace('-3000.', '-8001.');
+          } else {
+            // 其他生產環境
+            const apiUrl = process.env.REACT_APP_API_URL;
+            if (apiUrl) {
+              host = apiUrl.replace(/^https?:\/\//, '').replace('/api', '');
             } else {
-              host = window.location.host || `${hostname}:8001`;
+              host = window.location.host;
             }
-          } catch (e) {
-            host = 'localhost:8001';
           }
         }
         
