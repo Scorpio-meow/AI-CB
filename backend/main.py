@@ -6,9 +6,14 @@ from app.tasks.uploads_watcher import scan_and_cleanup_uploads
 import asyncio
 import os
 from dotenv import load_dotenv
+import logging
 
 # Load environment variables
 load_dotenv()
+
+# Silence uvicorn access logs (these produce lines like: "INFO:     127.0.0.1:0 - \"GET /socket.io/?...\"")
+# Set to WARNING so access INFO lines are not printed. Keep error logs.
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 # Get configuration from environment
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
