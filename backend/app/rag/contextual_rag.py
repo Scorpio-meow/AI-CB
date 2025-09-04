@@ -128,12 +128,15 @@ class HybridContextualRAG:
             self.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "100"))
             self.reindex_threshold_hours = int(os.getenv("REINDEX_HOURS", "24"))
             
+            # LLM timeout configuration
+            self.llm_timeout = int(os.getenv("LLM_TIMEOUT", "120"))
+            
             # Storage paths
-            self.data_dir = "data"
-            self.faiss_index_path = os.path.join(self.data_dir, "faiss_index.bin")
-            self.documents_path = os.path.join(self.data_dir, "documents.pkl")
-            self.bm25_index_dir = os.path.join(self.data_dir, "bm25_index")
-            self.metadata_path = os.path.join(self.data_dir, "index_metadata.pkl")
+            self.data_dir = os.getenv("DATA_DIR", "data")
+            self.faiss_index_path = os.getenv("FAISS_INDEX_PATH", os.path.join(self.data_dir, "faiss_index.bin"))
+            self.documents_path = os.getenv("DOCUMENTS_PATH", os.path.join(self.data_dir, "documents.pkl"))
+            self.bm25_index_dir = os.getenv("BM25_INDEX_DIR", os.path.join(self.data_dir, "bm25_index"))
+            self.metadata_path = os.getenv("METADATA_PATH", os.path.join(self.data_dir, "index_metadata.pkl"))
             
             # Initialize storage
             os.makedirs(self.data_dir, exist_ok=True)
@@ -848,7 +851,7 @@ class HybridContextualRAG:
             
             headers = {"Content-Type": "application/json"}
             
-            resp = self.requests.post(url, json=payload, headers=headers, timeout=120)
+            resp = self.requests.post(url, json=payload, headers=headers, timeout=self.llm_timeout)
             resp.raise_for_status()
             
             data = resp.json()

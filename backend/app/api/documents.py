@@ -15,6 +15,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 rag_system = ContextualRAG()
 
+# Get configuration from environment
+MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "50"))
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", "data/uploads")
+
 # QA detection pattern (supports Q/A or Ｑ/Ａ with Chinese/fullwidth punctuation)
 QA_PATTERN = re.compile(r"(?:^|\n)\s*[QＱ]\s*[：:]\s*(.*?)\s*[\r\n]+\s*[AＡ]\s*[：:]\s*(.*?)(?=(?:\n\s*[QＱ]\s*[：:]|\Z))",
                         re.DOTALL)
@@ -39,7 +43,7 @@ async def upload_document(
     if not file or len(file) == 0:
         raise HTTPException(status_code=400, detail="請上傳至少一個文件")
 
-    upload_dir = "data/uploads"
+    upload_dir = UPLOAD_DIR
     os.makedirs(upload_dir, exist_ok=True)
 
     results = []
@@ -54,7 +58,7 @@ async def upload_document(
             })
             continue
 
-        max_size = 50 * 1024 * 1024
+        max_size = MAX_FILE_SIZE_MB * 1024 * 1024
 
         try:
             # 生成安全且不重複的檔名
@@ -84,7 +88,7 @@ async def upload_document(
                         results.append({
                             "filename": up.filename,
                             "status": "failed",
-                            "detail": "文件大小不能超過 50MB",
+                            "detail": f"文件大小不能超過 {MAX_FILE_SIZE_MB}MB",
                             "http_status": 400
                         })
                         break
@@ -245,7 +249,7 @@ async def delete_document(
     # 刪除實際文件（如果存在）
     try:
         import os
-        upload_dir = "data/uploads"
+        upload_dir = UPLOAD_DIR
         file_path = os.path.join(upload_dir, document.filename)
         if os.path.exists(file_path):
             os.remove(file_path)

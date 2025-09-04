@@ -87,6 +87,7 @@ pip install -r requirements.txt
 ```bash
 copy .env.example .env
 # 編輯 .env 文件，填入實際配置
+# 詳細說明請參考 ENVIRONMENT_VARIABLES.md
 ```
 
 5. 啟動後端服務：

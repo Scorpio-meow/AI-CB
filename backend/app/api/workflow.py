@@ -37,6 +37,9 @@ try:
 except KeyError:
     raise RuntimeError("Environment variable MODEL_NAME is required. Please set it in .env or environment.")
 
+# Get configuration from environment
+WORKFLOW_TIMEOUT = float(os.getenv("WORKFLOW_TIMEOUT", "180"))
+
 # ✅ 更新：移除所有 JSON 格式要求，並新增五個專業角色提示（含中英文別名）
 PROFESSION_PROMPTS = {
     # 業務分析師（BA）— 把模糊想法變具體、挖需求、列問題清單
@@ -408,7 +411,7 @@ class DynamicWorkflowManager:
             async with httpx.AsyncClient() as client:
                 url = f"{OLLAMA_HOST}/api/generate"
                 payload = {"model": MODEL_NAME, "prompt": full_prompt, "stream": False}
-                response = await client.post(url, json=payload, timeout=180.0)
+                response = await client.post(url, json=payload, timeout=WORKFLOW_TIMEOUT)
                 response.raise_for_status()
                 data = response.json()
                 response_text = data.get("response", "").strip()

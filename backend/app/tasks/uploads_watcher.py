@@ -11,18 +11,25 @@ from app.api.chat import manager as ws_manager
 logger = logging.getLogger(__name__)
 rag_system = ContextualRAG()
 
+# Get configuration from environment
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", "data/uploads")
+UPLOADS_WATCHER_INTERVAL = int(os.getenv("UPLOADS_WATCHER_INTERVAL", "30"))
+
 
 def get_db_session() -> Session:
     return SessionLocal()
 
 
-async def scan_and_cleanup_uploads(interval_seconds: int = 30):
+async def scan_and_cleanup_uploads(interval_seconds: int = None):
     """Background task: periodically scan data/uploads and remove DB entries whose files are missing.
 
     When a missing file is detected, remove it from RAG, delete chunks and document DB record,
     and notify connected websocket clients about a 'documents_update' event.
     """
-    upload_dir = os.path.join('data', 'uploads')
+    if interval_seconds is None:
+        interval_seconds = UPLOADS_WATCHER_INTERVAL
+        
+    upload_dir = UPLOAD_DIR
     os.makedirs(upload_dir, exist_ok=True)
 
     while True:
