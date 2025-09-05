@@ -16,11 +16,12 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    restart: unless-stopped
 
   backend:
     build: ./backend
     environment:
-      DATABASE_URL: postgresql://chatbot_user:chatbot_password@database:5432/chatbot_db
+      DATABASE_URL: "postgresql://chatbot_user:chatbot_password@database:5432/chatbot_db"
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       SECRET_KEY: ${SECRET_KEY:-your-secret-key-here}
       ALLOWED_ORIGINS: '["http://localhost:3000"]'
@@ -32,20 +33,22 @@ services:
       database:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8001/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
+    restart: unless-stopped
 
   frontend:
     build: ./frontend
     environment:
-      REACT_APP_API_URL: http://localhost:8001/api
+      REACT_APP_API_URL: "http://localhost:8001/api"
     ports:
       - "3000:3000"
     depends_on:
       backend:
         condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   postgres_data:

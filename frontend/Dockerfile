@@ -1,24 +1,29 @@
-FROM node:18-alpine
-
+#################################################################
+# Build stage
+FROM node:18-alpine AS builder
 WORKDIR /app
 
-# 複製 package 文件
-COPY package*.json ./
-
 # 安裝依賴
-RUN npm ci --only=production
+COPY package*.json ./
+RUN npm ci
 
-# 複製應用程式代碼
+# 複製並構建
 COPY . .
-
-# 構建應用程式
 RUN npm run build
 
-# 安裝 serve 來服務靜態文件
-RUN npm install -g serve
+#################################################################
+# Production stage: use nginx to serve static files
+FROM nginx:stable-alpine
 
-# 暴露端口
+# 移除預設 nginx 靜態頁面並複製 build
+RUN rm -rf /usr/share/nginx/html/*
+COPY --from=builder /app/build /usr/share/nginx/html
+
+# 複製自定義 nginx 設定（若有，否則使用預設）
+# 若未提供 nginx.conf，預設配置已足夠
+
 EXPOSE 3000
 
-# 啟動命令
-CMD ["serve", "-s", "build", "-l", "3000"]
+STOPSIGNAL SIGTERM
+
+CMD ["nginx", "-g", "daemon off;"]
