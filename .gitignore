@@ -128,3 +128,4 @@ test-reports/
 Icon
 
 # End of file
+backend/data/workflow_outputs/*

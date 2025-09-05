@@ -6,9 +6,18 @@ from app.tasks.uploads_watcher import scan_and_cleanup_uploads
 import asyncio
 import os
 from dotenv import load_dotenv
+import logging
 
 # Load environment variables
 load_dotenv()
+
+# Silence uvicorn access logs (these produce lines like: "INFO:     127.0.0.1:0 - \"GET /socket.io/?...\"")
+# Set to WARNING so access INFO lines are not printed. Keep error logs.
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
+# Get configuration from environment
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+UPLOADS_WATCHER_INTERVAL = int(os.getenv("UPLOADS_WATCHER_INTERVAL", "30"))
 
 app = FastAPI(
     title="ChatBot API",
@@ -20,7 +29,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",
+        *ALLOWED_ORIGINS,
         "https://zq4n3gps-3000.asse.devtunnels.ms",
         "https://zq4n3gps-8001.asse.devtunnels.ms",
         "https://1848b1fg-3000.asse.devtunnels.ms",
@@ -37,7 +46,7 @@ app.add_middleware(
 async def startup_event():
     await create_tables()
     # start background uploads watcher
-    app.state._uploads_watcher_task = asyncio.create_task(scan_and_cleanup_uploads(30))
+    app.state._uploads_watcher_task = asyncio.create_task(scan_and_cleanup_uploads(UPLOADS_WATCHER_INTERVAL))
 
 
 @app.on_event("shutdown")

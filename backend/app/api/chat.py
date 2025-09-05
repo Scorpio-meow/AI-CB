@@ -8,6 +8,7 @@ from app.services.chat_service import ChatService
 from app.rag.contextual_rag import HybridContextualRAG
 from typing import List
 import json
+import os
 
 router = APIRouter()
 security = HTTPBearer()
@@ -36,6 +37,18 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+@router.get("/models")
+async def get_available_models():
+    """獲取可用的模型列表"""
+    available_models_str = os.getenv("AVAILABLE_MODELS", "gpt-oss:20b,gemma3:27b")
+    models = [model.strip() for model in available_models_str.split(",")]
+    default_model = os.getenv("MODEL_NAME", "gpt-oss:20b")
+    
+    return {
+        "models": models,
+        "default": default_model
+    }
+
 @router.post("/send", response_model=ChatResponse)
 async def send_message(
     message_data: MessageCreate,
@@ -48,10 +61,11 @@ async def send_message(
             db, 1, message_data.content, True, message_data.conversation_id
         )
         
-        # 使用 RAG 系統生成回應
+        # 使用 RAG 系統生成回應（支援模型選擇）
         rag_response = await rag_system.generate_response(
             message_data.content, 
-            user_message.conversation_id
+            user_message.conversation_id,
+            message_data.model_name
         )
         
         # 保存機器人回應

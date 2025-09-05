@@ -83,6 +83,7 @@ class UserResponse(BaseModel):
 class MessageCreate(BaseModel):
     content: str
     conversation_id: Optional[int] = None
+    model_name: Optional[str] = None
 
 class MessageResponse(BaseModel):
     id: int

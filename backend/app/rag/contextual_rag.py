@@ -128,12 +128,15 @@ class HybridContextualRAG:
             self.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "100"))
             self.reindex_threshold_hours = int(os.getenv("REINDEX_HOURS", "24"))
             
+            # LLM timeout configuration
+            self.llm_timeout = int(os.getenv("LLM_TIMEOUT", "120"))
+            
             # Storage paths
-            self.data_dir = "data"
-            self.faiss_index_path = os.path.join(self.data_dir, "faiss_index.bin")
-            self.documents_path = os.path.join(self.data_dir, "documents.pkl")
-            self.bm25_index_dir = os.path.join(self.data_dir, "bm25_index")
-            self.metadata_path = os.path.join(self.data_dir, "index_metadata.pkl")
+            self.data_dir = os.getenv("DATA_DIR", "data")
+            self.faiss_index_path = os.getenv("FAISS_INDEX_PATH", os.path.join(self.data_dir, "faiss_index.bin"))
+            self.documents_path = os.getenv("DOCUMENTS_PATH", os.path.join(self.data_dir, "documents.pkl"))
+            self.bm25_index_dir = os.getenv("BM25_INDEX_DIR", os.path.join(self.data_dir, "bm25_index"))
+            self.metadata_path = os.getenv("METADATA_PATH", os.path.join(self.data_dir, "index_metadata.pkl"))
             
             # Initialize storage
             os.makedirs(self.data_dir, exist_ok=True)
@@ -813,7 +816,7 @@ class HybridContextualRAG:
             chunk_id = doc.metadata.get('chunk_index', 0)
             document_context += f"文檔 [{i+1}] (來源: {source}, 段落: {chunk_id}):\n{doc.page_content}\n\n"
         
-        prompt = f"""你是企業內部的知識型助理，負責根據下列用戶問題、對話上下文與檔案片段，產出準確、可追溯中文回答。
+        prompt = f"""你是神通資訊科技內部的知識型助理，綽號為「通哥」，負責根據下列用戶問題、對話上下文與檔案片段，產出準確、可追溯中文回答。
 
 規則：
 1) 以中文回答問題。
@@ -822,33 +825,33 @@ class HybridContextualRAG:
 4) 回應中不得包含任何系統內部實作細節、索引 id 或未經驗證的 URL。
 
 以下資料：
-用戶問題:
-{query}
+用戶問題:"{query}"
 
-對話上下文（僅供參考）:
-{conversation_context}
+對話上下文:"{conversation_context}"
 
-檔案片段（僅包含最相關的段落，按重要性排序）：
-{document_context}
+檔案片段："{document_context}"
 
 請依上述規則開始回答。
 """
         return prompt
     
-    async def call_llm_api(self, prompt: str) -> str:
-        """Enhanced LLM API call with Ollama format"""
+    async def call_llm_api(self, prompt: str, model_name: str = None) -> str:
+        """Enhanced LLM API call with Ollama format and optional model override"""
         try:
+            # Use provided model or fall back to default
+            model_to_use = model_name or self.model_name
+            
             # Use Ollama format directly
             url = f"{self.api_base}/api/generate"
             payload = {
-                "model": self.model_name,
+                "model": model_to_use,
                 "prompt": prompt,
                 "stream": False  # Get complete response at once
             }
             
             headers = {"Content-Type": "application/json"}
             
-            resp = self.requests.post(url, json=payload, headers=headers, timeout=120)
+            resp = self.requests.post(url, json=payload, headers=headers, timeout=self.llm_timeout)
             resp.raise_for_status()
             
             data = resp.json()
@@ -867,8 +870,8 @@ class HybridContextualRAG:
             logger.error(f"LLM API error: {e}")
             return f"抱歉，生成回應時出現錯誤: {str(e)}"
     
-    async def generate_response(self, query: str, conversation_id: Optional[int] = None) -> Dict[str, Any]:
-        """Generate response using enhanced RAG pipeline"""
+    async def generate_response(self, query: str, conversation_id: Optional[int] = None, model_name: str = None) -> Dict[str, Any]:
+        """Generate response using enhanced RAG pipeline with optional model override"""
         start_time = time.time()
         
         # Smart retrieval (with scores)
@@ -882,7 +885,7 @@ class HybridContextualRAG:
         
         # Generate response
         generation_start = time.time()
-        answer = await self.call_llm_api(context_prompt)
+        answer = await self.call_llm_api(context_prompt, model_name)
         generation_time = time.time() - generation_start
         
         # Update conversation memory
