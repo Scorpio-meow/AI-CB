@@ -37,8 +37,8 @@ class CustomAgent(CustomAgentBase):
     用於 API 回應的自訂 Agent 模型，包含資料庫 ID。
     """
     id: int
-
-    class Config:
-        orm_mode = True # Pydantic V2 中建議使用 from_attributes = True
-        from_attributes = True # 允許模型從 ORM 物件 (如 SQLAlchemy 模型) 進行轉換
+    # 使用 Pydantic V2 建議的 model_config 風格，保留 from_attributes 行為
+    model_config = {
+        "from_attributes": True,  # 允許模型從 ORM 物件 (如 SQLAlchemy 模型) 進行轉換
+    }
 
