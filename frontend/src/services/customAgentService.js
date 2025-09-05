@@ -1,9 +1,15 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
+// Support REACT_APP_API_URL that may include or omit the `/api` prefix.
+// Examples supported:
+// - REACT_APP_API_URL=http://localhost:8001
+// - REACT_APP_API_URL=http://localhost:8001/api
+const RAW_API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
+const API_URL_NO_TRAIL = RAW_API_URL.replace(/\/+$/, ''); // remove trailing slashes
+const API_BASE = API_URL_NO_TRAIL.endsWith('/api') ? API_URL_NO_TRAIL : `${API_URL_NO_TRAIL}/api`;
 
 const apiClient = axios.create({
-  baseURL: `${API_URL}/api/custom_agents`,
+  baseURL: `${API_BASE}/custom_agents`,
   headers: {
     'Content-Type': 'application/json',
   },

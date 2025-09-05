@@ -18,11 +18,14 @@ import { PlayArrow, DoneAll } from '@mui/icons-material';
 import { getCustomAgents } from '../services/customAgentService';
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
+// Normalize REACT_APP_API_URL to always include `/api` exactly once
+const RAW_API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
+const API_URL_NO_TRAIL = RAW_API_URL.replace(/\/+$/, '');
+const API_BASE = API_URL_NO_TRAIL.endsWith('/api') ? API_URL_NO_TRAIL : `${API_URL_NO_TRAIL}/api`;
 
 // --- Helper function to get available professions ---
 const getProfessions = async () => {
-  const response = await axios.get(`${API_URL}/api/workflow/professions`);
+  const response = await axios.get(`${API_BASE}/workflow/professions`);
   return response.data;
 };
 
@@ -94,7 +97,17 @@ const Workflow = () => {
   // --- WebSocket Management ---
   const connectWebSocket = useCallback(() => {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.host.replace(/\d+$/, '8001')}/api/workflow/ws`;
+
+    // Build websocket host from REACT_APP_API_URL when available, otherwise derive from window.location
+    let wsHost;
+    if (process.env.REACT_APP_API_URL) {
+      // strip protocol and optional /api path
+      wsHost = process.env.REACT_APP_API_URL.replace(/^https?:\/\//, '').replace(/\/api\/?$/, '');
+    } else {
+      wsHost = window.location.host.replace(/:\d+$/, ':8001');
+    }
+
+    const wsUrl = `${wsProtocol}//${wsHost}/api/workflow/ws`;
 
     ws.current = new WebSocket(wsUrl);
 

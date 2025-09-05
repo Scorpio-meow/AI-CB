@@ -183,9 +183,9 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
             host = window.location.hostname.replace('-3000.', '-8001.');
           } else {
             // 其他生產環境
-            const apiUrl = process.env.REACT_APP_API_URL;
-            if (apiUrl) {
-              host = apiUrl.replace(/^https?:\/\//, '').replace('/api', '');
+            const rawApiUrl = process.env.REACT_APP_API_URL;
+            if (rawApiUrl) {
+              host = rawApiUrl.replace(/^https?:\/\//, '').replace(/\/api\/?$/, '');
             } else {
               host = window.location.host;
             }
