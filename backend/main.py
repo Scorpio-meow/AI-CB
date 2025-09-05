@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import chat, admin, documents,workflow
+from app.api import chat, admin, documents, workflow, custom_agent
 from app.models.database import create_tables
 from app.tasks.uploads_watcher import scan_and_cleanup_uploads
 import asyncio
@@ -64,6 +64,7 @@ app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(workflow.router, prefix="/api/workflow", tags=["workflow"])
+app.include_router(custom_agent.router, prefix="/api/custom_agents", tags=["Custom Agents"])
 
 @app.get("/")
 async def root():

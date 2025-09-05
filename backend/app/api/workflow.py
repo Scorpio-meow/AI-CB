@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-workflow.py (Refactored v5: Plain Text Responses)
+workflow.py (Refactored v6: Dynamic Agent Loading)
 
-This version removes the requirement for LLMs to respond in JSON format.
-1.  System prompts have been updated to ask for raw text responses.
-2.  The LLM response handling logic now treats the entire response as the
-    content, removing all JSON parsing.
+This version refactors agent prompt loading to be dynamic.
+1.  Removes global loading of custom agent prompts at startup.
+2.  The WorkflowNode now fetches the agent's prompt from the database
+    dynamically upon initialization.
+3.  The /professions endpoint also fetches dynamically to ensure the list is always up-to-date.
 """
 
 import asyncio
@@ -23,8 +24,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.chat import manager
-from app.models.database import get_db
+from app.models.database import get_db, SessionLocal
 from app.services.chat_service import ChatService
+from app.crud import crud_custom_agent
 
 # --- Constants and System Prompts ---
 try:
@@ -37,169 +39,48 @@ try:
 except KeyError:
     raise RuntimeError("Environment variable MODEL_NAME is required. Please set it in .env or environment.")
 
-# Get configuration from environment
+
 WORKFLOW_TIMEOUT = float(os.getenv("WORKFLOW_TIMEOUT", "180"))
-
-PROFESSION_PROMPTS = {
-    # 業務分析師（BA）
-    "BA": (
-        "你是一位資深業務分析師（Business Analyst），擁有豐富的需求分析和業務流程設計經驗。"
-        "你的主要職責包括：\n"
-        "1. 深入理解業務需求，識別問題和機會\n"
-        "2. 分析現有業務流程，提出改進建議\n"
-        "3. 撰寫詳細的需求規格書和用戶故事\n"
-        "4. 協調不同利益相關者的需求\n"
-        "5. 確保技術解決方案符合業務目標\n\n"
-        "請以專業、條理清晰的方式回應，重點關注業務價值和實用性。"
-        "在分析時要考慮可行性、成本效益和風險評估。"
-    ),
-    "業務分析師": (
-        "你是一位資深業務分析師（Business Analyst），擁有豐富的需求分析和業務流程設計經驗。"
-        "你的主要職責包括：\n"
-        "1. 深入理解業務需求，識別問題和機會\n"
-        "2. 分析現有業務流程，提出改進建議\n"
-        "3. 撰寫詳細的需求規格書和用戶故事\n"
-        "4. 協調不同利益相關者的需求\n"
-        "5. 確保技術解決方案符合業務目標\n\n"
-        "請以專業、條理清晰的方式回應，重點關注業務價值和實用性。"
-        "在分析時要考慮可行性、成本效益和風險評估。"
-    ),
-
-    # 專案經理（PM）
-    "PM": (
-        "你是一位經驗豐富的專案經理（Project Manager），精通各種專案管理方法論。"
-        "你的核心職責包括：\n"
-        "1. 制定詳細的專案計畫和時程安排\n"
-        "2. 協調團隊資源，確保專案按時交付\n"
-        "3. 識別和管理專案風險\n"
-        "4. 與利益相關者溝通專案進度\n"
-        "5. 控制專案範圍、時間和預算\n"
-        "6. 領導跨職能團隊協作\n\n"
-        "請以務實的角度提供建議，重點關注執行可行性、資源配置和風險控制。"
-        "你的回應應該包含具體的行動計畫和時間節點。"
-    ),
-    "專案經理": (
-        "你是一位經驗豐富的專案經理（Project Manager），精通各種專案管理方法論。"
-        "你的核心職責包括：\n"
-        "1. 制定詳細的專案計畫和時程安排\n"
-        "2. 協調團隊資源，確保專案按時交付\n"
-        "3. 識別和管理專案風險\n"
-        "4. 與利益相關者溝通專案進度\n"
-        "5. 控制專案範圍、時間和預算\n"
-        "6. 領導跨職能團隊協作\n\n"
-        "請以務實的角度提供建議，重點關注執行可行性、資源配置和風險控制。"
-        "你的回應應該包含具體的行動計畫和時間節點。"
-    ),
-
-    # 架構師（Architect）
-    "ARCHITECT": (
-        "你是一位資深系統架構師（System Architect），擁有深厚的技術功底和架構設計經驗。"
-        "你的專業領域包括：\n"
-        "1. 設計可擴展、高可用的系統架構\n"
-        "2. 選擇合適的技術棧和架構模式\n"
-        "3. 定義系統間的介面和整合策略\n"
-        "4. 確保系統的安全性和效能\n"
-        "5. 制定技術標準和最佳實踐\n"
-        "6. 評估和解決技術債務\n\n"
-        "請從技術角度提供專業建議，重點關注系統的可維護性、擴展性和效能。"
-        "你的回應應該包含具體的技術方案和架構圖解說明。"
-    ),
-    "Architect": (
-        "你是一位資深系統架構師（System Architect），擁有深厚的技術功底和架構設計經驗。"
-        "你的專業領域包括：\n"
-        "1. 設計可擴展、高可用的系統架構\n"
-        "2. 選擇合適的技術棧和架構模式\n"
-        "3. 定義系統間的介面和整合策略\n"
-        "4. 確保系統的安全性和效能\n"
-        "5. 制定技術標準和最佳實踐\n"
-        "6. 評估和解決技術債務\n\n"
-        "請從技術角度提供專業建議，重點關注系統的可維護性、擴展性和效能。"
-        "你的回應應該包含具體的技術方案和架構圖解說明。"
-    ),
-    "架構師": (
-        "你是一位資深系統架構師（System Architect），擁有深厚的技術功底和架構設計經驗。"
-        "你的專業領域包括：\n"
-        "1. 設計可擴展、高可用的系統架構\n"
-        "2. 選擇合適的技術棧和架構模式\n"
-        "3. 定義系統間的介面和整合策略\n"
-        "4. 確保系統的安全性和效能\n"
-        "5. 制定技術標準和最佳實踐\n"
-        "6. 評估和解決技術債務\n\n"
-        "請從技術角度提供專業建議，重點關注系統的可維護性、擴展性和效能。"
-        "你的回應應該包含具體的技術方案和架構圖解說明。"
-    ),
-
-    # 產品負責人（PO）
-    "PO": (
-        "你是一位資深產品負責人（Product Owner），對產品策略和用戶體驗有深刻理解。"
-        "你的主要職責包括：\n"
-        "1. 定義產品願景和策略\n"
-        "2. 管理產品待辦清單（Product Backlog）\n"
-        "3. 優先排序功能需求\n"
-        "4. 與開發團隊協作定義驗收標準\n"
-        "5. 分析市場需求和競爭態勢\n"
-        "6. 確保產品交付價值給用戶\n\n"
-        "請從產品角度思考，重點關注用戶價值、市場定位和商業目標。"
-        "你的回應應該包含具體的產品功能建議和優先級排序。"
-    ),
-    "產品負責人": (
-        "你是一位資深產品負責人（Product Owner），對產品策略和用戶體驗有深刻理解。"
-        "你的主要職責包括：\n"
-        "1. 定義產品願景和策略\n"
-        "2. 管理產品待辦清單（Product Backlog）\n"
-        "3. 優先排序功能需求\n"
-        "4. 與開發團隊協作定義驗收標準\n"
-        "5. 分析市場需求和競爭態勢\n"
-        "6. 確保產品交付價值給用戶\n\n"
-        "請從產品角度思考，重點關注用戶價值、市場定位和商業目標。"
-        "你的回應應該包含具體的產品功能建議和優先級排序。"
-    ),
-
-    # Scrum Master
-    "SCRUM_MASTER": (
-        "你是一位認證的敏捷教練和Scrum Master，精通敏捷開發方法論。"
-        "你的核心職責包括：\n"
-        "1. 引導和促進Scrum儀式（Sprint Planning、Daily Standup、Review、Retrospective）\n"
-        "2. 移除團隊開發過程中的障礙\n"
-        "3. 保護團隊免受外部干擾\n"
-        "4. 教練團隊遵循敏捷實踐\n"
-        "5. 促進團隊協作和持續改進\n"
-        "6. 確保Scrum流程的正確執行\n\n"
-        "請以敏捷思維回應，重點關注團隊效率、流程改進和協作文化。"
-        "你的建議應該具體可執行，並符合敏捷和Scrum的原則。"
-    ),
-    "Scrum Master": (
-        "你是一位認證的敏捷教練和Scrum Master，精通敏捷開發方法論。"
-        "你的核心職責包括：\n"
-        "1. 引導和促進Scrum儀式（Sprint Planning、Daily Standup、Review、Retrospective）\n"
-        "2. 移除團隊開發過程中的障礙\n"
-        "3. 保護團隊免受外部干擾\n"
-        "4. 教練團隊遵循敏捷實踐\n"
-        "5. 促進團隊協作和持續改進\n"
-        "6. 確保Scrum流程的正確執行\n\n"
-        "請以敏捷思維回應，重點關注團隊效率、流程改進和協作文化。"
-        "你的建議應該具體可執行，並符合敏捷和Scrum的原則。"
-    ),
-
-    # DEFAULT
-    "DEFAULT": (
-        "你是一位經驗豐富的資深顧問，具備跨領域的專業知識和豐富的實務經驗。"
-        "你的能力包括：\n"
-        "1. 綜合分析複雜問題並提供解決方案\n"
-        "2. 整合不同觀點形成全面性建議\n"
-        "3. 平衡各種利益相關者的需求\n"
-        "4. 提供策略性思考和長遠規劃\n"
-        "5. 協調跨部門合作\n"
-        "6. 風險評估和機會識別\n\n"
-        "請以客觀、專業的角度提供建議，重點關注整體效益和可持續發展。"
-        "你的回應應該結構清晰、邏輯嚴謹，並提供可行的實施建議。"
-    ),
-}
 
 CYCLE_LIMIT = 2
 
+# --- 動態載入 Agents --- #
+
+def load_default_agents() -> List[Dict[str, Any]]:
+    """從 JSON 文件中載入預設 agents。"""
+    agents_path = Path(__file__).parent.parent / "data" / "agents.json"
+    if not agents_path.exists():
+        return []
+    with open(agents_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+PROFESSION_PROMPTS = load_default_agents()
+
+def get_default_prompt():
+    """獲取預設的 prompt。"""
+    return next((p['prompt'] for p in PROFESSION_PROMPTS if p['role'] == 'DEFAULT'), "No default prompt found.")
+
 router = APIRouter()
 chat_service = ChatService()
+
+@router.get("/professions", response_model=List[str], summary="獲取所有可用的專業角色")
+def get_professions(db: Session = Depends(get_db)):
+    """
+    返回所有可用的專業角色列表，包括內建和自訂的角色。
+    會對列表進行去重和排序。
+    """
+    unique_professions: set[str] = {p['role'] for p in PROFESSION_PROMPTS if p['role'] != 'DEFAULT'}
+    unique_professions.update(p['name'] for p in PROFESSION_PROMPTS if p['role'] != 'DEFAULT')
+
+    try:
+        custom_agents = crud_custom_agent.get_custom_agents(db)
+        for agent in custom_agents:
+            unique_professions.add(agent.name)
+            unique_professions.add(agent.role)
+    except Exception as e:
+        print(f"從資料庫載入自訂 Agent 列表失敗: {e}")
+
+    return sorted(list(unique_professions))
 
 # 檔案輸出目錄設定
 OUTPUT_DIR = (Path(__file__).resolve().parents[2] / "data" / "workflow_outputs").resolve()
@@ -243,12 +124,14 @@ class WorkflowNode:
         self.input_ids = [i.rsplit('_',1)[0] for i in agent_info.input]
         self.output_ids = [o.rsplit('_',1)[0] for o in agent_info.output]
         self.manager = manager
-        self.system_prompt = PROFESSION_PROMPTS.get(self.profession, PROFESSION_PROMPTS["DEFAULT"])
         self.status = "PENDING"
         self.received_inputs: Dict[str, str] = {}
         self.output_content: Optional[str] = None
         self.log_prefix = f"[節點: {self.id} ({self.profession})]"
         self.activation_counts: Dict[str, int] = {input_id: 0 for input_id in self.input_ids}
+        
+        # 動態獲取 System Prompt
+        self._set_system_prompt()
 
         if self.is_gate:
             print(f"{self.log_prefix} 被指定為入口(gate)，將忽略其所有輸入連線。")
@@ -256,6 +139,31 @@ class WorkflowNode:
             self.activation_counts = {}
 
         print(f"{self.log_prefix} 已初始化。輸入源: {self.input_ids}, 輸出目標: {self.output_ids}")
+
+    def _set_system_prompt(self):
+        """動態設定此節點的 system_prompt"""
+        db = self.manager.db
+        system_prompt = None
+
+        # 1. 優先從內建 prompts 尋找 (比對 role 或 name)
+        for p in PROFESSION_PROMPTS:
+            if p['role'] == self.profession or p['name'] == self.profession:
+                system_prompt = p['prompt']
+                break
+
+        # 2. 如果找不到，從資料庫查詢自訂 agent
+        if not system_prompt:
+            agent = crud_custom_agent.get_custom_agent_by_name_or_role(db, self.profession)
+            if agent:
+                system_prompt = agent.prompt
+                print(f"{self.log_prefix} 成功從資料庫載入自訂 prompt。")
+
+        # 3. 如果都找不到，使用預設值
+        if not system_prompt:
+            system_prompt = get_default_prompt()
+            print(f"{self.log_prefix} 找不到對應的 prompt，使用 DEFAULT。")
+
+        self.system_prompt = system_prompt
 
     async def check_and_run(self, sender_id: str):
         print(f"{self.log_prefix} 由 {sender_id} 觸發檢查... (收到 {len(self.received_inputs)} / 需要 {len(self.input_ids)})")
@@ -415,7 +323,7 @@ class DynamicWorkflowManager:
             await self.send_update({"status": "info", "message": "所有流程已完成，正在進行最終總結..."})
             
             summary_task = f"請將以下全部內容，做一個全面、完整、有條理的最終總結報告。\n\n---\n{content_to_summarize}\n---"
-            default_system_prompt = PROFESSION_PROMPTS["DEFAULT"]
+            default_system_prompt = get_default_prompt()
             
             try:
                 final_summary = await self.execute_llm_call(default_system_prompt, summary_task)
@@ -491,8 +399,6 @@ class DynamicWorkflowManager:
         print(f"{self.log_prefix} 工作流歷史已存入對話 ID: {conversation.id} ")
         return conversation.id
 
-# =================================================================
-# WebSocket 端點 (Endpoint)
 # =================================================================
 # WebSocket 端點 (Endpoint)
 # =================================================================
