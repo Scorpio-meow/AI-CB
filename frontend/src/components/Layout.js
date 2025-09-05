@@ -9,7 +9,8 @@ import {
 import {
   AdminPanelSettings,
   Chat,
-  Description
+  Description,
+  SupportAgent
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -39,6 +40,14 @@ function Layout({ children }) {
               onClick={() => navigate('/documents')}
             >
               知識庫
+            </Button>
+
+            <Button 
+              color="inherit" 
+              startIcon={<SupportAgent />}
+              onClick={() => navigate('/custom-agents')}
+            >
+              自訂Agent
             </Button>
                         
             <Button 
