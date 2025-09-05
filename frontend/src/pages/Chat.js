@@ -132,7 +132,8 @@ function Chat() {
         conversation_id: currentConversation?.id,
         model_name: selectedModel
       });
-      setMessages(prev => [...prev.slice(0, -1), response.data.message]);
+      // 添加 GPT 回應到消息列表中，保留用戶消息
+      setMessages(prev => [...prev, response.data.message]);
       // If server returned/created a different conversation id, refresh using fresh data
       if (!currentConversation || response.data.conversation_id !== currentConversation.id) {
         const updatedConvs = await loadConversations();
@@ -147,7 +148,7 @@ function Chat() {
     } finally {
       setLoading(false);
     }
-  }, [newMessage, viewMode, currentConversation, loadConversations]);
+  }, [newMessage, viewMode, currentConversation, loadConversations, selectedModel]);
 
   const deleteConversation = useCallback(async (conversationId) => {
     try {
