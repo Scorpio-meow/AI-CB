@@ -1,29 +1,32 @@
-#################################################################
-# Build stage
-FROM node:18-alpine AS builder
+# 使用官方 Node.js 18 運行時作為基底鏡像
+FROM node:18-alpine as builder
+
+# 設置工作目錄
 WORKDIR /app
 
-# 安裝依賴
+# 複製 package 檔案
 COPY package*.json ./
-RUN npm ci
 
-# 複製並構建
+# 安裝依賴
+RUN npm ci --only=production
+
+# 複製源代碼
 COPY . .
+
+# 構建應用程式
 RUN npm run build
 
-#################################################################
-# Production stage: use nginx to serve static files
-FROM nginx:stable-alpine
+# 生產階段
+FROM nginx:alpine
 
-# 移除預設 nginx 靜態頁面並複製 build
-RUN rm -rf /usr/share/nginx/html/*
+# 複製自定義 nginx 配置
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# 複製構建的應用程式
 COPY --from=builder /app/build /usr/share/nginx/html
 
-# 複製自定義 nginx 設定（若有，否則使用預設）
-# 若未提供 nginx.conf，預設配置已足夠
-
+# 暴露端口
 EXPOSE 3000
 
-STOPSIGNAL SIGTERM
-
+# 啟動 nginx
 CMD ["nginx", "-g", "daemon off;"]
