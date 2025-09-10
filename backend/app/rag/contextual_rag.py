@@ -16,7 +16,6 @@ from whoosh import index, fields, qparser, scoring
 from whoosh.analysis import StandardAnalyzer, Analyzer, Tokenizer, Token
 from whoosh.filedb.filestore import FileStorage
 from whoosh.writing import AsyncWriter
-import tempfile
 try:
     import jieba
     _HAS_JIEBA = True

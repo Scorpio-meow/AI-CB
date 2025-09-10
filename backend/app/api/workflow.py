@@ -14,7 +14,6 @@ import json
 import os
 from pathlib import Path
 from datetime import datetime
-import uuid
 from typing import List, Dict, Any, Optional
 
 import httpx

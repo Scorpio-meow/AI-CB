@@ -60,12 +60,13 @@ async def shutdown_event():
             pass
 
 # Include routers
+from app.api import tags as tags_router
+
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(workflow.router, prefix="/api/workflow", tags=["workflow"])
 app.include_router(custom_agent.router, prefix="/api/custom_agents", tags=["Custom Agents"])
-from app.api import tags as tags_router
 app.include_router(tags_router.router, prefix="/api", tags=["tags"])
 
 @app.get("/")

@@ -7,7 +7,6 @@ from app.services.document_processor import DocumentProcessor
 import re
 from langchain.schema import Document as LangchainDocument
 import os
-import shutil
 from typing import List
 import logging
 
@@ -248,7 +247,6 @@ async def delete_document(
     
     # 刪除實際文件（如果存在）
     try:
-        import os
         upload_dir = UPLOAD_DIR
         file_path = os.path.join(upload_dir, document.filename)
         if os.path.exists(file_path):
