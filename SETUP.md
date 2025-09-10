@@ -14,6 +14,7 @@ copy .env.example .env
 - `LLM_API_BASE`: API 基地址（Ollama ngrok 地址或 LLM Models API）
 - `SECRET_KEY`: JWT 加密密鑰（建議使用隨機字符串）
 - `DATABASE_URL`: 數據庫連接字符串（默認 SQLite）
+注意：本分支/版本已移除用戶註冊與 JWT 認證系統，`SECRET_KEY` 與相關設定不再需要，請勿設定或依賴該變量。
 
 ### 2. 依賴安裝
 
@@ -55,7 +56,7 @@ python -c "import PyPDF2, docx, faiss, whoosh, sklearn; print('所有套件已�
 ```bash
 # 設置環境變數
 export OPENAI_API_KEY=your_api_key_here
-export SECRET_KEY=your_secret_key_here
+# 註：認證系統已移除，SECRET_KEY 不再使用
 
 # 啟動服務
 docker-compose up -d
@@ -67,9 +68,9 @@ docker-compose up -d
 - API 文檔: http://127.0.0.1:8001/docs
 
 ### 4. 管理員設置
-目前系統沒有啟用用戶認證系統，所有功能都是開放使用的。如需啟用認證功能，需要：
-1. 在 `backend/main.py` 中添加 auth 路由
-2. 配置前端的認證拦截器
+目前系統沒有啟用用戶註冊/登入或 JWT 認證系統，所有功能在開發分支中為開放使用。如需將認證重新加入：
+1. 在 `backend/main.py` 中新增相應的 auth 路由與服務
+2. 在前端加入認證上下文與 axios 攔截器
 
 ### 5. 文檔上傳測試
 系統支援以下文件格式：

@@ -1,9 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.models.database import get_db
 from app.models import MessageCreate, MessageResponse, ChatResponse, ConversationResponse
-from app.services.auth_service import AuthService
 from app.services.chat_service import ChatService
 from app.rag.contextual_rag import HybridContextualRAG
 from typing import List
@@ -11,8 +9,6 @@ import json
 import os
 
 router = APIRouter()
-security = HTTPBearer()
-auth_service = AuthService()
 chat_service = ChatService()
 rag_system = HybridContextualRAG()
 
@@ -135,11 +131,9 @@ async def delete_conversation(
     return {"message": "對話已刪除"}
 
 @router.websocket("/ws/{user_id}")
-async def websocket_endpoint(websocket: WebSocket, user_id: int, token: str):
-    """WebSocket 連接用於即時聊天"""
-    # 驗證 token（簡化版本）
+async def websocket_endpoint(websocket: WebSocket, user_id: int):
+    """WebSocket 連接用於即時聊天（不使用 JWT 驗證）"""
     try:
-        # 這裡應該驗證 JWT token，但為了簡化，我們跳過
         await manager.connect(websocket, user_id)
         
         while True:

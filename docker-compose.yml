@@ -23,7 +23,7 @@ services:
     environment:
       DATABASE_URL: "postgresql://chatbot_user:chatbot_password@database:5432/chatbot_db"
       OPENAI_API_KEY: ${OPENAI_API_KEY}
-      SECRET_KEY: ${SECRET_KEY:-your-secret-key-here}
+  # SECRET_KEY removed: authentication is not enabled in this branch
       ALLOWED_ORIGINS: '["http://localhost:3000"]'
     volumes:
       - ./backend/data:/app/data

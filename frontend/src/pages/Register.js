@@ -9,7 +9,7 @@ import {
   Alert,
   Link
 } from '@mui/material';
-import { useAuth } from '../contexts/AuthContext';
+// AuthContext removed: authentication disabled
 import { useNavigate } from 'react-router-dom';
 
 function Register() {
@@ -24,7 +24,6 @@ function Register() {
   
   const { register } = useAuth();
   const navigate = useNavigate();
-
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -34,30 +33,8 @@ function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    // 驗證密碼
-    if (formData.password !== formData.confirmPassword) {
-      setError('密碼不一致');
-      setLoading(false);
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError('密碼長度至少6位');
-      setLoading(false);
-      return;
-    }
-
-    const result = await register(formData.username, formData.email, formData.password);
-    
-    if (result.success) {
-      navigate('/login');
-    } else {
-      setError(result.error);
-    }
-    
+    // Registration is disabled in this deployment.
+    setError('Registration is disabled in this deployment.');
     setLoading(false);
   };
 

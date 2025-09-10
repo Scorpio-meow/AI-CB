@@ -13,8 +13,8 @@
 - **自動重建索引**: 24 小時周期自動維護索引性能
 
 ### 👥 用戶管理
-- **用戶註冊登入**: JWT 身份驗證系統（前後端代碼已準備，待整合）
-- **權限控制**: 區分一般用戶和管理員權限
+- 本分支已移除用戶註冊/登入及 JWT 認證功能，相關路由與服務已刪除，系統以開放模式運作。
+ - **權限控制**: 如需再次加入，請實作相應的認證與授權邏輯
 
 ### 📚 知識庫管理
 - **文件上傳**: 支援多種文件格式（PDF, TXT, DOCX）
@@ -122,10 +122,7 @@ npm start
 MODEL_NAME=gpt-oss:20b
 LLM_API_BASE=https://b6838af9164c.ngrok-free.app
 
-# JWT 密鑰
-SECRET_KEY=your_jwt_secret_key_here
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
+# JWT 認證相關設定已移除（本分支不使用）
 
 # 數據庫連接 (SQLite 為默認)
 DATABASE_URL=sqlite:///./chatbot.db
@@ -149,10 +146,8 @@ REACT_APP_API_URL=http://127.0.0.1:8001
 
 ## API 接口
 
-### 身份驗證（未整合）
-- `POST /api/auth/register` - 用戶註冊
-- `POST /api/auth/login` - 用戶登入
-- `GET /api/auth/me` - 獲取當前用戶信息
+### 身份驗證
+本分支不包含用戶註冊/登入或 JWT 認證相關 API；若您需要在未來版本中啟用認證，請在後端加入相應路由並在前端啟用 axios 攔截器與 Auth Context。
 
 ### 聊天功能
 - `POST /api/chat/send` - 發送消息

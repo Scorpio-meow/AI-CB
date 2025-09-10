@@ -21,7 +21,7 @@ import {
 } from '@mui/material';
 import { FaRobot } from "react-icons/fa";
 import { Send as SendIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material';
-import api from '../services/authService';
+import api from '../services/api';
 import ReactMarkdown from 'react-markdown';
 import DiscussionBoard from './DiscussionBoard/DiscussionBoard';
 import remarkGfm from 'remark-gfm';

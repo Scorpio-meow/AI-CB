@@ -17,9 +17,7 @@
 - `DATABASE_URL`: 資料庫連接 URL (預設: sqlite:///./chatbot.db)
 
 ### JWT Authentication Configuration
-- `SECRET_KEY`: JWT 簽名的密鑰
-- `ALGORITHM`: JWT 簽名演算法 (預設: HS256)
-- `ACCESS_TOKEN_EXPIRE_MINUTES`: 存取令牌過期時間（分鐘）(預設: 30)
+本專案分支已移除用戶註冊/登入與 JWT 認證系統，相關環境變數（如 SECRET_KEY、ALGORITHM、ACCESS_TOKEN_EXPIRE_MINUTES）不再使用，請勿設定或依賴這些變數。
 
 ### CORS Configuration
 - `ALLOWED_ORIGINS`: 允許的來源 URL，用逗號分隔
@@ -104,7 +102,7 @@
 
 ## 注意事項
 
-- 生產環境中務必修改 `SECRET_KEY` 為安全的隨機字串
+- 本分支不使用用戶認證（JWT），`SECRET_KEY` 及相關設定已移除，請勿在環境中設定或依賴該變數。
 - `LLM_API_BASE` 必須設定為可用的 LLM API 端點
 - 資料庫 URL 應根據實際使用的資料庫系統進行調整
 - 檔案路徑變數應使用絕對路徑或相對於專案根目錄的路徑

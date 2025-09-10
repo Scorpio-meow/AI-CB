@@ -9,7 +9,7 @@ import {
   Alert,
   Link
 } from '@mui/material';
-import { useAuth } from '../contexts/AuthContext';
+// AuthContext removed: authentication disabled
 import { useNavigate } from 'react-router-dom';
 
 function Login() {
@@ -32,18 +32,9 @@ function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    const result = await login(formData.username, formData.password);
-    
-    if (result.success) {
-      navigate('/chat');
-    } else {
-      setError(result.error);
-    }
-    
-    setLoading(false);
+  // Authentication has been removed; show message instead.
+  setError('Authentication is disabled in this deployment.');
+  setLoading(false);
   };
 
   return (
