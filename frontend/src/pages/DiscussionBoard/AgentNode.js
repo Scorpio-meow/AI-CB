@@ -1,4 +1,4 @@
-import React from 'react';
+import { memo } from 'react';
 import { Handle, Position } from 'reactflow';
 import { Paper, Typography, Box, Divider, CircularProgress, Link } from '@mui/material'; // 引入 CircularProgress
 
@@ -78,4 +78,4 @@ function AgentNode({ data }) {
   );
 }
 
-export default React.memo(AgentNode);
+export default memo(AgentNode);

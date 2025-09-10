@@ -13,7 +13,6 @@
 - **文檔處理**: PyPDF2 + python-docx + 多編碼支援
 
 ## 核心功能
-- [ ] 用戶註冊登入系統（待整合）
 - [x] 智能對話（混合 RAG + Cross-Encoder 重新排序）
 - [x] 對話歷史管理
 - [x] 多格式文件上傳 (TXT, PDF, DOCX)
@@ -31,7 +30,6 @@
 - [x] 前端 React 應用程式 (Material-UI)
 - [x] 混合 RAG 實現 (HybridContextualRAG)
 - [x] 數據庫模型 (SQLAlchemy)
-- [ ] 用戶認證系統 (JWT) - 代碼已寫但未整合
 - [x] 文檔處理系統 (DocumentProcessor: TXT/PDF/DOCX)
 - [x] 混合向量儲存與持久化 (FAISS + Whoosh)
 - [x] 多編碼支援 (UTF-8, GBK, Big5)

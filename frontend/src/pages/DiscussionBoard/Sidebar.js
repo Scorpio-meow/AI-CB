@@ -1,6 +1,5 @@
 // src/pages/DiscussionBoard/Sidebar.js
 
-import React from 'react';
 import { Box, Paper, Typography, List, ListItem, ListItemText, ListItemIcon, CircularProgress, Alert } from '@mui/material';
 import { DragIndicator } from '@mui/icons-material';
 import { useAgents } from '../../contexts/AgentContext';
