@@ -21,7 +21,7 @@ import {
 } from '@mui/material';
 import { FaRobot } from "react-icons/fa";
 import { Send as SendIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material';
-import axios from 'axios';
+import api from '../services/authService';
 import ReactMarkdown from 'react-markdown';
 import DiscussionBoard from './DiscussionBoard/DiscussionBoard';
 import remarkGfm from 'remark-gfm';
@@ -37,29 +37,79 @@ function Chat() {
   const [error, setError] = useState('');
   const [availableModels, setAvailableModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState('');
+  const [userSelectedModel, setUserSelectedModel] = useState(false);
   const messagesEndRef = useRef(null);
   const [viewMode, setViewMode] = useState('chat');
   const discussionBoardRef = useRef(null);
 
-  // Load available models
+  // Load available models (now fetched from /api/tags). Supports several response shapes.
   const loadAvailableModels = useCallback(async () => {
     try {
-      const response = await axios.get('/api/chat/models');
-      setAvailableModels(response.data.models);
-      setSelectedModel(response.data.default);
+      // `api` baseURL already includes /api, so this requests /api/tags
+      const response = await api.get('/tags');
+      const payload = response.data;
+
+      let models = [];
+      let defaultModel = null;
+
+      // Support payload as an array of strings
+      if (Array.isArray(payload)) {
+        models = payload;
+      }
+
+      // Support { models: [...], default: '...' }
+      else if (payload && Array.isArray(payload.models)) {
+        models = payload.models;
+        defaultModel = payload.default || null;
+      }
+
+      // Support { tags: [...] } where tags may be strings or objects with name/value
+      else if (payload && Array.isArray(payload.tags)) {
+        models = payload.tags.map((t) => (typeof t === 'string' ? t : (t.name || t.value || ''))).filter(Boolean);
+        defaultModel = payload.default || null;
+      }
+
+      // Support nested data arrays { data: [...] }
+      else if (payload && Array.isArray(payload.data)) {
+        models = payload.data;
+      }
+
+      // Final fallback
+      if (!models || models.length === 0) {
+        models = ['gpt-oss:20b', 'gemma3:27b'];
+      }
+
+      setAvailableModels(models);
+
+      // If user explicitly selected a model, keep it (if still available).
+      if (userSelectedModel && selectedModel) {
+        if (models.includes(selectedModel)) {
+          // keep user's choice
+          setSelectedModel(selectedModel);
+        } else {
+          // user's chosen model no longer available -> fall back and clear flag
+          setUserSelectedModel(false);
+          setSelectedModel(defaultModel || models[0]);
+        }
+      } else {
+        // No user selection yet, pick default or first
+        setSelectedModel(defaultModel || models[0]);
+      }
     } catch (error) {
       console.error('載入可用模型失敗:', error);
       // Set fallback models if API fails
       setAvailableModels(['gpt-oss:20b', 'gemma3:27b']);
-      setSelectedModel('gpt-oss:20b');
+      if (!userSelectedModel || !selectedModel) {
+        setSelectedModel('gpt-oss:20b');
+      }
     }
-  }, []);
+  }, [selectedModel, userSelectedModel]);
 
   // Define all functions before they are used in effects
   const loadConversation = useCallback(async (conversation) => {
     setViewMode('chat');
     try {
-      const response = await axios.get(`/api/chat/conversations/${conversation.id}`);
+  const response = await api.get(`/chat/conversations/${conversation.id}`);
       setCurrentConversation(response.data);
       setMessages(response.data.messages || []);
     } catch (error) {
@@ -69,7 +119,7 @@ function Chat() {
 
   const loadConversations = useCallback(async () => {
     try {
-      const response = await axios.get('/api/chat/conversations');
+  const response = await api.get('/chat/conversations');
       setConversations(response.data);
       if (response.data.length > 0 && !currentConversation) {
         if (viewMode === 'chat') {
@@ -88,6 +138,15 @@ function Chat() {
   // Effects should be after function definitions
   useEffect(() => {
     loadAvailableModels();
+  }, [loadAvailableModels]);
+
+  // Poll for available models every 15 seconds to keep list up-to-date (即时更新)
+  useEffect(() => {
+    const intervalMs = 15000; // 15s
+    const id = setInterval(() => {
+      loadAvailableModels();
+    }, intervalMs);
+    return () => clearInterval(id);
   }, [loadAvailableModels]);
 
   useEffect(() => {
@@ -127,7 +186,7 @@ function Chat() {
     setLoading(true);
 
     try {
-      const response = await axios.post('/api/chat/send', {
+  const response = await api.post('/chat/send', {
         content: messageToSend,
         conversation_id: currentConversation?.id,
         model_name: selectedModel
@@ -152,7 +211,7 @@ function Chat() {
 
   const deleteConversation = useCallback(async (conversationId) => {
     try {
-      await axios.delete(`/api/chat/conversations/${conversationId}`);
+  await api.delete(`/chat/conversations/${conversationId}`);
       const newConversations = conversations.filter(c => c.id !== conversationId);
       setConversations(newConversations);
       if (currentConversation?.id === conversationId) {
@@ -197,7 +256,7 @@ function Chat() {
     setViewMode('chat');
     (async () => {
       try {
-        const resp = await axios.post('/api/chat/conversations');
+  const resp = await api.post('/chat/conversations');
         const newConv = resp.data;
         // refresh list and set current
         await loadConversations();
@@ -324,7 +383,7 @@ function Chat() {
                   <Select
                     size="small"
                     value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
+                    onChange={(e) => { setSelectedModel(e.target.value); setUserSelectedModel(true); }}
                     label="模型"
                     disabled={loading}
                   >
