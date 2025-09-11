@@ -116,7 +116,7 @@ function CustomAgents() {
   return (
     <Container maxWidth="lg">
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h4">自訂 Agent 管理</Typography>
+        <Typography variant="h4">Agent 管理</Typography>
         <Button variant="contained" startIcon={<Add />} onClick={() => handleOpenDialog()}>
           新增 Agent
         </Button>

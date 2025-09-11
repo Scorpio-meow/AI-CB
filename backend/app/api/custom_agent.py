@@ -1,8 +1,6 @@
-import json
-from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List, Dict, Any, Union
+from typing import List
 
 from app.models.database import get_db
 from app.schemas.custom_agent import CustomAgent, CustomAgentCreate, CustomAgentUpdate
@@ -11,50 +9,18 @@ from app.crud import crud_custom_agent
 # 建立一個新的 FastAPI 路由器
 router = APIRouter()
 
-# --- 動態載入 Agents --- #
-
-def load_default_agents() -> List[Dict[str, Any]]:
-    """從 JSON 文件中載入預設 agents。"""
-    agents_path = Path(__file__).parent.parent / "data" / "agents.json"
-    if not agents_path.exists():
-        return []
-    with open(agents_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
-
 # --- API Endpoints --- #
 
-@router.get("/all_with_details", response_model=List[CustomAgent], summary="獲取所有(包含預設)的 Agent 詳情")
+@router.get("/all_with_details", response_model=List[CustomAgent], summary="獲取所有自訂 Agent 詳情")
 def read_all_agents_with_details(db: Session = Depends(get_db)):
     """
-    獲取一個包含預設 Agent 和自訂 Agent 的完整列表。
+    獲取所有自訂 Agent 的完整列表。
+    注意：預設 Agent 已被移除，此端點只返回使用者自訂的 Agent。
     - **db**: 資料庫 session 依賴。
     """
-    all_agents: Dict[str, CustomAgent] = {}
-    default_agents = load_default_agents()
-
-    # 1. 處理預設 Agents
-    for i, agent_def in enumerate(default_agents):
-        if agent_def["role"] == 'DEFAULT':
-            continue
-
-        agent_data = {
-            "id": -(i + 1),  # 使用負數 ID 以避免與資料庫中的 ID 衝突
-            "name": agent_def["name"],
-            "role": agent_def["role"],
-            "prompt": agent_def["prompt"],
-            "expertise": "預設",
-            "tools": []
-        }
-        if agent_def["role"] not in all_agents:
-            # 直接使用 agent_data 創建 CustomAgent 模型實例
-            all_agents[agent_def["role"]] = CustomAgent(**agent_data)
-
-    # 2. 讀取並合併自訂 Agents
+    # 只返回自訂 Agents，不再載入預設 Agent
     custom_agents = crud_custom_agent.get_custom_agents(db, limit=1000)
-    for agent in custom_agents:
-        all_agents[agent.role] = agent
-
-    return list(all_agents.values())
+    return custom_agents
 
 
 @router.post("/", response_model=CustomAgent, summary="創建新的自訂 Agent")

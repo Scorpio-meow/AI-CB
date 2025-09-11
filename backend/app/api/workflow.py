@@ -43,21 +43,9 @@ WORKFLOW_TIMEOUT = float(os.getenv("WORKFLOW_TIMEOUT", "180"))
 
 CYCLE_LIMIT = 2
 
-# --- 動態載入 Agents --- #
-
-def load_default_agents() -> List[Dict[str, Any]]:
-    """從 JSON 文件中載入預設 agents。"""
-    agents_path = Path(__file__).parent.parent / "data" / "agents.json"
-    if not agents_path.exists():
-        return []
-    with open(agents_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
-
-PROFESSION_PROMPTS = load_default_agents()
-
 def get_default_prompt():
     """獲取預設的 prompt。"""
-    return next((p['prompt'] for p in PROFESSION_PROMPTS if p['role'] == 'DEFAULT'), "No default prompt found.")
+    return "你是一位資深編輯與溝通專家。請將內容優化得更清晰、結構化且具說服力：1) 核心訊息、2) 結構邏輯、3) 受眾語氣。盡量使用小節與條列；適合時用簡短表格輔助呈現。"
 
 router = APIRouter()
 chat_service = ChatService()
@@ -65,11 +53,10 @@ chat_service = ChatService()
 @router.get("/professions", response_model=List[str], summary="獲取所有可用的專業角色")
 def get_professions(db: Session = Depends(get_db)):
     """
-    返回所有可用的專業角色列表，包括內建和自訂的角色。
+    返回所有可用的專業角色列表，僅包含自訂的角色。
     會對列表進行去重和排序。
     """
-    unique_professions: set[str] = {p['role'] for p in PROFESSION_PROMPTS if p['role'] != 'DEFAULT'}
-    unique_professions.update(p['name'] for p in PROFESSION_PROMPTS if p['role'] != 'DEFAULT')
+    unique_professions: set[str] = set()
 
     try:
         custom_agents = crud_custom_agent.get_custom_agents(db)
@@ -144,20 +131,13 @@ class WorkflowNode:
         db = self.manager.db
         system_prompt = None
 
-        # 1. 優先從內建 prompts 尋找 (比對 role 或 name)
-        for p in PROFESSION_PROMPTS:
-            if p['role'] == self.profession or p['name'] == self.profession:
-                system_prompt = p['prompt']
-                break
+        # 從資料庫查詢自訂 agent
+        agent = crud_custom_agent.get_custom_agent_by_name_or_role(db, self.profession)
+        if agent:
+            system_prompt = agent.prompt
+            print(f"{self.log_prefix} 成功從資料庫載入自訂 prompt。")
 
-        # 2. 如果找不到，從資料庫查詢自訂 agent
-        if not system_prompt:
-            agent = crud_custom_agent.get_custom_agent_by_name_or_role(db, self.profession)
-            if agent:
-                system_prompt = agent.prompt
-                print(f"{self.log_prefix} 成功從資料庫載入自訂 prompt。")
-
-        # 3. 如果都找不到，使用預設值
+        # 如果找不到，使用預設值
         if not system_prompt:
             system_prompt = get_default_prompt()
             print(f"{self.log_prefix} 找不到對應的 prompt，使用 DEFAULT。")
