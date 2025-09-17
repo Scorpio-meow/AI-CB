@@ -364,14 +364,14 @@ function Documents() {
                       </Box>
                     }
                     secondary={
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">
+                      <React.Fragment>
+                        <Typography variant="body2" color="text.secondary" component="span" display="block">
                           上傳時間: {new Date(doc.created_at).toLocaleString('zh-TW')}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="text.secondary" component="span" display="block">
                           文件類型: {doc.file_type}
                         </Typography>
-                      </Box>
+                      </React.Fragment>
                     }
                   />
                   <ListItemSecondaryAction>
