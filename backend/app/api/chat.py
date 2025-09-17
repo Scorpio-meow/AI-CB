@@ -58,10 +58,12 @@ async def send_message(
         )
         
         # 使用 RAG 系統生成回應（支援模型選擇）
+        # Pass user_id into RAG so context is scoped per-user+conversation
         rag_response = await rag_system.generate_response(
-            message_data.content, 
+            message_data.content,
             user_message.conversation_id,
-            message_data.model_name
+            message_data.model_name,
+            1  # TODO: replace hardcoded user_id with authenticated user from request
         )
         
         # 保存機器人回應

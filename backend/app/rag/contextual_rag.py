@@ -796,14 +796,17 @@ class HybridContextualRAG:
         return results if results else []
     
     def build_context_prompt(self, query: str, relevant_docs: List[Document], 
-                           conversation_id: Optional[int] = None) -> str:
+                           conversation_id: Optional[int] = None,
+                           user_id: Optional[int] = None) -> str:
         """Build enhanced context-aware prompt with citations"""
-        # Get conversation history
+        # Get conversation history (scoped by user and conversation)
         conversation_context = ""
-        if conversation_id and conversation_id in self.context_memory:
-            recent_context = self.context_memory[conversation_id][-3:]
-            for exchange in recent_context:
-                conversation_context += f"用戶: {exchange['user']}\nAI: {exchange['assistant']}\n\n"
+        if conversation_id is not None:
+            key = f"{user_id}:{conversation_id}" if user_id is not None else f"{conversation_id}"
+            if key in self.context_memory:
+                recent_context = self.context_memory[key][-3:]
+                for exchange in recent_context:
+                    conversation_context += f"用戶: {exchange['user']}\nAI: {exchange['assistant']}\n\n"
         
         # Build document context with improved citations (only include top-N to control prompt size)
         document_context = ""
@@ -869,7 +872,7 @@ class HybridContextualRAG:
             logger.error(f"LLM API error: {e}")
             return f"抱歉，生成回應時出現錯誤: {str(e)}"
     
-    async def generate_response(self, query: str, conversation_id: Optional[int] = None, model_name: str = None) -> Dict[str, Any]:
+    async def generate_response(self, query: str, conversation_id: Optional[int] = None, model_name: str = None, user_id: Optional[int] = None) -> Dict[str, Any]:
         """Generate response using enhanced RAG pipeline with optional model override"""
         start_time = time.time()
         
@@ -879,20 +882,21 @@ class HybridContextualRAG:
         relevant_docs = [doc for doc, _ in doc_score_pairs]
         retrieval_time = time.time() - start_time
         
-        # Build context prompt
-        context_prompt = self.build_context_prompt(query, relevant_docs, conversation_id)
+        # Build context prompt (pass user_id to scope context)
+        context_prompt = self.build_context_prompt(query, relevant_docs, conversation_id, user_id)
         
         # Generate response
         generation_start = time.time()
         answer = await self.call_llm_api(context_prompt, model_name)
         generation_time = time.time() - generation_start
         
-        # Update conversation memory
-        if conversation_id:
-            if conversation_id not in self.context_memory:
-                self.context_memory[conversation_id] = []
-            
-            self.context_memory[conversation_id].append({
+        # Update conversation memory (scoped by user and conversation)
+        if conversation_id is not None:
+            key = f"{user_id}:{conversation_id}" if user_id is not None else f"{conversation_id}"
+            if key not in self.context_memory:
+                self.context_memory[key] = []
+
+            self.context_memory[key].append({
                 "user": query,
                 "assistant": answer,
                 "timestamp": time.time(),
@@ -901,10 +905,10 @@ class HybridContextualRAG:
                 "retrieval_time": retrieval_time,
                 "generation_time": generation_time
             })
-            
+
             # Keep only recent exchanges
-            if len(self.context_memory[conversation_id]) > 10:
-                self.context_memory[conversation_id] = self.context_memory[conversation_id][-10:]
+            if len(self.context_memory[key]) > 10:
+                self.context_memory[key] = self.context_memory[key][-10:]
         
         # Prepare sources info
         sources_info = []
