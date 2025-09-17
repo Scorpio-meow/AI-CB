@@ -11,7 +11,7 @@ import {
   Description,
   SupportAgent
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Outlet } from 'react-router-dom';
 
 function Layout({ children }) {
   const navigate = useNavigate();
@@ -61,7 +61,7 @@ function Layout({ children }) {
       </AppBar>
       
       <Box component="main" sx={{ mt: 2 }}>
-        {children}
+        <Outlet />
       </Box>
     </Box>
   );

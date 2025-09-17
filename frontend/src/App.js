@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Chat from './pages/Chat';
@@ -20,22 +20,33 @@ const theme = createTheme({
   },
 });
 
+
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <Layout />, // Layout 包裹所有頁面
+    children: [
+      { index: true, element: <Navigate to="/chat" replace /> },
+      { path: 'chat', element: <Chat /> },
+      { path: 'documents', element: <Documents /> },
+      { path: 'admin', element: <AdminDashboard /> },
+      { path: 'custom-agents', element: <CustomAgents /> },
+    ],
+  },
+]);
+
 function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AgentProvider>
-        <Router>
-          <Layout>
-            <Routes>
-              <Route path="/" element={<Navigate to="/chat" />} />
-              <Route path="/chat" element={<Chat />} />
-              <Route path="/documents" element={<Documents />} />
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/custom-agents" element={<CustomAgents />} />
-            </Routes>
-          </Layout>
-        </Router>
+        <RouterProvider
+          router={router}
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true,
+          }}
+        />
       </AgentProvider>
     </ThemeProvider>
   );
