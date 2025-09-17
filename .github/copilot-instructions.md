@@ -9,7 +9,6 @@
 - **前端**: React + Material-UI
 - **數據庫**: SQLite (開發) / PostgreSQL (生產)
 - **向量數據庫**: FAISS IndexFlatIP + Whoosh BM25 混合檢索
-- **身份驗證**: JWT
 - **文檔處理**: PyPDF2 + python-docx + 多編碼支援
 
 ## 核心功能
