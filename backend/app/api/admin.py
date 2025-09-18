@@ -3,13 +3,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.models.database import get_db
 from app.models import User, Conversation, Message, Document
-from app.rag.contextual_rag import ContextualRAG
+from app.rag.contextual_rag import HybridContextualRAG
 from typing import List, Dict, Any
 from datetime import datetime, timedelta
 from pydantic import BaseModel
 
 router = APIRouter()
-rag_system = ContextualRAG()
+rag_system = HybridContextualRAG()
 
 class UserUpdate(BaseModel):
     username: str = None
@@ -115,16 +115,29 @@ async def delete_conversation(
     db: Session = Depends(get_db)
 ):
     """刪除對話"""
-    # 刪除對話中的所有消息
-    db.query(Message).filter(Message.conversation_id == conversation_id).delete()
-    
-    # 刪除對話
+    # 獲取對話信息用於清理記憶體
     conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
     if not conversation:
         raise HTTPException(status_code=404, detail="對話不存在")
     
+    user_id = conversation.user_id
+    
+    # 刪除對話中的所有消息
+    db.query(Message).filter(Message.conversation_id == conversation_id).delete()
+    
+    # 刪除對話
     db.delete(conversation)
     db.commit()
+    
+    # 清理 RAG 系統中的對話上下文記憶
+    # 清理新格式的記憶體 key (user_id:conversation_id)
+    memory_key = f"{user_id}:{conversation_id}"
+    if hasattr(rag_system, 'context_memory') and memory_key in rag_system.context_memory:
+        del rag_system.context_memory[memory_key]
+    
+    # 清理舊格式的記憶體 key (conversation_id only) - 向後兼容
+    if hasattr(rag_system, 'context_memory') and conversation_id in rag_system.context_memory:
+        del rag_system.context_memory[conversation_id]
     
     return {"message": "對話刪除成功"}
 
@@ -204,10 +217,21 @@ async def delete_user(
     if not user:
         raise HTTPException(status_code=404, detail="用戶不存在")
     
-    # 刪除用戶的所有對話和消息
+    # 刪除用戶的所有對話和消息，並清理對應的記憶體
     conversations = db.query(Conversation).filter(Conversation.user_id == user_id).all()
     for conv in conversations:
         db.query(Message).filter(Message.conversation_id == conv.id).delete()
+        
+        # 清理 RAG 系統中的對話上下文記憶
+        # 清理新格式的記憶體 key (user_id:conversation_id)
+        memory_key = f"{user_id}:{conv.id}"
+        if hasattr(rag_system, 'context_memory') and memory_key in rag_system.context_memory:
+            del rag_system.context_memory[memory_key]
+        
+        # 清理舊格式的記憶體 key (conversation_id only) - 向後兼容
+        if hasattr(rag_system, 'context_memory') and conv.id in rag_system.context_memory:
+            del rag_system.context_memory[conv.id]
+        
         db.delete(conv)
     
     # 刪除用戶

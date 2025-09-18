@@ -5,7 +5,9 @@ from datetime import datetime
 
 class ChatService:
     def __init__(self):
-        pass
+        # Import RAG system for memory management
+        from app.rag.contextual_rag import HybridContextualRAG
+        self.rag_system = HybridContextualRAG()
     
     async def create_conversation(self, db: Session, user_id: int, title: str = "新對話"):
         """創建新對話"""
@@ -157,6 +159,16 @@ class ChatService:
         # 刪除對話
         db.delete(conversation)
         db.commit()
+        
+        # 清理 RAG 系統中的對話上下文記憶
+        # 清理新格式的記憶體 key (user_id:conversation_id)
+        memory_key = f"{user_id}:{conversation_id}"
+        if hasattr(self.rag_system, 'context_memory') and memory_key in self.rag_system.context_memory:
+            del self.rag_system.context_memory[memory_key]
+        
+        # 清理舊格式的記憶體 key (conversation_id only) - 向後兼容
+        if hasattr(self.rag_system, 'context_memory') and conversation_id in self.rag_system.context_memory:
+            del self.rag_system.context_memory[conversation_id]
         
         return True
     
