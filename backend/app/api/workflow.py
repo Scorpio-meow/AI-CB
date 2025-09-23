@@ -404,6 +404,18 @@ async def workflow_websocket_endpoint(websocket: WebSocket, db: Session = Depend
                 
                 manager_instance = DynamicWorkflowManager(workflow_process, websocket, user_id, db)
                 asyncio.create_task(manager_instance.start())
+            
+            elif msg_type == "ping":
+                # 回應心跳檢測
+                await websocket.send_json({"type": "pong", "message": "WebSocket 連線正常"})
+            
+            elif msg_type == "test":
+                # 處理測試訊息
+                await websocket.send_json({"type": "test_response", "message": "測試訊息已收到"})
+            
+            else:
+                # 未知訊息類型
+                await websocket.send_json({"status": "error", "response": f"未知的訊息類型: {msg_type}"})
 
     except WebSocketDisconnect:
         manager.disconnect(websocket, user_id)

@@ -152,6 +152,7 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
     logCurrentProcess("刪除 Agent");
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     // build ws url based on current location to support different hosts and wss in production
     // If frontend runs on localhost:3000 (dev), prefer backend default port 8001
@@ -285,7 +286,7 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
         try { socketRef.current.close(); } catch (e) {}
       }
     };
-  }, [setNodes]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleStartWorkflow = () => {
     if (!entryPointId) { 
