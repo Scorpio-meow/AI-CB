@@ -180,8 +180,15 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
           
           // 檢查是否為 DevTunnels 環境
           if (window.location.hostname.includes('devtunnels.ms')) {
-            // DevTunnels 環境：將端口 3000 替換為 8001
-            host = window.location.hostname.replace('-3000.', '-8001.');
+            // DevTunnels 環境：確保使用正確的後端主機名和端口
+            if (window.location.hostname.includes('-3000.')) {
+              host = window.location.hostname.replace('-3000.', '-8001.');
+            } else if (window.location.hostname.includes('-8001.')) {
+              host = window.location.hostname;
+            } else {
+              // 如果沒有端口信息，假設前端在 3000，後端在 8001
+              host = window.location.hostname.replace(/^([^-]+)/, '$1-8001');
+            }
           } else {
             // 其他生產環境
             const rawApiUrl = process.env.REACT_APP_API_URL;
