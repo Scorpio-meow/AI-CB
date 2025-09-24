@@ -50,7 +50,10 @@ function Chat() {
     try {
       // 使用新的 API 管理器
       const api = await getApi();
-      const response = await api.get('/tags');
+      // 為避免長時間阻塞，對 tags 設定較短的請求超時（DevTunnels 稍長）
+      const isDevTunnels = window.location.hostname.includes('devtunnels.ms');
+      const tagsTimeout = isDevTunnels ? 6000 : 4000;
+      const response = await api.get('/tags', { timeout: tagsTimeout });
       const payload = response.data;
 
       let models = [];
@@ -286,8 +289,8 @@ function Chat() {
 
   return (
     <Box sx={{ height: '100vh', display: 'flex' }}>
-  {/* 側邊欄 - 這部分不變 */}
-  <Box sx={{ width: 300, display: 'flex', flexDirection: 'column' }}>
+      {/* 側邊欄 - 這部分不變 */}
+      <Box sx={{ width: 300, display: 'flex', flexDirection: 'column' }}>
         <Paper sx={{ height: '100%', borderRadius: 0 }}>
           <Box sx={{ p: 2, display: "flex", columnGap: 1 }}>
             <Button
@@ -335,128 +338,128 @@ function Chat() {
             ))}
           </List>
         </Paper>
-  </Box>
+      </Box>
 
-  {/* 中間分隔線（垂直） */}
-  <Divider orientation="vertical" flexItem />
+      {/* 中間分隔線（垂直） */}
+      <Divider orientation="vertical" flexItem />
 
-  {/* 主區域 */}
-  <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        
+      {/* 主區域 */}
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+
         {/* 主要內容區域 (會變動) */}
         <Box sx={{ flex: 1, overflow: 'hidden' }}>
-            {viewMode === 'chat' ? (
+          {viewMode === 'chat' ? (
             <>
-                <Paper sx={{ p: 2, borderRadius: 0 }} elevation={1}>
-                    <Typography variant="h6">{currentConversation?.title || '新對話'}</Typography>
-                </Paper>
-                {error && (<Alert severity="error" onClose={() => setError('')}>{error}</Alert>)}
-                <Box sx={{ height: 'calc(100% - 68px)', overflow: 'auto', p: 2 }}>
-                    {messages.map((message, index) => {
-                        // 解析 <think> ... </think> 區塊
-                        let thinkContent = null;
-                        let mainContent = message.content;
-                        const thinkMatch = typeof mainContent === 'string' ? mainContent.match(/<think>([\s\S]*?)<\/think>/i) : null;
-                        if (thinkMatch) {
-                            thinkContent = thinkMatch[1].trim();
-                            mainContent = mainContent.replace(thinkMatch[0], '').trim();
-                        }
-                        const thinkOpen = !!thinkOpenArr[index];
-                        const handleToggleThink = () => setThinkOpenArr(prev => ({ ...prev, [index]: !prev[index] }));
-                        return (
-                          <Box key={index} sx={{ display: 'flex', justifyContent: message.is_user ? 'flex-end' : 'flex-start', mb: 2 }}>
-                            <Paper sx={{ p: 2, maxWidth: '70%', backgroundColor: message.is_user ? 'primary.main' : 'grey.100', color: message.is_user ? 'white' : 'text.primary' }}>
-                              {/* think 區塊 */}
-                              {thinkContent && (
-                                <Box sx={{ mb: 1, p: 1.5, backgroundColor: '#fffbe6', border: '1px solid #ffe58f', borderRadius: 1 }}>
-                                  <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={handleToggleThink}>
-                                    <LightbulbOutlined sx={{ color: '#ad8b00', mr: 1 }} fontSize="small" />
-                                    <Typography variant="body2" sx={{ color: '#ad8b00', fontWeight: 500, flex: 1 }}>AI思考</Typography>
-                                    {thinkOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
-                                  </Box>
-                                  {thinkOpen && (
-                                    <Box sx={{ mt: 1 }}>
-                                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{thinkContent}</ReactMarkdown>
-                                    </Box>
-                                  )}
-                                </Box>
-                              )}
-                              {/* 主內容 */}
-                              {mainContent && (
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{preprocessContent(mainContent)}</ReactMarkdown>
-                              )}
-                              {!message.is_user && message.context_used && (
-                                <Box sx={{ mt: 1 }}><Chip label="使用了知識庫" size="small" variant="outlined" sx={{ fontSize: '0.7rem' }}/></Box>
-                              )}
-                            </Paper>
+              <Paper sx={{ p: 2, borderRadius: 0 }} elevation={1}>
+                <Typography variant="h6">{currentConversation?.title || '新對話'}</Typography>
+              </Paper>
+              {error && (<Alert severity="error" onClose={() => setError('')}>{error}</Alert>)}
+              <Box sx={{ height: 'calc(100% - 68px)', overflow: 'auto', p: 2 }}>
+                {messages.map((message, index) => {
+                  // 解析 <think> ... </think> 區塊
+                  let thinkContent = null;
+                  let mainContent = message.content;
+                  const thinkMatch = typeof mainContent === 'string' ? mainContent.match(/<think>([\s\S]*?)<\/think>/i) : null;
+                  if (thinkMatch) {
+                    thinkContent = thinkMatch[1].trim();
+                    mainContent = mainContent.replace(thinkMatch[0], '').trim();
+                  }
+                  const thinkOpen = !!thinkOpenArr[index];
+                  const handleToggleThink = () => setThinkOpenArr(prev => ({ ...prev, [index]: !prev[index] }));
+                  return (
+                    <Box key={index} sx={{ display: 'flex', justifyContent: message.is_user ? 'flex-end' : 'flex-start', mb: 2 }}>
+                      <Paper sx={{ p: 2, maxWidth: '70%', backgroundColor: message.is_user ? 'primary.main' : 'grey.100', color: message.is_user ? 'white' : 'text.primary' }}>
+                        {/* think 區塊 */}
+                        {thinkContent && (
+                          <Box sx={{ mb: 1, p: 1.5, backgroundColor: '#fffbe6', border: '1px solid #ffe58f', borderRadius: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={handleToggleThink}>
+                              <LightbulbOutlined sx={{ color: '#ad8b00', mr: 1 }} fontSize="small" />
+                              <Typography variant="body2" sx={{ color: '#ad8b00', fontWeight: 500, flex: 1 }}>AI思考</Typography>
+                              {thinkOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                            </Box>
+                            {thinkOpen && (
+                              <Box sx={{ mt: 1 }}>
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{thinkContent}</ReactMarkdown>
+                              </Box>
+                            )}
                           </Box>
-                        );
-                    })}
-                    {loading && (
-                        <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2 }}>
-                            <Paper sx={{ p: 2, backgroundColor: 'grey.100' }}>
-                                <CircularProgress size={20} />
-                                <Typography variant="body2" sx={{ ml: 1, display: 'inline' }}>正在思考...</Typography>
-                            </Paper>
-                        </Box>
-                    )}
-                    <div ref={messagesEndRef} />
-                </Box>
+                        )}
+                        {/* 主內容 */}
+                        {mainContent && (
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{preprocessContent(mainContent)}</ReactMarkdown>
+                        )}
+                        {!message.is_user && message.context_used && (
+                          <Box sx={{ mt: 1 }}><Chip label="使用了知識庫" size="small" variant="outlined" sx={{ fontSize: '0.7rem' }} /></Box>
+                        )}
+                      </Paper>
+                    </Box>
+                  );
+                })}
+                {loading && (
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2 }}>
+                    <Paper sx={{ p: 2, backgroundColor: 'grey.100' }}>
+                      <CircularProgress size={20} />
+                      <Typography variant="body2" sx={{ ml: 1, display: 'inline' }}>正在思考...</Typography>
+                    </Paper>
+                  </Box>
+                )}
+                <div ref={messagesEndRef} />
+              </Box>
             </>
-            ) : (
-                <DiscussionBoard 
-                    ref={discussionBoardRef}
-                    initialPrompt={newMessage} 
-                    onWorkflowComplete={handleWorkflowComplete}
-                />
-            )}
+          ) : (
+            <DiscussionBoard
+              ref={discussionBoardRef}
+              initialPrompt={newMessage}
+              onWorkflowComplete={handleWorkflowComplete}
+            />
+          )}
         </Box>
 
         {/* 輸入區域 (固定在底部) */}
         <Paper sx={{ p: 2, borderRadius: 0, borderTop: 1, borderColor: 'divider' }} elevation={2}>
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
-              {/* 模型選擇選單 */}
-              {viewMode === 'chat' && (
-                <FormControl sx={{ minWidth: 140 }}>
-                  <InputLabel size="small">模型</InputLabel>
-                  <Select
-                    size="small"
-                    value={selectedModel}
-                    onChange={(e) => { setSelectedModel(e.target.value); setUserSelectedModel(true); }}
-                    label="模型"
-                    disabled={loading}
-                  >
-                    {availableModels.map((model) => (
-                      <MenuItem key={model} value={model}>
-                        {model}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              )}
-              
-              <TextField
-                fullWidth
-                multiline
-                maxRows={4}
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyDown={handleKeyPress}
-                disabled={loading}
-                placeholder={
-                    viewMode === 'discussion' 
-                      ? '在此輸入工作流的初始指令...' 
-                      : '輸入你的問題...'
-                }
-              />
-              <Button
-                  variant="contained"
-                  onClick={handleSendMessage}
-                  sx={{ minWidth: 60 }}
-              >
-                <SendIcon />
-              </Button>
-            </Box>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
+            {/* 模型選擇選單 */}
+            {viewMode === 'chat' && (
+              <FormControl sx={{ minWidth: 140 }}>
+                <InputLabel size="small">模型</InputLabel>
+                <Select
+                  size="small"
+                  value={selectedModel}
+                  onChange={(e) => { setSelectedModel(e.target.value); setUserSelectedModel(true); }}
+                  label="模型"
+                  disabled={loading}
+                >
+                  {availableModels.map((model) => (
+                    <MenuItem key={model} value={model}>
+                      {model}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            <TextField
+              fullWidth
+              multiline
+              maxRows={4}
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyDown={handleKeyPress}
+              disabled={loading}
+              placeholder={
+                viewMode === 'discussion'
+                  ? '在此輸入工作流的初始指令...'
+                  : '輸入你的問題...'
+              }
+            />
+            <Button
+              variant="contained"
+              onClick={handleSendMessage}
+              sx={{ minWidth: 60 }}
+            >
+              <SendIcon />
+            </Button>
+          </Box>
         </Paper>
       </Box>
     </Box>

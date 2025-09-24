@@ -16,9 +16,12 @@ load_dotenv()
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 # Get configuration from environment
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
-PUBLIC_ORIGINS = os.getenv("PUBLIC_ORIGINS", "").split(",") if os.getenv("PUBLIC_ORIGINS") else []
+ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",") if origin.strip()]
+PUBLIC_ORIGINS = [origin.strip() for origin in os.getenv("PUBLIC_ORIGINS", "").split(",") if origin.strip()] if os.getenv("PUBLIC_ORIGINS") else []
 UPLOADS_WATCHER_INTERVAL = int(os.getenv("UPLOADS_WATCHER_INTERVAL", "30"))
+
+# Environment detection
+IS_DEVELOPMENT = os.getenv("NODE_ENV", "development") == "development"
 
 app = FastAPI(
     title="ChatBot API",
@@ -26,13 +29,24 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS middleware
-# Combine allowed origins and public origins, plus wildcard for development
-cors_origins = [
-    *ALLOWED_ORIGINS,  # Private/Internal origins
-    *PUBLIC_ORIGINS,   # Public origins
-    "*"  # Allow all for development (consider removing in production)
-]
+# CORS middleware configuration
+# 分離開發和生產環境的 CORS 設置
+if IS_DEVELOPMENT:
+    # 開發環境：允許所有來源和詳細的 CORS 選項
+    cors_origins = [
+        *ALLOWED_ORIGINS,  # 本地開發 origins
+        *PUBLIC_ORIGINS,   # 公共 origins (如 dev tunnels)
+        "*"  # 開發環境允許所有來源
+    ]
+else:
+    # 生產環境：僅允許明確指定的來源
+    cors_origins = [
+        *ALLOWED_ORIGINS,  # 內部/私有 origins
+        *PUBLIC_ORIGINS,   # 公共/生產 origins
+    ]
+
+print(f"Environment: {'Development' if IS_DEVELOPMENT else 'Production'}")
+print(f"CORS Origins: {cors_origins}")
 
 app.add_middleware(
     CORSMiddleware,

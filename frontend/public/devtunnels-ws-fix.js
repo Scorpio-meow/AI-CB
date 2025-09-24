@@ -28,17 +28,16 @@
             }
             // 修復其他格式問題
             else if (url.includes('/ws') && !url.includes('/api/workflow/ws')) {
-                // 這是 HMR WebSocket，確保格式正確
-                try {
-                    new URL(url); // 測試 URL 是否有效
+                // 這是 HMR WebSocket，將其正規化為當前頁面的來源，避免 DevTunnels 上的 :3000 等無效埠導致握手失敗
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const host = window.location.host; // 例如: pttqhds6-3000.asse.devtunnels.ms (無需額外 :3000)
+                const normalized = `${protocol}//${host}/ws`;
+                if (url !== normalized) {
+                    console.log('HMR WebSocket URL 正規化為:', normalized);
+                } else {
                     console.log('HMR WebSocket URL 有效:', url);
-                } catch (e) {
-                    console.log('HMR WebSocket URL 無效，正在修正...', e.message);
-                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                    const host = window.location.host;
-                    fixedUrl = `${protocol}//${host}/ws`;
-                    console.log('修正為:', fixedUrl);
                 }
+                fixedUrl = normalized;
             }
         }
         
