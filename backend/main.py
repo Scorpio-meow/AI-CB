@@ -17,6 +17,7 @@ logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 # Get configuration from environment
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+PUBLIC_ORIGINS = os.getenv("PUBLIC_ORIGINS", "").split(",") if os.getenv("PUBLIC_ORIGINS") else []
 UPLOADS_WATCHER_INTERVAL = int(os.getenv("UPLOADS_WATCHER_INTERVAL", "30"))
 
 app = FastAPI(
@@ -26,16 +27,16 @@ app = FastAPI(
 )
 
 # CORS middleware
+# Combine allowed origins and public origins, plus wildcard for development
+cors_origins = [
+    *ALLOWED_ORIGINS,  # Private/Internal origins
+    *PUBLIC_ORIGINS,   # Public origins
+    "*"  # Allow all for development (consider removing in production)
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        *ALLOWED_ORIGINS,
-        "https://zq4n3gps-3000.asse.devtunnels.ms",
-        "https://zq4n3gps-8001.asse.devtunnels.ms",
-        "https://1848b1fg-3000.asse.devtunnels.ms",
-        "https://1848b1fg-8001.asse.devtunnels.ms",
-        "*"
-    ],  # 允許轉送網址
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
