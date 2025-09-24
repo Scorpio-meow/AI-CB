@@ -168,25 +168,35 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
           ? process.env.REACT_APP_WS_URLS.split(',').map(url => url.trim())
           : ['ws://localhost:8001'];
           
-        const isLocalDevelopment = window.location.hostname === 'localhost' || 
-                                   window.location.hostname === '127.0.0.1';
+        const isLocalAccess = window.location.hostname === 'localhost' || 
+                             window.location.hostname === '127.0.0.1';
+        const isDevTunnels = window.location.hostname.includes('devtunnels.ms');
         
-        let websocketURL;
-        if (isLocalDevelopment && wsUrls.length > 0) {
-          // 本地開發：使用第一個 URL（通常是本地的）
-          const localWsUrl = wsUrls.find(url => url.includes('localhost') || url.includes('127.0.0.1')) || wsUrls[0];
-          const normalizedUrl = localWsUrl.replace(/\/+$/, '');
-          websocketURL = normalizedUrl.endsWith('/api/workflow/ws') ? normalizedUrl : `${normalizedUrl}/api/workflow/ws`;
-        } else if (wsUrls.length > 1) {
-          // 遠端環境：使用第二個 URL（通常是 DevTunnels）
-          const remoteWsUrl = wsUrls[1];
-          const normalizedUrl = remoteWsUrl.replace(/\/+$/, '');
-          websocketURL = normalizedUrl.endsWith('/api/workflow/ws') ? normalizedUrl : `${normalizedUrl}/api/workflow/ws`;
+        let selectedWsUrl;
+        
+        if (isDevTunnels) {
+          // 遠端 DevTunnels 訪問：只使用遠端 WebSocket
+          console.log('🌐 WebSocket: 檢測到 DevTunnels 遠端訪問，使用遠端 WebSocket');
+          selectedWsUrl = wsUrls.find(url => 
+            !url.includes('localhost') && !url.includes('127.0.0.1')
+          ) || wsUrls[wsUrls.length - 1]; // 如果沒找到，使用最後一個（通常是遠端的）
+        } else if (isLocalAccess) {
+          // 本地訪問：優先使用本地 WebSocket
+          console.log('🏠 WebSocket: 檢測到本地訪問，使用本地 WebSocket');
+          selectedWsUrl = wsUrls.find(url => 
+            url.includes('localhost') || url.includes('127.0.0.1')
+          ) || wsUrls[0]; // 如果沒找到，使用第一個
         } else {
-          // 後備方案
-          const fallbackUrl = wsUrls[0].replace(/\/+$/, '');
-          websocketURL = fallbackUrl.endsWith('/api/workflow/ws') ? fallbackUrl : `${fallbackUrl}/api/workflow/ws`;
+          // 其他環境：使用遠端
+          selectedWsUrl = wsUrls.find(url => 
+            !url.includes('localhost') && !url.includes('127.0.0.1')
+          ) || wsUrls[0];
         }
+        
+        const normalizedUrl = selectedWsUrl.replace(/\/+$/, '');
+        const websocketURL = normalizedUrl.endsWith('/api/workflow/ws') 
+          ? normalizedUrl 
+          : `${normalizedUrl}/api/workflow/ws`;
         
         console.log('建立 WebSocket，URL:', websocketURL);
 

@@ -27,21 +27,54 @@ class ApiManager {
   async _findWorkingApi() {
     console.log('檢測可用的 API 端點...', API_URLS);
     
-    for (const baseUrl of API_URLS) {
+    // 檢測當前訪問環境
+    const isLocalAccess = window.location.hostname === 'localhost' || 
+                         window.location.hostname === '127.0.0.1';
+    const isDevTunnels = window.location.hostname.includes('devtunnels.ms');
+    
+    let prioritizedUrls = [...API_URLS];
+    
+    if (isDevTunnels) {
+      // 遠端 DevTunnels 訪問：優先使用遠端 API，排除本地端點
+      console.log('🌐 檢測到 DevTunnels 遠端訪問，優先使用遠端 API');
+      prioritizedUrls = API_URLS.filter(url => 
+        !url.includes('localhost') && !url.includes('127.0.0.1')
+      );
+      // 如果沒有遠端端點，則使用所有端點
+      if (prioritizedUrls.length === 0) {
+        prioritizedUrls = API_URLS;
+      }
+    } else if (isLocalAccess) {
+      // 本地訪問：優先使用本地 API
+      console.log('🏠 檢測到本地訪問，優先使用本地 API');
+      const localUrls = API_URLS.filter(url => 
+        url.includes('localhost') || url.includes('127.0.0.1')
+      );
+      const remoteUrls = API_URLS.filter(url => 
+        !url.includes('localhost') && !url.includes('127.0.0.1')
+      );
+      prioritizedUrls = [...localUrls, ...remoteUrls];
+    }
+    
+    for (const baseUrl of prioritizedUrls) {
       try {
         const normalizedUrl = baseUrl.replace(/\/+$/, '');
         const apiUrl = normalizedUrl.endsWith('/api') ? normalizedUrl : `${normalizedUrl}/api`;
         
+        // 根據是否為 DevTunnels 設定不同的超時時間
+        const isRemoteUrl = !baseUrl.includes('localhost') && !baseUrl.includes('127.0.0.1');
+        const timeout = isRemoteUrl ? 15000 : 5000; // DevTunnels 使用 15 秒，本地使用 5 秒
+        
         // 測試連接
         const testApi = axios.create({
           baseURL: apiUrl,
-          timeout: 5000,
+          timeout: timeout,
           headers: { 'Content-Type': 'application/json' }
         });
 
         // 嘗試訪問健康檢查端點
         const healthUrl = `${normalizedUrl}/health`;
-        await axios.get(healthUrl, { timeout: 5000 });
+        await axios.get(healthUrl, { timeout: timeout });
         
         console.log(`✅ API 端點可用: ${apiUrl}`);
         this.currentApiUrl = apiUrl;
