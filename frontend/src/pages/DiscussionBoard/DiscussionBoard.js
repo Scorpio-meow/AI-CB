@@ -163,44 +163,31 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
 
     const connect = () => {
       try {
-        let protocol = 'ws:';
-        let host = 'localhost:8001';
-        
-        // 檢查是否為本地開發環境
+        // 使用新的 WebSocket URL 配置
+        const wsUrls = process.env.REACT_APP_WS_URLS 
+          ? process.env.REACT_APP_WS_URLS.split(',').map(url => url.trim())
+          : ['ws://localhost:8001'];
+          
         const isLocalDevelopment = window.location.hostname === 'localhost' || 
                                    window.location.hostname === '127.0.0.1';
         
-        if (isLocalDevelopment) {
-          // 本地開發環境
-          protocol = 'ws:';
-          host = 'localhost:8001';
+        let websocketURL;
+        if (isLocalDevelopment && wsUrls.length > 0) {
+          // 本地開發：使用第一個 URL（通常是本地的）
+          const localWsUrl = wsUrls.find(url => url.includes('localhost') || url.includes('127.0.0.1')) || wsUrls[0];
+          const normalizedUrl = localWsUrl.replace(/\/+$/, '');
+          websocketURL = normalizedUrl.endsWith('/api/workflow/ws') ? normalizedUrl : `${normalizedUrl}/api/workflow/ws`;
+        } else if (wsUrls.length > 1) {
+          // 遠端環境：使用第二個 URL（通常是 DevTunnels）
+          const remoteWsUrl = wsUrls[1];
+          const normalizedUrl = remoteWsUrl.replace(/\/+$/, '');
+          websocketURL = normalizedUrl.endsWith('/api/workflow/ws') ? normalizedUrl : `${normalizedUrl}/api/workflow/ws`;
         } else {
-          // 生產環境或 DevTunnels 環境
-          protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-          
-          // 檢查是否為 DevTunnels 環境
-          if (window.location.hostname.includes('devtunnels.ms')) {
-            // DevTunnels 環境：確保使用正確的後端主機名和端口
-            if (window.location.hostname.includes('-3000.')) {
-              host = window.location.hostname.replace('-3000.', '-8001.');
-            } else if (window.location.hostname.includes('-8001.')) {
-              host = window.location.hostname;
-            } else {
-              // 如果沒有端口信息，假設前端在 3000，後端在 8001
-              host = window.location.hostname.replace(/^([^-]+)/, '$1-8001');
-            }
-          } else {
-            // 其他生產環境
-            const rawApiUrl = process.env.REACT_APP_API_URL;
-            if (rawApiUrl) {
-              host = rawApiUrl.replace(/^https?:\/\//, '').replace(/\/api\/?$/, '');
-            } else {
-              host = window.location.host;
-            }
-          }
+          // 後備方案
+          const fallbackUrl = wsUrls[0].replace(/\/+$/, '');
+          websocketURL = fallbackUrl.endsWith('/api/workflow/ws') ? fallbackUrl : `${fallbackUrl}/api/workflow/ws`;
         }
         
-        const websocketURL = `${protocol}//${host}/api/workflow/ws`;
         console.log('建立 WebSocket，URL:', websocketURL);
 
         // close existing socket if any

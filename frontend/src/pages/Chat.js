@@ -22,7 +22,7 @@ import {
 import { FaRobot } from "react-icons/fa";
 import { ExpandMore, ExpandLess, LightbulbOutlined } from '@mui/icons-material';
 import { Send as SendIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material';
-import api from '../services/api';
+import { getApi } from '../services/api';
 import ReactMarkdown from 'react-markdown';
 import DiscussionBoard from './DiscussionBoard/DiscussionBoard';
 import remarkGfm from 'remark-gfm';
@@ -48,7 +48,8 @@ function Chat() {
   // Load available models (now fetched from /api/tags). Supports several response shapes.
   const loadAvailableModels = useCallback(async () => {
     try {
-      // `api` baseURL already includes /api, so this requests /api/tags
+      // 使用新的 API 管理器
+      const api = await getApi();
       const response = await api.get('/tags');
       const payload = response.data;
 
@@ -112,7 +113,8 @@ function Chat() {
   const loadConversation = useCallback(async (conversation) => {
     setViewMode('chat');
     try {
-  const response = await api.get(`/chat/conversations/${conversation.id}`);
+      const api = await getApi();
+      const response = await api.get(`/chat/conversations/${conversation.id}`);
       setCurrentConversation(response.data);
       setMessages(response.data.messages || []);
     } catch (error) {
@@ -122,7 +124,8 @@ function Chat() {
 
   const loadConversations = useCallback(async () => {
     try {
-  const response = await api.get('/chat/conversations');
+      const api = await getApi();
+      const response = await api.get('/chat/conversations');
       setConversations(response.data);
       if (response.data.length > 0 && !currentConversation) {
         if (viewMode === 'chat') {
@@ -189,7 +192,8 @@ function Chat() {
     setLoading(true);
 
     try {
-  const response = await api.post('/chat/send', {
+      const api = await getApi();
+      const response = await api.post('/chat/send', {
         content: messageToSend,
         conversation_id: currentConversation?.id,
         model_name: selectedModel
@@ -214,7 +218,8 @@ function Chat() {
 
   const deleteConversation = useCallback(async (conversationId) => {
     try {
-  await api.delete(`/chat/conversations/${conversationId}`);
+      const api = await getApi();
+      await api.delete(`/chat/conversations/${conversationId}`);
       const newConversations = conversations.filter(c => c.id !== conversationId);
       setConversations(newConversations);
       if (currentConversation?.id === conversationId) {
@@ -259,7 +264,8 @@ function Chat() {
     setViewMode('chat');
     (async () => {
       try {
-  const resp = await api.post('/chat/conversations');
+        const api = await getApi();
+        const resp = await api.post('/chat/conversations');
         const newConv = resp.data;
         // refresh list and set current
         await loadConversations();
