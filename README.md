@@ -120,7 +120,7 @@ npm start
 ```env
 # Ollama API 配置（推薦）
 MODEL_NAME=gpt-oss:20b
-LLM_API_BASE=https://b6838af9164c.ngrok-free.app
+LLM_API_BASE=https://blowfish-absolute-absolutely.ngrok-free.app
 
 # JWT 認證相關設定已移除（本分支不使用）
 

@@ -3,7 +3,7 @@ import os
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Optional
 
-import httpx
+import requests
 
 router = APIRouter()
 
@@ -18,7 +18,7 @@ async def get_tags():
     models: list[str] = []
 
     try:
-        remote_models, remote_default = await _fetch_remote_models()
+        remote_models, remote_default = _fetch_remote_models()
         if remote_models:
             models = remote_models
             if remote_default:
@@ -48,18 +48,43 @@ def _load_fallback_models() -> list[str]:
     return models
 
 
-async def _fetch_remote_models() -> tuple[list[str], Optional[str]]:
+def _fetch_remote_models() -> tuple[list[str], Optional[str]]:
+    """Fetch remote model list.
+
+    Precedence:
+    1. EXTERNAL_TAGS_URL (full URL, already points to /api/tags or equivalent)
+    2. Construct from LLM_API_BASE + '/api/tags'
+
+    Extra behavior:
+    - If URL 包含 ngrok-free.app 或設定 ADD_NGROK_HEADER=true，加入 header
+      {"ngrok-skip-browser-warning": "true"}
+    - Timeout 由 LLM_TAGS_TIMEOUT 控制 (預設 10 秒)
+    """
+
+    custom_url = os.getenv("EXTERNAL_TAGS_URL", "").strip()
     base = os.getenv("LLM_API_BASE", "").strip()
-    if not base:
-        raise RuntimeError("Environment variable LLM_API_BASE is required to query remote models.")
+
+    if custom_url:
+        url = custom_url
+    else:
+        if not base:
+            raise RuntimeError(
+                "Environment variable LLM_API_BASE is required to query remote models (or set EXTERNAL_TAGS_URL)."
+            )
+        url = f"{base.rstrip('/')}/api/tags"
 
     timeout = float(os.getenv("LLM_TAGS_TIMEOUT", "10"))
-    url = f"{base.rstrip('/')}/api/tags"
 
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        response = await client.get(url)
-        response.raise_for_status()
-        payload = response.json()
+    headers: dict[str, str] = {}
+    if (
+        "ngrok-free.app" in url
+        or os.getenv("ADD_NGROK_HEADER", "").lower() in {"1", "true", "yes", "on"}
+    ):
+        headers["ngrok-skip-browser-warning"] = "true"
+
+    response = requests.get(url, headers=headers, timeout=timeout)
+    response.raise_for_status()
+    payload = response.json()
 
     models, default_model = _parse_model_payload(payload)
     return models, default_model

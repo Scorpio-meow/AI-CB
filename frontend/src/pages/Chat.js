@@ -48,59 +48,67 @@ function Chat() {
   // Load available models (now fetched from /api/tags). Supports several response shapes.
   const loadAvailableModels = useCallback(async () => {
     try {
-      // `api` baseURL already includes /api, so this requests /api/tags
-      const response = await api.get('/tags');
-      const payload = response.data;
+      const externalTagsUrl = process.env.REACT_APP_TAGS_URL;
+      let payload;
+
+      if (externalTagsUrl) {
+        // 使用者指定的 fetch 寫法（固定加入 ngrok header）
+        const res = await fetch(externalTagsUrl, {
+          method: 'GET',
+          headers: {
+            'ngrok-skip-browser-warning': 'true'
+          }
+        });
+        if (!res.ok) {
+          throw new Error('External tags fetch failed: ' + res.status);
+        }
+        let raw;
+        try {
+          raw = await res.json();
+        } catch (e) {
+          throw new Error('External response is not valid JSON');
+        }
+        payload = raw;
+      } else {
+        const response = await api.get('/tags');
+        payload = response.data;
+      }
 
       let models = [];
       let defaultModel = null;
 
-      // Support payload as an array of strings
       if (Array.isArray(payload)) {
         models = payload;
-      }
-
-      // Support { models: [...], default: '...' }
-      else if (payload && Array.isArray(payload.models)) {
+      } else if (payload && Array.isArray(payload.models)) {
         models = payload.models;
         defaultModel = payload.default || null;
-      }
-
-      // Support { tags: [...] } where tags may be strings or objects with name/value
-      else if (payload && Array.isArray(payload.tags)) {
+      } else if (payload && Array.isArray(payload.tags)) {
         models = payload.tags.map((t) => (typeof t === 'string' ? t : (t.name || t.value || ''))).filter(Boolean);
         defaultModel = payload.default || null;
-      }
-
-      // Support nested data arrays { data: [...] }
-      else if (payload && Array.isArray(payload.data)) {
+      } else if (payload && Array.isArray(payload.data)) {
         models = payload.data;
+      } else if (payload && Array.isArray(payload.items)) {
+        models = payload.items.map((t) => (typeof t === 'string' ? t : (t.name || t.value || t.id || ''))).filter(Boolean);
       }
 
-      // Final fallback
       if (!models || models.length === 0) {
         models = ['gpt-oss:20b', 'gemma3:27b'];
       }
 
       setAvailableModels(models);
 
-      // If user explicitly selected a model, keep it (if still available).
       if (userSelectedModel && selectedModel) {
         if (models.includes(selectedModel)) {
-          // keep user's choice
           setSelectedModel(selectedModel);
         } else {
-          // user's chosen model no longer available -> fall back and clear flag
           setUserSelectedModel(false);
           setSelectedModel(defaultModel || models[0]);
         }
       } else {
-        // No user selection yet, pick default or first
         setSelectedModel(defaultModel || models[0]);
       }
     } catch (error) {
       console.error('載入可用模型失敗:', error);
-      // Set fallback models if API fails
       setAvailableModels(['gpt-oss:20b', 'gemma3:27b']);
       if (!userSelectedModel || !selectedModel) {
         setSelectedModel('gpt-oss:20b');

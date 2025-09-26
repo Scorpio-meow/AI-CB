@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Normalize REACT_APP_API_URL so it works whether the env contains `/api` or not.
-const RAW_API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
+// Normalize API URL from REACT_APP_API_BASE (preferred) or REACT_APP_API_URL (fallback)
+const RAW_API_URL = process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_URL || 'http://localhost:8001/api';
 const API_URL_NO_TRAIL = RAW_API_URL.replace(/\/+$/, '');
 const API_BASE_URL = API_URL_NO_TRAIL.endsWith('/api') ? API_URL_NO_TRAIL : `${API_URL_NO_TRAIL}/api`;
 
