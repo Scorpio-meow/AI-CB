@@ -1,4 +1,6 @@
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
+from fastapi import status
 import os
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Optional
@@ -175,3 +177,44 @@ def _coerce_to_iterable(candidate: object) -> Iterable[object] | None:
                     return nested
 
     return None
+
+
+@router.get("/external-tags")
+def get_external_tags():
+    """Proxy endpoint: fetch the external tags JSON and return it directly.
+
+    Uses EXTERNAL_TAGS_URL or constructs from LLM_API_BASE. Adds the ngrok header
+    when appropriate. Returns 502 with a fallback models list if upstream fails.
+    """
+    custom_url = os.getenv("EXTERNAL_TAGS_URL", "").strip()
+    base = os.getenv("LLM_API_BASE", "").strip()
+
+    if custom_url:
+        url = custom_url
+    else:
+        if not base:
+            return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={
+                "error": "No external tags URL configured (set EXTERNAL_TAGS_URL or LLM_API_BASE)."
+            })
+        url = f"{base.rstrip('/')}/api/tags"
+
+    timeout = float(os.getenv("LLM_TAGS_TIMEOUT", "10"))
+    headers: dict[str, str] = {}
+    if (
+        "ngrok-free.app" in url
+        or os.getenv("ADD_NGROK_HEADER", "").lower() in {"1", "true", "yes", "on"}
+    ):
+        headers["ngrok-skip-browser-warning"] = "true"
+
+    try:
+        resp = requests.get(url, headers=headers, timeout=timeout)
+        resp.raise_for_status()
+        # Return upstream JSON as-is
+        return JSONResponse(content=resp.json())
+    except Exception as exc:
+        # Upstream failed — return 502 with fallback models to keep UI usable
+        fallback = _load_fallback_models()
+        return JSONResponse(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            content={"error": "Failed to fetch external tags", "details": str(exc), "models": fallback},
+        )

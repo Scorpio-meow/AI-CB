@@ -19,7 +19,31 @@ import Sidebar from './Sidebar'; // Corrected typo from Siderbar
 let idCounter = 0;
 const getUniqueId = () => `dndnode_${idCounter++}`;
 
-const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete }, ref) => { 
+const stripDevTunnelPort = (host) => {
+  if (!host) return host;
+  if (!host.includes('devtunnels.ms')) return host;
+  return host.replace(/:\d+$/, '');
+};
+
+const parseHostFromUrl = (rawUrl, fallbackProtocol) => {
+  if (!rawUrl) return { host: null, protocol: fallbackProtocol };
+  try {
+    const parsed = new URL(rawUrl);
+    return {
+      host: stripDevTunnelPort(parsed.host),
+      protocol: parsed.protocol === 'wss:' || parsed.protocol === 'https:' ? 'wss:' : 'ws:'
+    };
+  } catch (error) {
+    console.warn('[DiscussionBoard] 無法解析 WebSocket 來源 URL，將嘗試字串處理', error);
+    const sanitized = rawUrl.replace(/^wss?:\/\//, '').replace(/^https?:\/\//, '');
+    return {
+      host: stripDevTunnelPort(sanitized.replace(/\/api\/?$/, '')),
+      protocol: fallbackProtocol
+    };
+  }
+};
+
+const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete }, ref) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges] = useEdgesState([]);
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
@@ -27,9 +51,9 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
   const [entryPointId, setEntryPointId] = useState(null);
   const [contextMenu, setContextMenu] = useState({ anchorEl: null, node: null });
   const socketRef = useRef(null);
-  const reactFlowWrapper = useRef(null); 
+  const reactFlowWrapper = useRef(null);
   const [wsStatus, setWsStatus] = useState('disconnected');
-  
+
   const [isFinished, setIsFinished] = useState(false);
   const [finalConversationId, setFinalConversationId] = useState(null);
   const [infoMessage, setInfoMessage] = useState(''); // State for info messages
@@ -44,20 +68,20 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
       return currentProcess;
     });
   };
-  
-  const onDrop = useCallback( (event) => {
+
+  const onDrop = useCallback((event) => {
     event.preventDefault();
     const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
     const { nodeType, label, profession } = JSON.parse(event.dataTransfer.getData('application/reactflow'));
     if (typeof nodeType === 'undefined' || !nodeType) return;
-    
+
     const position = reactFlowInstance.project({ x: event.clientX - reactFlowBounds.left, y: event.clientY - reactFlowBounds.top });
     const newNodeId = getUniqueId();
-    const newNode = { 
-      id: newNodeId, 
-      type: 'agent', 
-      position, 
-      data: { originalLabel: label, label: label, profession: profession }, 
+    const newNode = {
+      id: newNodeId,
+      type: 'agent',
+      position,
+      data: { originalLabel: label, label: label, profession: profession },
     };
     setNodes((nds) => nds.concat(newNode));
 
@@ -98,12 +122,12 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
 
   const onNodeClick = useCallback((event, node) => {
     setEntryPointId(node.id);
-    setWorkflowProcess(currentProcess => 
+    setWorkflowProcess(currentProcess =>
       currentProcess.map(agent => ({ ...agent, gate: agent.ID === node.id }))
     );
     logCurrentProcess("設定入口");
   }, []);
-  
+
   const handleEdgesChange = useCallback((changes) => {
     setEdges((eds) => applyEdgeChanges(changes, eds));
     changes.forEach(change => {
@@ -131,7 +155,7 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
     });
   }, [edges, setEdges]);
 
-  const handleDeleteNode = () => { 
+  const handleDeleteNode = () => {
     if (!contextMenu.node) return;
     const nodeIdToDelete = contextMenu.node.id;
     const professionToDelete = nodes.find(n => n.id === nodeIdToDelete)?.data.profession;
@@ -147,14 +171,13 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
         };
       });
     });
-    if(entryPointId === nodeIdToDelete) setEntryPointId(null);
+    if (entryPointId === nodeIdToDelete) setEntryPointId(null);
     handleCloseContextMenu();
     logCurrentProcess("刪除 Agent");
   };
 
   useEffect(() => {
     // build ws url based on current location to support different hosts and wss in production
-    // If frontend runs on localhost:3000 (dev), prefer backend default port 8001
     let isMounted = true;
     let reconnectAttempts = 0;
     const maxReconnectAttempts = 6;
@@ -162,42 +185,64 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
 
     const connect = () => {
       try {
-        let protocol = 'ws:';
-        let host = 'localhost:8001';
-        
-        // 檢查是否為本地開發環境
-        const isLocalDevelopment = window.location.hostname === 'localhost' || 
-                                   window.location.hostname === '127.0.0.1';
-        
+        const fallbackProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        let protocol = fallbackProtocol;
+        let host = null;
+
+        const envWs = process.env.REACT_APP_WS_URL;
+        const envApi = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE;
+        const isLocalDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
         if (isLocalDevelopment) {
-          // 本地開發環境
-          protocol = 'ws:';
-          host = 'localhost:8001';
-        } else {
-          // 生產環境或 DevTunnels 環境
-          protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-          
-          // 檢查是否為 DevTunnels 環境
-          if (window.location.hostname.includes('devtunnels.ms')) {
-            // DevTunnels 環境：將端口 3000 替換為 8001
-            host = window.location.hostname.replace('-3000.', '-8001.');
+          if (envWs) {
+            const parsed = parseHostFromUrl(envWs, fallbackProtocol);
+            host = parsed.host;
+            protocol = parsed.protocol;
+          } else if (envApi) {
+            const parsed = parseHostFromUrl(envApi, fallbackProtocol);
+            host = parsed.host;
           } else {
-            // 其他生產環境
-            const rawApiUrl = process.env.REACT_APP_API_URL;
-            if (rawApiUrl) {
-              host = rawApiUrl.replace(/^https?:\/\//, '').replace(/\/api\/?$/, '');
-            } else {
-              host = window.location.host;
-            }
+            host = stripDevTunnelPort(window.location.host);
+          }
+        } else if (window.location.hostname.includes('devtunnels.ms')) {
+          if (envWs) {
+            const parsed = parseHostFromUrl(envWs, fallbackProtocol);
+            host = parsed.host;
+            protocol = parsed.protocol;
+          } else if (envApi) {
+            const parsed = parseHostFromUrl(envApi, fallbackProtocol);
+            host = parsed.host;
+          } else {
+            host = stripDevTunnelPort(window.location.hostname);
+          }
+        } else {
+          if (envWs) {
+            const parsed = parseHostFromUrl(envWs, fallbackProtocol);
+            host = parsed.host;
+            protocol = parsed.protocol;
+          } else if (envApi) {
+            const parsed = parseHostFromUrl(envApi, fallbackProtocol);
+            host = parsed.host;
+          } else {
+            host = stripDevTunnelPort(window.location.host);
           }
         }
-        
+
+        host = stripDevTunnelPort(host);
         const websocketURL = `${protocol}//${host}/api/workflow/ws`;
         console.log('建立 WebSocket，URL:', websocketURL);
 
         // close existing socket if any
         if (socketRef.current) {
-          try { socketRef.current.onopen = null; socketRef.current.onclose = null; socketRef.current.onerror = null; socketRef.current.onmessage = null; socketRef.current.close(); } catch (e) {}
+          try {
+            socketRef.current.onopen = null;
+            socketRef.current.onclose = null;
+            socketRef.current.onerror = null;
+            socketRef.current.onmessage = null;
+            socketRef.current.close();
+          } catch (e) {
+            // ignore close errors during reconnection
+          }
         }
 
         socketRef.current = new WebSocket(websocketURL);
@@ -249,15 +294,15 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
               setNodes((nds) =>
                 nds.map((node) => {
                   if (node.id === data.nodeId) {
-                    return { 
-                      ...node, 
-                      data: { 
-                        ...node.data, 
-                        status: data.status, 
+                    return {
+                      ...node,
+                      data: {
+                        ...node.data,
+                        status: data.status,
                         response: data.response || node.data.response,
                         fileName: data.file_name || node.data.fileName,
                         downloadUrl: data.download_url || node.data.downloadUrl,
-                      } 
+                      }
                     };
                   }
                   return node;
@@ -268,7 +313,6 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
             console.error('解析 WebSocket 訊息失敗', e);
           }
         };
-
       } catch (err) {
         console.error('建立 WebSocket 時發生錯誤', err);
         setWsStatus('error');
@@ -282,35 +326,39 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
       isMounted = false;
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (socketRef.current) {
-        try { socketRef.current.close(); } catch (e) {}
+        try {
+          socketRef.current.close();
+        } catch (e) {
+          // ignore close errors during unmount
+        }
       }
     };
   }, [setNodes]);
 
   const handleStartWorkflow = () => {
-    if (!entryPointId) { 
-      alert("請先左鍵點擊一個 AI 角色，將其設定為主要進入端口！"); 
-      return; 
+    if (!entryPointId) {
+      alert("請先左鍵點擊一個 AI 角色，將其設定為主要進入端口！");
+      return;
     }
-    if (!initialPrompt || initialPrompt.trim() === '') { 
-      alert("請在下方的對話框輸入您的初始指令！"); 
-      return; 
+    if (!initialPrompt || initialPrompt.trim() === '') {
+      alert("請在下方的對話框輸入您的初始指令！");
+      return;
     }
-    
+
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-        setInfoMessage('');
-        setIsFinished(false);
-        setFinalConversationId(null);
-        setNodes(nds => nds.map(node => ({...node, data: {...node.data, response: null, status: undefined}})));
-        
-        const payload = {
-          agents: workflowProcess,
-          initialPrompt: initialPrompt
-        };
-        
-        socketRef.current.send(JSON.stringify({ type: "start_workflow", payload: payload }));
+      setInfoMessage('');
+      setIsFinished(false);
+      setFinalConversationId(null);
+      setNodes(nds => nds.map(node => ({ ...node, data: { ...node.data, response: null, status: undefined } })));
+
+      const payload = {
+        agents: workflowProcess,
+        initialPrompt: initialPrompt
+      };
+
+      socketRef.current.send(JSON.stringify({ type: "start_workflow", payload: payload }));
     } else {
-        alert("WebSocket 尚未連接，請稍後再試。");
+      alert("WebSocket 尚未連接，請稍後再試。");
     }
   };
 
@@ -319,57 +367,57 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
       onWorkflowComplete(finalConversationId);
     }
   };
-  
+
   useImperativeHandle(ref, () => ({ startWorkflow: handleStartWorkflow }));
   const onDragOver = useCallback((event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }, []);
   const onNodeContextMenu = useCallback((event, node) => { event.preventDefault(); setContextMenu({ anchorEl: event.currentTarget, node: node }); }, []);
   const handleCloseContextMenu = () => setContextMenu({ anchorEl: null, node: null });
   useEffect(() => { setNodes((nds) => nds.map((node) => ({ ...node, data: { ...node.data, isEntryPoint: node.id === entryPointId } }))); }, [entryPointId, setNodes]);
-  
+
   return (
     <Box sx={{ height: '100%', display: 'flex' }}>
       <Sidebar />
       <Box sx={{ flex: 1, height: '100%', position: 'relative' }} ref={reactFlowWrapper}>
-        <Box sx={{position: 'absolute', top: 10, right: 10, zIndex: 10, display: 'flex', gap: 1, alignItems: 'center' }}>
-             {infoMessage && (
-                <Alert severity="info" icon={<CircularProgress size={20} />} sx={{ p: '0px 16px' }}>
-                    {infoMessage}
-                </Alert>
-             )}
-             <Chip 
-               label={wsStatus === 'connected' ? '連線成功' : '連線中...'} 
-               color={wsStatus === 'connected' ? 'success' : 'warning'}
-               size="small"
-             />
+        <Box sx={{ position: 'absolute', top: 10, right: 10, zIndex: 10, display: 'flex', gap: 1, alignItems: 'center' }}>
+          {infoMessage && (
+            <Alert severity="info" icon={<CircularProgress size={20} />} sx={{ p: '0px 16px' }}>
+              {infoMessage}
+            </Alert>
+          )}
+          <Chip
+            label={wsStatus === 'connected' ? '連線成功' : '連線中...'}
+            color={wsStatus === 'connected' ? 'success' : 'warning'}
+            size="small"
+          />
         </Box>
         <ReactFlow
-          nodes={nodes} 
-          edges={edges} 
-          onNodesChange={onNodesChange} 
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
           onEdgesChange={handleEdgesChange}
-          onConnect={onConnect} 
-          onInit={setReactFlowInstance} 
+          onConnect={onConnect}
+          onInit={setReactFlowInstance}
           onDrop={onDrop}
-          onDragOver={onDragOver} 
-          fitView 
+          onDragOver={onDragOver}
+          fitView
           onNodeClick={onNodeClick}
-          onNodeContextMenu={onNodeContextMenu} 
+          onNodeContextMenu={onNodeContextMenu}
           onPaneClick={handleCloseContextMenu}
           nodeTypes={nodeTypes}
         >
           <Controls />
           <Background variant="dots" gap={12} size={1} />
-          <Box sx={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', color: 'grey.400', zIndex: 0}}>
+          <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', color: 'grey.400', zIndex: 0 }}>
             {nodes.length === 0 && (
-                <Paper sx={{ p: 4, backgroundColor:'rgba(240, 240, 240, 0.8)' }}>
-                  <Typography variant="h4">討論會議</Typography>
-                  <Typography>從左側拖拉 AI 角色至此處開始</Typography>
-                </Paper>
+              <Paper sx={{ p: 4, backgroundColor: 'rgba(240, 240, 240, 0.8)' }}>
+                <Typography variant="h4">討論會議</Typography>
+                <Typography>從左側拖拉 AI 角色至此處開始</Typography>
+              </Paper>
             )}
           </Box>
         </ReactFlow>
         {isFinished && (
-          <Paper sx={{ position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)', p: 2, zIndex: 10}} elevation={4}>
+          <Paper sx={{ position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)', p: 2, zIndex: 10 }} elevation={4}>
             <Button
               variant="contained"
               color="success"
@@ -379,8 +427,8 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
               看最終結果
             </Button>
             {infoMessage === '' && (
-              <Button 
-                variant="outlined" 
+              <Button
+                variant="outlined"
                 sx={{ ml: 1 }}
                 href={socketRef.current?.lastFinalDownloadUrl}
                 onClick={(e) => { if (!socketRef.current?.lastFinalDownloadUrl) e.preventDefault(); }}
@@ -391,7 +439,7 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
           </Paper>
         )}
         <Menu open={Boolean(contextMenu.anchorEl)} onClose={handleCloseContextMenu} anchorEl={contextMenu.anchorEl} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }} transformOrigin={{ vertical: 'top', horizontal: 'center' }}>
-            <MenuItem onClick={handleDeleteNode} sx={{ color: 'error.main' }}>刪除代理人</MenuItem>
+          <MenuItem onClick={handleDeleteNode} sx={{ color: 'error.main' }}>刪除代理人</MenuItem>
         </Menu>
       </Box>
     </Box>

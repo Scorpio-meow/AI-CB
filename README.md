@@ -65,83 +65,86 @@
 - Node.js 16+
 - SQLite (開發) / PostgreSQL (生產)
 
-### 後端設置
+### 快速啟動 (推薦使用 VS Code)
 
-1. 進入後端目錄：
+#### 使用 VS Code 任務 (最簡單)
+1. 打開專案資料夾：`D:\CB`
+2. 按 `Ctrl+Shift+P` → 執行任務
+3. 選擇 "啟動後端開發服務器"
+4. 選擇 "啟動前端開發服務器"
+5. 瀏覽 http://localhost:3000
+
+#### 手動啟動
+
+**後端設置**
+1. 進入後端目錄並啟動虛擬環境：
 ```bash
 cd backend
-```
-
-2. 使用現有虛擬環境：
-```bash
-# Windows
 .\CBvenv\Scripts\Activate.ps1
 ```
 
-3. 安裝依賴（如需要）：
+2. 啟動後端服務：
 ```bash
-pip install -r requirements.txt
+python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-4. 配置環境變數：
-```bash
-copy .env.example .env
-# 編輯 .env 文件，填入實際配置
-# 詳細說明請參考 ENVIRONMENT_VARIABLES.md
-```
-
-5. 啟動後端服務：
-```bash
-python -m uvicorn main:app --reload --host 127.0.0.1 --port 8001
-```
-
-### 前端設置
-
-1. 進入前端目錄：
+**前端設置**
+1. 進入前端目錄並啟動：
 ```bash
 cd frontend
-```
-
-2. 安裝依賴：
-```bash
-npm install
-```
-
-3. 啟動前端服務：
-```bash
 npm start
 ```
+
+### 訪問地址
+- **前端應用**: http://localhost:3000
+- **後端 API**: http://localhost:8000
+- **API 文檔**: http://localhost:8000/docs
+- **健康檢查**: http://localhost:8000/health
 
 ## 配置說明
 
 ### 環境變數
 
-#### 後端 (.env)
+### 環境配置 (本地開發)
+
+系統已配置為純本地開發環境，主要配置如下：
+
+#### 後端 (`backend/.env`)
 ```env
-# Ollama API 配置（推薦）
+# LLM API 配置
 MODEL_NAME=gpt-oss:20b
 LLM_API_BASE=https://blowfish-absolute-absolutely.ngrok-free.app
 
-# JWT 認證相關設定已移除（本分支不使用）
-
-# 數據庫連接 (SQLite 為默認)
+# 本地數據庫 (SQLite 預設)
 DATABASE_URL=sqlite:///./chatbot.db
-# DATABASE_URL=postgresql://username:password@localhost/chatbot_db
 
-# RAG 設置
+# CORS 配置 (本地開發)
+ALLOWED_ORIGINS=http://localhost:3000,https://localhost:3000,http://127.0.0.1:3000,https://127.0.0.1:3000
+
+# RAG 系統設置
 EMBEDDING_MODEL=paraphrase-multilingual-MiniLM-L12-v2
 RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2
 SIMILARITY_THRESHOLD=0.25
-CHUNK_SIZE=600
-CHUNK_OVERLAP=150
+CHUNK_SIZE=300
+CHUNK_OVERLAP=100
 TOP_K=50
-FINAL_K=5
-REINDEX_HOURS=24
+FINAL_K=10
 ```
 
-#### 前端 (.env)
+#### 前端 (`frontend/.env`) 
 ```env
-REACT_APP_API_URL=http://127.0.0.1:8001
+# 本地開發配置
+HOST=localhost
+PORT=3000
+
+# API 通過 proxy 轉發，無需設置 REACT_APP_API_BASE
+```
+
+#### 前端代理 (`frontend/package.json`)
+```json
+{
+  "proxy": "http://localhost:8000"
+}
 ```
 
 ## API 接口
@@ -283,6 +286,29 @@ python .\backend\scripts\evaluate_faq_retrieval.py
 
 注意事項（快速）
 - 兩腳本皆依賴專案中的 RAG 實作與已存在的向量索引 / documents；`reindex_faq_split.py` 會重建索引，`evaluate_faq_retrieval.py` 要在索引存在且包含 QA chunk 時使用。
+
+## 開發環境優勢
+
+### ✅ 本地開發的優點
+- **簡單配置**: 無需管理外部隧道或複雜網路設定
+- **快速啟動**: 所有服務運行在 localhost，啟動迅速
+- **穩定連接**: 不依賴網路連接品質，避免外部服務中斷
+- **易於除錯**: 清晰的本地環境，便於開發和測試
+- **無延遲**: 前後端通信零網路延遲
+- **安全性**: 僅本地訪問，無外部安全風險
+
+### 🔧 故障排除
+如果遇到問題，請檢查：
+1. **端口衝突**: 確保 3000 和 8000 端口未被佔用
+2. **虛擬環境**: 確保已啟動 Python 虛擬環境 `CBvenv`
+3. **依賴安裝**: 前端 `npm install`，後端 `pip install -r requirements.txt`
+4. **服務順序**: 建議先啟動後端，再啟動前端
+5. **快取清理**: 如有問題，可清理 `node_modules/.cache`
+
+### 📚 相關文檔
+- [前後端交互分析報告](./前後端交互分析報告.md)
+- [本地開發環境配置說明](./本地開發環境配置說明.md)
+- [RAG 系統說明書](./docs/RAG_系統說明書.md)
 - 需安裝並可載入的模型與套件（sentence-transformers, faiss 等）；第一次載入模型可能會耗時或需網路。
 
 完成 — 如果要我執行或把輸出做成 CSV/報表，我可以接著幫你加上。

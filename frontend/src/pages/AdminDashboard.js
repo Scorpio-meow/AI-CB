@@ -30,7 +30,7 @@ import {
   Description as DocumentIcon,
   TrendingUp as TrendingUpIcon
 } from '@mui/icons-material';
-import axios from 'axios';
+import api from '../services/api';
 
 function AdminDashboard() {
   const [statistics, setStatistics] = useState(null);
@@ -51,9 +51,9 @@ function AdminDashboard() {
     setLoading(true);
     try {
       const [statsResponse, usersResponse, docsResponse] = await Promise.all([
-        axios.get('/api/admin/statistics'),
-        axios.get('/api/admin/users'),
-        axios.get('/api/documents/')
+        api.get('/admin/statistics'),
+        api.get('/admin/users'),
+        api.get('/documents')
       ]);
       
       setStatistics(statsResponse.data);
@@ -74,7 +74,7 @@ function AdminDashboard() {
 
   const handleSaveUser = async () => {
     try {
-      await axios.put(`/api/admin/users/${editingUser.id}`, {
+      await api.put(`/admin/users/${editingUser.id}`, {
         username: editingUser.username,
         email: editingUser.email,
         is_active: editingUser.is_active,
@@ -92,7 +92,7 @@ function AdminDashboard() {
   const handleDeleteUser = async (userId) => {
     if (window.confirm('確定要刪除此用戶嗎？此操作不可逆！')) {
       try {
-        await axios.delete(`/api/admin/users/${userId}`);
+        await api.delete(`/admin/users/${userId}`);
         loadData();
       } catch (err) {
         setError('刪除用戶失敗');
@@ -104,7 +104,7 @@ function AdminDashboard() {
   const handleDeleteDocument = async (docId) => {
     if (window.confirm('確定要刪除此文件嗎？')) {
       try {
-        await axios.delete(`/api/documents/${docId}`);
+        await api.delete(`/documents/${docId}`);
         loadData();
       } catch (err) {
         setError('刪除文件失敗');

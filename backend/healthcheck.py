@@ -11,8 +11,19 @@ from datetime import datetime
 def check_health():
     """檢查應用程式健康狀態"""
     try:
+        # Require either BASE_URL or both HOST and PORT to be set in the environment; no defaults.
+        import os
+        base_url = os.getenv('BASE_URL')
+        host = os.getenv('HOST')
+        port = os.getenv('PORT')
+        if base_url:
+            base = base_url.rstrip('/')
+        elif host and port:
+            base = f"http://{host}:{port}"
+        else:
+            raise RuntimeError("healthcheck requires BASE_URL or both HOST and PORT environment variables to be set.")
         # 檢查基本 API 端點
-        response = requests.get("http://localhost:8001/", timeout=5)
+        response = requests.get(f"{base}/", timeout=5)
         
         if response.status_code != 200:
             print(f"ERROR: API 返回狀態碼 {response.status_code}")
@@ -20,7 +31,7 @@ def check_health():
             
         # 檢查資料庫連接
         try:
-            db_response = requests.get("http://localhost:8001/api/admin/stats", timeout=5)
+            db_response = requests.get(f"{base}/api/admin/stats", timeout=5)
             if db_response.status_code != 200:
                 print("WARNING: 資料庫連接可能有問題")
         except Exception as e:

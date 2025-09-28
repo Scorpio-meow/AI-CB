@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from app.api import chat, admin, documents, workflow, custom_agent
 from app.models.database import create_tables
 from app.tasks.uploads_watcher import scan_and_cleanup_uploads
@@ -11,46 +12,44 @@ import logging
 # Load environment variables
 load_dotenv()
 
-# Silence uvicorn access logs (these produce lines like: "INFO:     127.0.0.1:0 - \"GET /socket.io/?...\"")
-# Set to WARNING so access INFO lines are not printed. Keep error logs.
+# Configure logging
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 # Get configuration from environment
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+DEFAULT_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "https://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://127.0.0.1:3000",
+]
+
+_raw_allowed_origins = os.getenv("ALLOWED_ORIGINS")
+if _raw_allowed_origins:
+    ALLOWED_ORIGINS = [origin.strip() for origin in _raw_allowed_origins.split(",") if origin.strip()]
+else:
+    # 修正：提供合理的預設值
+    ALLOWED_ORIGINS = DEFAULT_ALLOWED_ORIGINS
+
+_raw_allowed_origin_regex = os.getenv("ALLOWED_ORIGIN_REGEX")
+if _raw_allowed_origin_regex is not None:
+    ALLOWED_ORIGIN_REGEX = _raw_allowed_origin_regex or None
+else:
+    ALLOWED_ORIGIN_REGEX = r"https://[a-zA-Z0-9-]+\\.asse\\.devtunnels\\.ms"
+
 UPLOADS_WATCHER_INTERVAL = int(os.getenv("UPLOADS_WATCHER_INTERVAL", "30"))
 
-app = FastAPI(
-    title="ChatBot API",
-    description="ChatBot with Contextual RAG",
-    version="1.0.0"
-)
-
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        *ALLOWED_ORIGINS,
-        "https://zq4n3gps-3000.asse.devtunnels.ms",
-        "https://zq4n3gps-8001.asse.devtunnels.ms",
-        "https://1848b1fg-3000.asse.devtunnels.ms",
-        "https://1848b1fg-8001.asse.devtunnels.ms",
-        "*"
-    ],  # 允許轉送網址
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Create database tables
-@app.on_event("startup")
-async def startup_event():
+# 修正：使用 lifespan 事件處理器
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
     await create_tables()
-    # start background uploads watcher
-    app.state._uploads_watcher_task = asyncio.create_task(scan_and_cleanup_uploads(UPLOADS_WATCHER_INTERVAL))
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
+    # Start background uploads watcher
+    uploads_watcher_task = asyncio.create_task(scan_and_cleanup_uploads(UPLOADS_WATCHER_INTERVAL))
+    app.state._uploads_watcher_task = uploads_watcher_task
+    
+    yield
+    
+    # Shutdown
     task = getattr(app.state, '_uploads_watcher_task', None)
     if task:
         task.cancel()
@@ -58,6 +57,29 @@ async def shutdown_event():
             await task
         except asyncio.CancelledError:
             pass
+
+app = FastAPI(
+    title="ChatBot API",
+    description="ChatBot with Contextual RAG",
+    version="1.0.0",
+    lifespan=lifespan  # 使用新的 lifespan 參數
+)
+
+# CORS middleware - 修正：確保在所有路由之前添加
+cors_kwargs = dict(
+    allow_origins=ALLOWED_ORIGINS,  # 修正：直接使用列表
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["*"],
+)
+
+if ALLOWED_ORIGIN_REGEX:
+    cors_kwargs["allow_origin_regex"] = ALLOWED_ORIGIN_REGEX
+
+app.add_middleware(
+    CORSMiddleware,
+    **cors_kwargs,
+)
 
 # Include routers
 from app.api import tags as tags_router
@@ -84,4 +106,17 @@ async def socket_io_fallback():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001, reload=True)
+    
+    # 修正：提供預設值，避免 None 類型錯誤
+    host = os.getenv("HOST", "0.0.0.0")
+    port_str = os.getenv("PORT", "8000")
+    
+    try:
+        port = int(port_str)
+    except (ValueError, TypeError) as exc:
+        raise RuntimeError(f"PORT environment variable must be an integer, got: {port_str}") from exc
+    
+    reload_env = os.getenv("RELOAD", "true")
+    reload_flag = str(reload_env).lower() in ("1", "true", "yes")
+    
+    uvicorn.run(app, host=host, port=port, reload=reload_flag)

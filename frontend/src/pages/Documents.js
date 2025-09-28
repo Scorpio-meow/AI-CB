@@ -26,6 +26,7 @@ import {
   Cancel as CancelIcon
 } from '@mui/icons-material';
 import axios from 'axios';
+import api from '../services/api';
 
 function Documents() {
   const [documents, setDocuments] = useState([]);
@@ -46,7 +47,7 @@ function Documents() {
   const loadDocuments = async () => {
     setLoading(true);
     try {
-      const response = await axios.get('/api/documents/');
+  const response = await api.get('/documents');
       setDocuments(response.data);
       setError('');
     } catch (err) {
@@ -101,7 +102,7 @@ function Documents() {
     formData.append('file', item.file);
 
     try {
-      const response = await axios.post('/api/documents/upload', formData, {
+      const response = await api.post('/documents/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         signal: controller.signal,
         onUploadProgress: (e) => {
@@ -246,7 +247,7 @@ function Documents() {
     if (!window.confirm(`確定要刪除文檔 "${filename}" 嗎？此操作不可逆！`)) return;
     try {
       setDeletingStatus((prev) => ({ ...prev, [documentId]: 'deleting' }));
-      await axios.delete(`/api/documents/${documentId}`);
+  await api.delete(`/documents/${documentId}`);
       setDeletingStatus((prev) => ({ ...prev, [documentId]: 'deleted' }));
       // remove from list immediately for fast UX
       setDocuments((prev) => prev.filter((d) => d.id !== documentId));

@@ -48,27 +48,30 @@ function Chat() {
   // Load available models (now fetched from /api/tags). Supports several response shapes.
   const loadAvailableModels = useCallback(async () => {
     try {
-      const externalTagsUrl = process.env.REACT_APP_TAGS_URL;
+  const externalTagsUrl = process.env.REACT_APP_TAGS_URL;
+  // If an external tags URL is configured, prefer querying our backend proxy to avoid
+  // browser CORS issues. The backend exposes `/api/external-tags` which will fetch
+  // the external URL server-side.
+  const backendProxyWhenExternal = externalTagsUrl ? '/api/external-tags' : null;
       let payload;
 
-      if (externalTagsUrl) {
-        // 使用者指定的 fetch 寫法（固定加入 ngrok header）
-        const res = await fetch(externalTagsUrl, {
-          method: 'GET',
-          headers: {
-            'ngrok-skip-browser-warning': 'true'
-          }
-        });
-        if (!res.ok) {
-          throw new Error('External tags fetch failed: ' + res.status);
-        }
-        let raw;
+      if (backendProxyWhenExternal) {
+        // Use backend proxy to avoid browser CORS issues
         try {
-          raw = await res.json();
+          const response = await api.get('/external-tags');
+          payload = response.data;
+          // Some proxy implementations may return a wrapper object with `models`
+          if (!payload) payload = null;
         } catch (e) {
-          throw new Error('External response is not valid JSON');
+          console.warn('Backend proxy /api/external-tags failed, falling back to /api/tags', e);
+          try {
+            const response = await api.get('/tags');
+            payload = response.data;
+          } catch (innerErr) {
+            console.warn('Fallback /api/tags also failed:', innerErr);
+            payload = null;
+          }
         }
-        payload = raw;
       } else {
         const response = await api.get('/tags');
         payload = response.data;
@@ -77,18 +80,36 @@ function Chat() {
       let models = [];
       let defaultModel = null;
 
+      const normalizeModels = (items) => {
+        if (!Array.isArray(items)) return [];
+        return items
+          .map((item) => {
+            if (typeof item === 'string') {
+              return item.trim();
+            }
+            if (item && typeof item === 'object') {
+              const candidate = item.name || item.model || item.value || item.id || item.label;
+              if (candidate && typeof candidate === 'string') {
+                return candidate.trim();
+              }
+            }
+            return '';
+          })
+          .filter(Boolean);
+      };
+
       if (Array.isArray(payload)) {
-        models = payload;
+        models = normalizeModels(payload);
       } else if (payload && Array.isArray(payload.models)) {
-        models = payload.models;
+        models = normalizeModels(payload.models);
         defaultModel = payload.default || null;
       } else if (payload && Array.isArray(payload.tags)) {
-        models = payload.tags.map((t) => (typeof t === 'string' ? t : (t.name || t.value || ''))).filter(Boolean);
+        models = normalizeModels(payload.tags);
         defaultModel = payload.default || null;
       } else if (payload && Array.isArray(payload.data)) {
-        models = payload.data;
+        models = normalizeModels(payload.data);
       } else if (payload && Array.isArray(payload.items)) {
-        models = payload.items.map((t) => (typeof t === 'string' ? t : (t.name || t.value || t.id || ''))).filter(Boolean);
+        models = normalizeModels(payload.items);
       }
 
       if (!models || models.length === 0) {
@@ -108,7 +129,9 @@ function Chat() {
         setSelectedModel(defaultModel || models[0]);
       }
     } catch (error) {
-      console.error('載入可用模型失敗:', error);
+      // 最後保險處理：顯示友善提示、使用預設模型，但不把原始 fetch 錯誤暴露為未處理例外
+      console.warn('載入可用模型失敗，將使用預設模型。', error);
+      setError('載入可用模型失敗，已改為使用預設模型');
       setAvailableModels(['gpt-oss:20b', 'gemma3:27b']);
       if (!userSelectedModel || !selectedModel) {
         setSelectedModel('gpt-oss:20b');

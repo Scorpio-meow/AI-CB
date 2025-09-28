@@ -75,12 +75,16 @@
 - **關鍵套件**: FastAPI, SQLAlchemy, FAISS, PyPDF2, python-docx, sentence-transformers, whoosh, scikit-learn
 - **已知相容性 pin**: `huggingface_hub==0.19.3`（用於解決 sentence-transformers 相容性問題）
 
-## 快速啟動
-1. 配置環境變數（複製 `.env.example` 到 `.env`）
-2. 啟動虛擬環境：`.\CBvenv\Scripts\Activate.ps1`
-3. 運行 `start-all.ps1` 啟動完整系統
-4. 或使用 VS Code 任務面板啟動各個服務
-5. 訪問 http://localhost:3000 (前端) 和 http://127.0.0.1:8001 (後端)
+## 快速啟動 (純本地開發環境)
+1. **配置環境變數**：已配置為本地開發環境，無需外部隧道
+2. **啟動虛擬環境**：`.\CBvenv\Scripts\Activate.ps1`
+3. **使用 VS Code 任務**：
+   - 啟動後端：運行任務 "啟動後端開發服務器"
+   - 啟動前端：運行任務 "啟動前端開發服務器"
+4. **訪問地址**：
+   - 前端：http://localhost:3000
+   - 後端：http://localhost:8000
+   - API：http://localhost:3000/api/* (通過 proxy 轉發)
 
 ## 專案結構
 ```
@@ -110,16 +114,22 @@ chatbot/
 └── *.ps1                 # PowerShell 啟動腳本
 ```
 
-## 常用命令
+## 開發環境說明
+### 本地開發配置 (已移除 DevTunnels)
+- **前端配置**: `frontend/.env` - 使用 localhost + proxy 轉發
+- **後端配置**: `backend/.env` - 本地 CORS 設定
+- **代理設定**: `frontend/package.json` - `"proxy": "http://localhost:8000"`
+
+### 常用命令
 - **重置 FAISS**: `python scripts/reset_faiss.py`
-- **啟動後端**: `python -m uvicorn main:app --reload --host 127.0.0.1 --port 8001`
-- **啟動前端**: `npm start`
-- **安裝套件**: `pip install whoosh==2.7.4 scikit-learn==1.3.2`
+- **啟動後端**: `python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000`
+- **啟動前端**: `npm start` (會自動代理 API 到後端)
+- **安裝套件**: `pip install -r requirements.txt`
 - **測試 RAG**: `python scripts/test_rag_improvements.py`
 - **測試 API**: `python scripts/test_ollama_api.py`
 
-## 常用命令
-- **重置 FAISS**: `python scripts/reset_faiss.py`
-- **啟動後端**: `python -m uvicorn main:app --reload --host 127.0.0.1 --port 8001`
-- **啟動前端**: `npm start`
-- **安裝套件**: `pip install PyPDF2==3.0.1 python-docx==1.1.0`
+### 環境優化重點
+- **簡化配置**: 無需管理外部隧道或複雜網路設定
+- **本地開發**: 所有服務運行在 localhost，快速穩定
+- **代理轉發**: 前端通過 Create React App 內建 proxy 處理 API 請求
+- **CORS 最小化**: 後端僅允許本地開發環境訪問

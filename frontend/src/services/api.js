@@ -1,9 +1,36 @@
 import axios from 'axios';
 
 // Normalize API URL from REACT_APP_API_BASE (preferred) or REACT_APP_API_URL (fallback)
-const RAW_API_URL = process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_URL || 'http://localhost:8001/api';
-const API_URL_NO_TRAIL = RAW_API_URL.replace(/\/+$/, '');
-const API_BASE_URL = API_URL_NO_TRAIL.endsWith('/api') ? API_URL_NO_TRAIL : `${API_URL_NO_TRAIL}/api`;
+// Prefer explicit REACT_APP_API_BASE or REACT_APP_API_URL, otherwise use same-origin relative path '/api'
+const RAW_API_URL = process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_URL || '/api';
+
+const ensureTrailingApi = (urlString) => {
+  const trimmed = urlString.replace(/\/+$/, '');
+  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+};
+
+const normalizeAbsoluteUrl = (rawUrl) => {
+  try {
+    const parsed = new URL(rawUrl);
+
+    // Drop explicit DevTunnels port – the subdomain already encodes the port, adding ":xxxx" breaks TLS routing
+    if (parsed.hostname.includes('devtunnels.ms') && parsed.port) {
+      console.warn('[api] Dropping explicit port from DevTunnels URL to avoid double port issues.', parsed.href);
+      parsed.port = '';
+    }
+
+    const normalizedPath = ensureTrailingApi(parsed.pathname || '/api');
+    parsed.pathname = normalizedPath;
+    return parsed.toString().replace(/\/+$/, '');
+  } catch (error) {
+    console.warn('[api] Failed to parse API base URL, falling back to string normalization.', error);
+    return ensureTrailingApi(rawUrl);
+  }
+};
+
+const API_BASE_URL = RAW_API_URL.startsWith('http://') || RAW_API_URL.startsWith('https://')
+  ? normalizeAbsoluteUrl(RAW_API_URL)
+  : ensureTrailingApi(RAW_API_URL);
 
 const api = axios.create({
   baseURL: API_BASE_URL,

@@ -324,7 +324,7 @@ domain_words = [
 ```env
 # LLM配置
 MODEL_NAME=llama3.1:8b              # 語言模型名稱
-LLM_API_BASE=http://localhost:11434 # API基礎URL
+LLM_API_BASE=http://your-llm-host:port # API基礎URL，請以實際部署位址或環境變數設定為準
 
 # 嵌入模型（可選）
 EMBEDDING_MODEL=paraphrase-multilingual-MiniLM-L12-v2
@@ -707,7 +707,7 @@ for i, (doc, score) in enumerate(results[:5]):
 ```env
 # 必需參數
 MODEL_NAME=llama3.1:8b
-LLM_API_BASE=http://localhost:11434
+LLM_API_BASE=http://your-llm-host:port
 
 # 模型配置
 EMBEDDING_MODEL=paraphrase-multilingual-MiniLM-L12-v2
