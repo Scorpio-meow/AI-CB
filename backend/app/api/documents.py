@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from app.models.database import get_db
 from app.models import Document, DocumentChunk
-from app.rag.contextual_rag import ContextualRAG
+from app.core.rag_manager import get_rag_system
+from app.core.user_context import get_current_user_id, get_default_user_id
 from app.services.document_processor import DocumentProcessor
 import re
 from langchain.schema import Document as LangchainDocument
@@ -12,7 +13,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-rag_system = ContextualRAG()
 
 # Get configuration from environment
 MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "50"))
@@ -35,7 +35,8 @@ def split_faq(text: str):
 @router.post("/upload")
 async def upload_document(
     file: List[UploadFile] = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user_id)
 ):
     """上傳文件到知識庫"""
     # 支援多檔案上傳
@@ -141,7 +142,7 @@ async def upload_document(
                 filename=safe_filename,
                 content=content,
                 file_type=up.content_type,
-                uploaded_by=1
+                uploaded_by=user_id  # Use dynamic user_id
             )
             db.add(document)
             db.commit()
@@ -153,6 +154,9 @@ async def upload_document(
             except Exception:
                 qa_pairs = []
 
+            # Get global RAG instance
+            rag_system = get_rag_system()
+            
             if qa_pairs:
                 langchain_docs = []
                 for i, (q, a) in enumerate(qa_pairs):
@@ -160,7 +164,7 @@ async def upload_document(
                     md = {
                         "source": safe_filename,
                         "document_id": document.id,
-                        "uploaded_by": 1,
+                        "uploaded_by": user_id,  # Use dynamic user_id
                         "content_type": up.content_type,
                         "original_filename": up.filename,
                         "qa_index": i,
@@ -176,7 +180,7 @@ async def upload_document(
                     metadata={
                         "source": safe_filename,
                         "document_id": document.id,
-                        "uploaded_by": 1,
+                        "uploaded_by": user_id,  # Use dynamic user_id
                         "content_type": up.content_type,
                         "original_filename": up.filename
                     }
@@ -238,6 +242,7 @@ async def delete_document(
     # 從 RAG 系統中移除文檔；不立即重建 BM25（Windows 上檔案可能被鎖定）
     try:
         # skip BM25 rebuild here to avoid Whoosh file lock errors on Windows.
+        rag_system = get_rag_system()
         rag_system.remove_document_by_id(document_id, rebuild_bm25=False)
     except Exception as e:
         print(f"Warning: Failed to remove document from RAG system: {e}")

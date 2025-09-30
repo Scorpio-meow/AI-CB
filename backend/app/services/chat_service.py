@@ -1,13 +1,17 @@
 from sqlalchemy.orm import Session
 from app.models import User, Conversation, Message, MessageResponse, ConversationResponse
+from app.core.rag_manager import get_rag_system
 from typing import List, Optional
 from datetime import datetime
 
 class ChatService:
     def __init__(self):
-        # Import RAG system for memory management
-        from app.rag.contextual_rag import HybridContextualRAG
-        self.rag_system = HybridContextualRAG()
+        # Use global RAG instance for memory management
+        pass
+    
+    def _get_rag_system(self):
+        """Get the global RAG system instance."""
+        return get_rag_system()
     
     async def create_conversation(self, db: Session, user_id: int, title: str = "新對話"):
         """創建新對話"""
@@ -161,14 +165,15 @@ class ChatService:
         db.commit()
         
         # 清理 RAG 系統中的對話上下文記憶
+        rag_system = self._get_rag_system()
         # 清理新格式的記憶體 key (user_id:conversation_id)
         memory_key = f"{user_id}:{conversation_id}"
-        if hasattr(self.rag_system, 'context_memory') and memory_key in self.rag_system.context_memory:
-            del self.rag_system.context_memory[memory_key]
+        if hasattr(rag_system, 'context_memory') and memory_key in rag_system.context_memory:
+            del rag_system.context_memory[memory_key]
         
         # 清理舊格式的記憶體 key (conversation_id only) - 向後兼容
-        if hasattr(self.rag_system, 'context_memory') and conversation_id in self.rag_system.context_memory:
-            del self.rag_system.context_memory[conversation_id]
+        if hasattr(rag_system, 'context_memory') and conversation_id in rag_system.context_memory:
+            del rag_system.context_memory[conversation_id]
         
         return True
     

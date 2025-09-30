@@ -3,14 +3,14 @@ from sqlalchemy.orm import Session
 from app.models.database import get_db
 from app.models import MessageCreate, MessageResponse, ChatResponse, ConversationResponse
 from app.services.chat_service import ChatService
-from app.rag.contextual_rag import HybridContextualRAG
+from app.core.rag_manager import get_rag_system
+from app.core.user_context import get_current_user_id, get_default_user_id
 from typing import List
 import json
 import os
 
 router = APIRouter()
 chat_service = ChatService()
-rag_system = HybridContextualRAG()
 
 class ConnectionManager:
     def __init__(self):
@@ -48,27 +48,29 @@ async def get_available_models():
 @router.post("/send", response_model=ChatResponse)
 async def send_message(
     message_data: MessageCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user_id)
 ):
     """發送聊天消息"""
     try:
-        # 保存用戶消息（使用預設用戶 ID 1）
+        # 保存用戶消息（使用從header獲取的用戶ID，默認為1）
         user_message = await chat_service.save_message(
-            db, 1, message_data.content, True, message_data.conversation_id
+            db, user_id, message_data.content, True, message_data.conversation_id
         )
         
         # 使用 RAG 系統生成回應（支援模型選擇）
         # Pass user_id into RAG so context is scoped per-user+conversation
+        rag_system = get_rag_system()
         rag_response = await rag_system.generate_response(
             message_data.content,
             user_message.conversation_id,
             message_data.model_name,
-            1  # TODO: replace hardcoded user_id with authenticated user from request
+            user_id
         )
         
         # 保存機器人回應
         bot_message = await chat_service.save_message(
-            db, 1, rag_response["answer"], False, 
+            db, user_id, rag_response["answer"], False, 
             user_message.conversation_id, rag_response["context_used"]
         )
         
@@ -88,19 +90,21 @@ async def send_message(
 
 @router.get("/conversations", response_model=List[ConversationResponse])
 async def get_conversations(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user_id)
 ):
     """獲取所有對話"""
-    conversations = await chat_service.get_user_conversations(db, 1)
+    conversations = await chat_service.get_user_conversations(db, user_id)
     return conversations
 
 @router.get("/conversations/{conversation_id}", response_model=ConversationResponse)
 async def get_conversation(
     conversation_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user_id)
 ):
     """獲取特定對話的詳細信息"""
-    conversation = await chat_service.get_conversation_with_messages(db, conversation_id, 1)
+    conversation = await chat_service.get_conversation_with_messages(db, conversation_id, user_id)
     if not conversation:
         raise HTTPException(status_code=404, detail="找不到該對話")
     
@@ -108,10 +112,11 @@ async def get_conversation(
 
 @router.post("/conversations", response_model=ConversationResponse)
 async def create_conversation(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user_id)
 ):
     """建立新對話"""
-    conversation = await chat_service.create_conversation(db, 1)
+    conversation = await chat_service.create_conversation(db, user_id)
     return ConversationResponse(
         id=conversation.id,
         title=conversation.title,
@@ -123,10 +128,11 @@ async def create_conversation(
 @router.delete("/conversations/{conversation_id}")
 async def delete_conversation(
     conversation_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user_id)
 ):
     """刪除對話"""
-    success = await chat_service.delete_conversation(db, conversation_id, 1)
+    success = await chat_service.delete_conversation(db, conversation_id, user_id)
     if not success:
         raise HTTPException(status_code=404, detail="找不到該對話")
     

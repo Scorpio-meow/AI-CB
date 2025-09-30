@@ -4,6 +4,8 @@ from contextlib import asynccontextmanager
 from app.api import chat, admin, documents, workflow, custom_agent
 from app.models.database import create_tables
 from app.tasks.uploads_watcher import scan_and_cleanup_uploads
+from app.tasks.index_rebuilder import start_index_rebuilder
+from app.core.rag_manager import get_rag_system
 import asyncio
 import os
 from dotenv import load_dotenv
@@ -14,6 +16,7 @@ load_dotenv()
 
 # Configure logging
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+logger = logging.getLogger(__name__)
 
 # Get configuration from environment
 DEFAULT_ALLOWED_ORIGINS = [
@@ -42,14 +45,35 @@ UPLOADS_WATCHER_INTERVAL = int(os.getenv("UPLOADS_WATCHER_INTERVAL", "30"))
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    logger.info("Starting ChatBot application...")
+    
+    # Initialize database tables
     await create_tables()
-    # Start background uploads watcher
+    
+    # Initialize global RAG system (singleton)
+    logger.info("Initializing global RAG system...")
+    rag_system = get_rag_system()
+    logger.info(f"RAG system initialized: {rag_system.get_vector_store_info()}")
+    
+    # Start background tasks
     uploads_watcher_task = asyncio.create_task(scan_and_cleanup_uploads(UPLOADS_WATCHER_INTERVAL))
     app.state._uploads_watcher_task = uploads_watcher_task
+    logger.info("Uploads watcher task started")
+    
+    # Start periodic index rebuilder
+    index_rebuilder_task = await start_index_rebuilder()
+    app.state._index_rebuilder_task = index_rebuilder_task
+    if index_rebuilder_task:
+        logger.info("Index rebuilder task started")
+    
+    logger.info("ChatBot application startup complete")
     
     yield
     
     # Shutdown
+    logger.info("Shutting down ChatBot application...")
+    
+    # Cancel uploads watcher
     task = getattr(app.state, '_uploads_watcher_task', None)
     if task:
         task.cancel()
@@ -57,6 +81,19 @@ async def lifespan(app: FastAPI):
             await task
         except asyncio.CancelledError:
             pass
+        logger.info("Uploads watcher task stopped")
+    
+    # Cancel index rebuilder
+    rebuilder_task = getattr(app.state, '_index_rebuilder_task', None)
+    if rebuilder_task:
+        rebuilder_task.cancel()
+        try:
+            await rebuilder_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("Index rebuilder task stopped")
+    
+    logger.info("ChatBot application shutdown complete")
 
 app = FastAPI(
     title="ChatBot API",

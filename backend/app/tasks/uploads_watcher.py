@@ -5,11 +5,10 @@ from typing import List
 from sqlalchemy.orm import Session
 from app.models import Document, DocumentChunk
 from app.models.database import SessionLocal
-from app.rag.contextual_rag import ContextualRAG
+from app.core.rag_manager import get_rag_system
 from app.api.chat import manager as ws_manager
 
 logger = logging.getLogger(__name__)
-rag_system = ContextualRAG()
 
 # Get configuration from environment
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "data/uploads")
@@ -44,6 +43,7 @@ async def scan_and_cleanup_uploads(interval_seconds: int = None):
                         logger.info(f"Detected missing file for document id={doc.id}, filename={doc.filename}")
                         try:
                             # Remove from RAG (do not rebuild BM25 here)
+                            rag_system = get_rag_system()
                             await asyncio.to_thread(rag_system.remove_document_by_id, doc.id, False)
                         except Exception as e:
                             logger.warning(f"Failed to remove document {doc.id} from RAG: {e}")

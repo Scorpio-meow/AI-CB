@@ -3,13 +3,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.models.database import get_db
 from app.models import User, Conversation, Message, Document
-from app.rag.contextual_rag import HybridContextualRAG
+from app.core.rag_manager import get_rag_system
 from typing import List, Dict, Any
 from datetime import datetime, timedelta
 from pydantic import BaseModel
 
 router = APIRouter()
-rag_system = HybridContextualRAG()
 
 class UserUpdate(BaseModel):
     username: str = None
@@ -130,6 +129,7 @@ async def delete_conversation(
     db.commit()
     
     # 清理 RAG 系統中的對話上下文記憶
+    rag_system = get_rag_system()
     # 清理新格式的記憶體 key (user_id:conversation_id)
     memory_key = f"{user_id}:{conversation_id}"
     if hasattr(rag_system, 'context_memory') and memory_key in rag_system.context_memory:
@@ -218,6 +218,7 @@ async def delete_user(
         raise HTTPException(status_code=404, detail="用戶不存在")
     
     # 刪除用戶的所有對話和消息，並清理對應的記憶體
+    rag_system = get_rag_system()
     conversations = db.query(Conversation).filter(Conversation.user_id == user_id).all()
     for conv in conversations:
         db.query(Message).filter(Message.conversation_id == conv.id).delete()
@@ -243,16 +244,19 @@ async def delete_user(
 @router.get("/vector-store/info")
 async def get_vector_store_info():
     """獲取向量庫信息"""
+    rag_system = get_rag_system()
     return rag_system.get_vector_store_info()
 
 @router.get("/vector-store/statistics")
 async def get_vector_store_statistics():
     """獲取向量庫統計信息"""
+    rag_system = get_rag_system()
     return rag_system.get_statistics()
 
 @router.delete("/vector-store/clear")
 async def clear_vector_store():
     """清空向量庫"""
+    rag_system = get_rag_system()
     rag_system.clear_vector_store()
     return {"message": "向量庫已清空"}
 
@@ -260,6 +264,7 @@ async def clear_vector_store():
 async def force_reindex():
     """重建向量與BM25索引（基於現有 documents.pkl）。"""
     try:
+        rag_system = get_rag_system()
         ok = rag_system.force_reindex()
         return {"message": "索引重建已觸發", "ok": bool(ok), "info": rag_system.get_vector_store_info()}
     except Exception as e:

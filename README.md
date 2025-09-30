@@ -40,17 +40,24 @@
 
 ## 技術架構
 
+### 後端核心改進 (2025-09-30)
+- **單例RAG管理器**: 全局唯一RAG實例，避免記憶體浪費和索引不同步
+- **跨進程文件鎖**: 使用 filelock 解決 Windows 上 Whoosh BM25 索引鎖定問題
+- **智能索引重建**: 獨立後台任務定期重建索引，避免多進程競爭
+- **動態用戶上下文**: 支援透過 X-User-ID header 指定用戶（為未來認證系統預留）
+
 ### 後端
 - **FastAPI**: 高性能 Web 框架
 - **SQLAlchemy**: ORM 數據庫操作
 - **LangChain**: RAG 實現框架
 - **Ollama/LLM Models**: 大型語言模型支援
 - **FAISS**: 向量數據庫 (IndexFlatIP, 384維)
-- **Whoosh**: BM25 全文檢索引擎
+- **Whoosh**: BM25 全文檢索引擎 (使用 jieba 中文分詞)
 - **Cross-Encoder**: ms-marco-MiniLM-L-6-v2 重新排序
 - **PyPDF2 + python-docx**: 文檔處理
 - **SQLite/PostgreSQL**: 主數據庫
 - **sentence-transformers**: paraphrase-multilingual-MiniLM-L12-v2 嵌入模型
+- **filelock**: 跨進程文件鎖管理
 
 ### 前端
 - **React 18**: 用戶界面框架
