@@ -59,7 +59,7 @@ function Chat() {
   const loadAvailableModels = useCallback(async (force = false) => {
     // 防止並發請求：如果正在請求中且非強制刷新，直接返回
     if (!force && window.__tagsLoading) {
-      console.log('Tags API 請求進行中，跳過重複請求');
+      if (process.env.NODE_ENV === 'development') console.debug('Tags API 請求進行中，跳過重複請求');
       return;
     }
     
@@ -70,7 +70,7 @@ function Chat() {
       if (cached && cacheTime) {
         const age = Date.now() - parseInt(cacheTime, 10);
         if (age < 5 * 60 * 1000) { // 5 分鐘緩存
-          console.log('使用緩存的 tags 數據');
+          if (process.env.NODE_ENV === 'development') console.debug('使用緩存的 tags 數據');
           try {
             const cachedData = JSON.parse(cached);
             setAvailableModels(cachedData.models || []);

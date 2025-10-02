@@ -96,7 +96,7 @@ function Documents() {
       if (loadAbortControllerRef.current) {
         loadAbortControllerRef.current.abort();
       }
-    }, 45000); // 45 秒超時，給 DevTunnels 更多時間
+    }, 60000); // 60 秒超時，給 DevTunnels 更多時間處理 CORS preflight 和 token refresh
 
     loadingPromise = (async () => {
       try {
@@ -120,6 +120,10 @@ function Documents() {
         if (err.name === 'AbortError' || err.name === 'CanceledError') {
           // 不顯示錯誤，讓使用者可以重試
           if (process.env.NODE_ENV === 'development') console.debug('Documents loading was cancelled', err);
+          setError('載入文檔超時，請重新整理頁面或檢查網路連線');
+        } else if (err.response?.status === 400) {
+          setError('載入文檔失敗：請求格式錯誤或授權無效，請嘗試重新登入');
+          console.error('Load documents 400 error:', err.response?.data);
         } else {
           setError('載入文檔失敗：' + (err.response?.data?.detail || err.message || '未知錯誤'));
           console.error('Load documents error:', err);
