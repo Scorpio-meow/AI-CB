@@ -24,6 +24,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, Outlet } from 'react-router-dom';
 import authService from '../services/authService';
+import { AgentProvider } from '../contexts/AgentContext';
 
 function Layout({ children }) {
   const navigate = useNavigate();
@@ -156,7 +157,9 @@ function Layout({ children }) {
       </Menu>
       
       <Box component="main" sx={{ mt: 2 }}>
-        <Outlet />
+        <AgentProvider>
+          <Outlet />
+        </AgentProvider>
       </Box>
     </Box>
   );
