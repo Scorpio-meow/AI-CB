@@ -1,46 +1,27 @@
 """
-User Context - Simple user context management for API requests.
-This provides a foundation for future authentication system integration.
+User Context - User context management with JWT authentication integration.
 """
 from typing import Optional
-from fastapi import Header, HTTPException
+from fastapi import Header, HTTPException, Depends
+from app.core.jwt_auth import get_current_active_user
 
 
 async def get_current_user_id(
-    x_user_id: Optional[str] = Header(None, description="User ID from client (temporary)")
+    user: dict = Depends(get_current_active_user)
 ) -> int:
     """
-    Get current user ID from request headers.
+    Get current user ID from JWT token.
     
-    For now, this accepts an optional X-User-ID header or defaults to user_id=1.
-    In production, this should be replaced with proper JWT/OAuth authentication.
+    This extracts the user_id from the validated JWT token.
+    Requires valid authentication.
     
     Args:
-        x_user_id: Optional user ID from X-User-ID header
+        user: User data from JWT token (injected by dependency)
         
     Returns:
-        int: User ID (defaults to 1 if not provided)
-        
-    TODO: Replace with proper authentication system:
-        - JWT token validation
-        - OAuth2 integration
-        - Session management
+        int: User ID from the authenticated user
     """
-    if x_user_id:
-        try:
-            user_id = int(x_user_id)
-            if user_id <= 0:
-                raise ValueError("User ID must be positive")
-            return user_id
-        except (ValueError, TypeError):
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid X-User-ID header. Must be a positive integer."
-            )
-    
-    # Default to user_id=1 for backward compatibility
-    # TODO: Remove this default once authentication is implemented
-    return 1
+    return user["user_id"]
 
 
 def get_default_user_id() -> int:
@@ -50,6 +31,6 @@ def get_default_user_id() -> int:
     Returns:
         int: Default user ID (1)
         
-    TODO: Remove this once all operations have proper user context
+    Note: This should only be used for system operations, not user-specific data.
     """
     return 1

@@ -5,7 +5,11 @@ import Chat from './pages/Chat';
 import AdminDashboard from './pages/AdminDashboard';
 import Documents from './pages/Documents';
 import CustomAgents from './pages/CustomAgents';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import ProfilePage from './pages/ProfilePage';
 import Layout from './components/Layout';
+import { PrivateRoute, AdminRoute, PublicRoute } from './components/PrivateRoute';
 import { AgentProvider } from './contexts/AgentContext';
 
 const theme = createTheme({
@@ -22,15 +26,41 @@ const theme = createTheme({
 
 
 const router = createBrowserRouter([
+  // 公開路由 (未登入才能訪問)
+  {
+    path: '/login',
+    element: <PublicRoute element={<LoginPage />} />,
+  },
+  {
+    path: '/register',
+    element: <PublicRoute element={<RegisterPage />} />,
+  },
+  // 受保護路由 (需要登入)
   {
     path: '/',
     element: <Layout />, // Layout 包裹所有頁面
     children: [
       { index: true, element: <Navigate to="/chat" replace /> },
-      { path: 'chat', element: <Chat /> },
-      { path: 'documents', element: <Documents /> },
-      { path: 'admin', element: <AdminDashboard /> },
-      { path: 'custom-agents', element: <CustomAgents /> },
+      { 
+        path: 'chat', 
+        element: <PrivateRoute element={<Chat />} /> 
+      },
+      { 
+        path: 'documents', 
+        element: <PrivateRoute element={<Documents />} /> 
+      },
+      { 
+        path: 'custom-agents', 
+        element: <PrivateRoute element={<CustomAgents />} /> 
+      },
+      { 
+        path: 'profile', 
+        element: <PrivateRoute element={<ProfilePage />} /> 
+      },
+      { 
+        path: 'admin', 
+        element: <AdminRoute element={<AdminDashboard />} /> 
+      },
     ],
   },
 ]);

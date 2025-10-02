@@ -110,6 +110,19 @@ async def get_conversation(
     
     return conversation
 
+
+@router.get("/conversations/{conversation_id}/messages")
+async def get_conversation_messages_endpoint(
+    conversation_id: int,
+    limit: int = 100,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user_id)
+):
+    """分頁獲取單個對話的消息（避免一次載入大量訊息）"""
+    messages = await chat_service.get_conversation_messages(db, conversation_id, user_id, limit=limit, offset=offset)
+    return messages
+
 @router.post("/conversations", response_model=ConversationResponse)
 async def create_conversation(
     db: Session = Depends(get_db),

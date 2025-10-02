@@ -4,6 +4,7 @@ from sqlalchemy import func
 from app.models.database import get_db
 from app.models import User, Conversation, Message, Document
 from app.core.rag_manager import get_rag_system
+from app.core.jwt_auth import get_current_admin_user  # 改用 JWT 認證
 from typing import List, Dict, Any
 from datetime import datetime, timedelta
 from pydantic import BaseModel
@@ -18,15 +19,17 @@ class UserUpdate(BaseModel):
 
 @router.get("/users")
 async def get_users(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user)  # JWT 管理員認證
 ):
-    """獲取所有用戶列表"""
+    """獲取所有用戶列表 - 需要管理員權限"""
     users = db.query(User).all()
     return users
 
 @router.get("/statistics")
 async def get_statistics(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user)  # JWT 管理員認證
 ) -> Dict[str, Any]:
     """獲取系統統計信息"""
     # 用戶統計
@@ -87,9 +90,10 @@ async def get_statistics(
 
 @router.get("/conversations")
 async def get_conversations(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user)
 ):
-    """獲取所有對話列表"""
+    """獲取所有對話列表 - 需要管理員權限"""
     conversations = db.query(Conversation).order_by(
         Conversation.updated_at.desc()
     ).limit(50).all()
@@ -99,9 +103,10 @@ async def get_conversations(
 @router.get("/conversations/{conversation_id}/messages")
 async def get_conversation_messages(
     conversation_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user)
 ):
-    """獲取特定對話的消息"""
+    """獲取特定對話的消息 - 需要管理員權限"""
     messages = db.query(Message).filter(
         Message.conversation_id == conversation_id
     ).order_by(Message.created_at.asc()).all()
@@ -111,9 +116,10 @@ async def get_conversation_messages(
 @router.delete("/conversations/{conversation_id}")
 async def delete_conversation(
     conversation_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user)
 ):
-    """刪除對話"""
+    """刪除對話 - 需要管理員權限"""
     # 獲取對話信息用於清理記憶體
     conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
     if not conversation:
@@ -143,18 +149,20 @@ async def delete_conversation(
 
 @router.get("/documents")
 async def get_documents(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user)
 ):
-    """獲取所有文檔列表"""
+    """獲取所有文檔列表 - 需要管理員權限"""
     documents = db.query(Document).order_by(Document.created_at.desc()).all()
     return documents
 
 @router.delete("/documents/{document_id}")
 async def delete_document(
     document_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user)
 ):
-    """刪除文檔"""
+    """刪除文檔 - 需要管理員權限"""
     document = db.query(Document).filter(Document.id == document_id).first()
     if not document:
         raise HTTPException(status_code=404, detail="文檔不存在")
@@ -168,9 +176,10 @@ async def delete_document(
 async def update_user(
     user_id: int,
     user_update: UserUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user)
 ):
-    """更新用戶信息"""
+    """更新用戶信息 - 需要管理員權限"""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="用戶不存在")
@@ -210,9 +219,10 @@ async def update_user(
 @router.delete("/users/{user_id}")
 async def delete_user(
     user_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user)
 ):
-    """刪除用戶"""
+    """刪除用戶 - 需要管理員權限"""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="用戶不存在")
@@ -242,27 +252,35 @@ async def delete_user(
     return {"message": "用戶刪除成功"}
 
 @router.get("/vector-store/info")
-async def get_vector_store_info():
-    """獲取向量庫信息"""
+async def get_vector_store_info(
+    current_user: dict = Depends(get_current_admin_user)
+):
+    """獲取向量庫信息 - 需要管理員權限"""
     rag_system = get_rag_system()
     return rag_system.get_vector_store_info()
 
 @router.get("/vector-store/statistics")
-async def get_vector_store_statistics():
-    """獲取向量庫統計信息"""
+async def get_vector_store_statistics(
+    current_user: dict = Depends(get_current_admin_user)
+):
+    """獲取向量庫統計信息 - 需要管理員權限"""
     rag_system = get_rag_system()
     return rag_system.get_statistics()
 
 @router.delete("/vector-store/clear")
-async def clear_vector_store():
-    """清空向量庫"""
+async def clear_vector_store(
+    current_user: dict = Depends(get_current_admin_user)
+):
+    """清空向量庫 - 需要管理員權限"""
     rag_system = get_rag_system()
     rag_system.clear_vector_store()
     return {"message": "向量庫已清空"}
 
 @router.post("/vector-store/reindex")
-async def force_reindex():
-    """重建向量與BM25索引（基於現有 documents.pkl）。"""
+async def force_reindex(
+    current_user: dict = Depends(get_current_admin_user)
+):
+    """重建向量與BM25索引（基於現有 documents.pkl）- 需要管理員權限"""
     try:
         rag_system = get_rag_system()
         ok = rag_system.force_reindex()

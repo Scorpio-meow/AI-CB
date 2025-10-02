@@ -3,19 +3,98 @@
 
 import os
 from typing import Optional
-import PyPDF2
+from pypdf import PdfReader  # 使用新的 pypdf 替代 PyPDF2
 from docx import Document as DocxDocument
 import logging
+import hashlib
 
 logger = logging.getLogger(__name__)
 
 class DocumentProcessor:
-    """文檔處理器，支援 TXT、PDF 和 DOCX 格式"""
+    """文檔處理器，支援 TXT、PDF 和 DOCX 格式，並增強安全性"""
+    
+    # 檔案頭部 magic numbers 用於驗證
+    FILE_SIGNATURES = {
+        'application/pdf': [b'%PDF'],
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': [
+            b'PK\x03\x04',  # ZIP 格式（DOCX 是壓縮檔）
+        ],
+        'text/plain': []  # 文本文件沒有特定的 magic number
+    }
+    
+    @staticmethod
+    def validate_file_header(file_path: str, content_type: str) -> bool:
+        """
+        驗證檔案頭部以確保檔案類型真實性
+        
+        Args:
+            file_path: 檔案路徑
+            content_type: 聲稱的 MIME 類型
+            
+        Returns:
+            bool: 驗證是否通過
+            
+        Raises:
+            ValueError: 如果驗證失敗
+        """
+        if content_type not in DocumentProcessor.FILE_SIGNATURES:
+            raise ValueError(f"不支援的檔案類型: {content_type}")
+        
+        signatures = DocumentProcessor.FILE_SIGNATURES[content_type]
+        
+        # 文本文件跳過頭部檢查
+        if not signatures:
+            return True
+        
+        try:
+            with open(file_path, 'rb') as f:
+                header = f.read(512)  # 讀取前 512 bytes
+                
+            # 檢查是否匹配任何已知的 magic number
+            for signature in signatures:
+                if header.startswith(signature):
+                    return True
+            
+            logger.warning(f"檔案頭部驗證失敗: {file_path}, 聲稱類型: {content_type}")
+            raise ValueError(
+                f"檔案頭部與聲稱的類型不符。"
+                f"這可能是一個偽造的檔案或損壞的檔案。"
+            )
+            
+        except Exception as e:
+            logger.error(f"驗證檔案頭部時發生錯誤: {e}")
+            raise
+    
+    @staticmethod
+    def calculate_file_hash(file_path: str) -> str:
+        """
+        計算檔案的 SHA256 雜湊值
+        
+        Args:
+            file_path: 檔案路徑
+            
+        Returns:
+            str: SHA256 雜湊值
+        """
+        sha256_hash = hashlib.sha256()
+        with open(file_path, "rb") as f:
+            for byte_block in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(byte_block)
+        return sha256_hash.hexdigest()
     
     @staticmethod
     def extract_text_from_file(file_path: str, content_type: str) -> Optional[str]:
-        """從文件中提取文本內容"""
+        """從文件中提取文本內容，增強安全性"""
         try:
+            # 安全檢查：驗證檔案頭部
+            DocumentProcessor.validate_file_header(file_path, content_type)
+            
+            # 安全檢查：檔案大小（在這裡再次確認）
+            file_size = os.path.getsize(file_path)
+            max_size = int(os.getenv("MAX_FILE_SIZE_MB", "10")) * 1024 * 1024
+            if file_size > max_size:
+                raise ValueError(f"檔案大小 ({file_size} bytes) 超過限制")
+            
             if content_type == "text/plain":
                 return DocumentProcessor._extract_from_txt(file_path)
             elif content_type == "application/pdf":
@@ -27,7 +106,7 @@ class DocumentProcessor:
                 return None
         except Exception as e:
             logger.error(f"提取文本時發生錯誤: {e}")
-            return None
+            raise
     
     @staticmethod
     def _extract_from_txt(file_path: str) -> str:
@@ -62,7 +141,7 @@ class DocumentProcessor:
             text_content = []
             
             with open(file_path, 'rb') as file:
-                pdf_reader = PyPDF2.PdfReader(file)
+                pdf_reader = PdfReader(file)  # 使用新的 PdfReader
                 
                 # 檢查 PDF 是否被加密
                 if pdf_reader.is_encrypted:

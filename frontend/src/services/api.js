@@ -39,7 +39,84 @@ const api = axios.create({
   },
 });
 
-// No auth interceptors - auth has been removed from the backend.
+// ==================== JWT 認證攔截器 ====================
+
+// Request Interceptor - 自動添加 Access Token
+api.interceptors.request.use(
+  (config) => {
+    // 從 localStorage 獲取 token
+    const token = localStorage.getItem('access_token');
+    
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response Interceptor - 自動刷新 Token
+api.interceptors.response.use(
+  (response) => {
+    // 請求成功,直接返回
+    return response;
+  },
+  async (error) => {
+    const originalRequest = error.config;
+
+    // 如果是 401 錯誤且還沒有重試過
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        // 獲取 refresh token
+        const refreshToken = localStorage.getItem('refresh_token');
+        
+        if (!refreshToken) {
+          throw new Error('無刷新令牌');
+        }
+
+        // 刷新 access token
+        const response = await axios.post(
+          `${API_BASE_URL}/auth/refresh`,
+          { refresh_token: refreshToken }
+        );
+
+        const { access_token, refresh_token: new_refresh_token } = response.data;
+
+        // 保存新的 tokens
+        localStorage.setItem('access_token', access_token);
+        if (new_refresh_token) {
+          localStorage.setItem('refresh_token', new_refresh_token);
+        }
+
+        // 更新原始請求的 Authorization header
+        originalRequest.headers.Authorization = `Bearer ${access_token}`;
+
+        // 重試原始請求
+        return api(originalRequest);
+      } catch (refreshError) {
+        // 刷新失敗,清除認證信息並跳轉到登入頁
+        console.error('Token 刷新失敗:', refreshError);
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user_info');
+        
+        // 跳轉到登入頁
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+        
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 export const chatService = {
   async sendMessage(content, conversationId = null, model_name = null) {

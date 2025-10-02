@@ -44,9 +44,46 @@ function Chat() {
   const messagesEndRef = useRef(null);
   const [viewMode, setViewMode] = useState('chat');
   const discussionBoardRef = useRef(null);
+  
+  // 消息分頁狀態
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [messagesOffset, setMessagesOffset] = useState(0);
+  const messagesTopRef = useRef(null);
+  
+  // AbortController refs for cancelling requests
+  const loadConversationAbortRef = useRef(null);
+  const loadConversationsAbortRef = useRef(null);
 
   // Load available models (now fetched from /api/tags). Supports several response shapes.
-  const loadAvailableModels = useCallback(async () => {
+  const loadAvailableModels = useCallback(async (force = false) => {
+    // 防止並發請求：如果正在請求中且非強制刷新，直接返回
+    if (!force && window.__tagsLoading) {
+      console.log('Tags API 請求進行中，跳過重複請求');
+      return;
+    }
+    
+    // 檢查緩存（5分鐘內的緩存有效）
+    if (!force) {
+      const cached = localStorage.getItem('cached_tags');
+      const cacheTime = localStorage.getItem('cached_tags_time');
+      if (cached && cacheTime) {
+        const age = Date.now() - parseInt(cacheTime, 10);
+        if (age < 5 * 60 * 1000) { // 5 分鐘緩存
+          console.log('使用緩存的 tags 數據');
+          try {
+            const cachedData = JSON.parse(cached);
+            setAvailableModels(cachedData.models || []);
+            if (cachedData.default) setSelectedModel(cachedData.default);
+            return;
+          } catch (e) {
+            console.warn('解析緩存失敗', e);
+          }
+        }
+      }
+    }
+    
+    window.__tagsLoading = true;
     try {
   const externalTagsUrl = process.env.REACT_APP_TAGS_URL;
   // If an external tags URL is configured, prefer querying our backend proxy to avoid
@@ -117,6 +154,14 @@ function Chat() {
       }
 
       setAvailableModels(models);
+      
+      // 緩存結果
+      try {
+        localStorage.setItem('cached_tags', JSON.stringify({ models, default: defaultModel }));
+        localStorage.setItem('cached_tags_time', Date.now().toString());
+      } catch (e) {
+        console.warn('緩存 tags 失敗', e);
+      }
 
       if (userSelectedModel && selectedModel) {
         if (models.includes(selectedModel)) {
@@ -136,24 +181,75 @@ function Chat() {
       if (!userSelectedModel || !selectedModel) {
         setSelectedModel('gpt-oss:20b');
       }
+    } finally {
+      window.__tagsLoading = false;
     }
   }, [selectedModel, userSelectedModel]);
 
   // Define all functions before they are used in effects
   const loadConversation = useCallback(async (conversation) => {
     setViewMode('chat');
+    
+    // Cancel previous request if any
+    if (loadConversationAbortRef.current) {
+      loadConversationAbortRef.current.abort();
+    }
+    
+    const abortController = new AbortController();
+    loadConversationAbortRef.current = abortController;
+    
+    // 45 second timeout for DevTunnels
+    const timeoutId = setTimeout(() => abortController.abort(), 45000);
+    
     try {
-  const response = await api.get(`/chat/conversations/${conversation.id}`);
-      setCurrentConversation(response.data);
-      setMessages(response.data.messages || []);
+      // Fetch conversation metadata
+      const convResp = await api.get(`/chat/conversations/${conversation.id}`, {
+        signal: abortController.signal
+      });
+      setCurrentConversation(convResp.data);
+
+      // Fetch messages paginated to avoid loading huge payloads
+      // Load the most recent 100 messages by default
+      const msgsResp = await api.get(`/chat/conversations/${conversation.id}/messages?limit=100&offset=0`, {
+        signal: abortController.signal
+      });
+      const fetchedMessages = msgsResp.data || [];
+      setMessages(fetchedMessages);
+      setMessagesOffset(fetchedMessages.length);
+      
+      // If we got exactly 100 messages, there might be more
+      setHasMoreMessages(fetchedMessages.length === 100);
+      
+      clearTimeout(timeoutId);
     } catch (error) {
-      setError('載入對話詳情失敗');
+      if (error.name === 'CanceledError' || error.name === 'AbortError') {
+        // 在開發環境顯示更詳細的取消日誌，生產環境避免噪音
+        if (process.env.NODE_ENV === 'development') console.debug('loadConversation request cancelled', error);
+      } else {
+        console.error('載入對話失敗:', error);
+        setError('載入對話詳情失敗，請稍後重試');
+      }
+      clearTimeout(timeoutId);
+    } finally {
+      loadConversationAbortRef.current = null;
     }
   }, []); // State setters are stable
 
   const loadConversations = useCallback(async () => {
+    // Cancel previous request if any
+    if (loadConversationsAbortRef.current) {
+      loadConversationsAbortRef.current.abort();
+    }
+    
+    const abortController = new AbortController();
+    loadConversationsAbortRef.current = abortController;
+    
+    const timeoutId = setTimeout(() => abortController.abort(), 45000); // 45 秒超時
+    
     try {
-  const response = await api.get('/chat/conversations');
+      const response = await api.get('/chat/conversations', {
+        signal: abortController.signal
+      });
       setConversations(response.data);
       if (response.data.length > 0 && !currentConversation) {
         if (viewMode === 'chat') {
@@ -161,24 +257,76 @@ function Chat() {
           loadConversation(response.data[0]);
         }
       }
+      clearTimeout(timeoutId);
       // return fresh list to avoid callers using stale closure
       return response.data;
     } catch (error) {
-      setError('載入對話失敗');
+      if (error.name === 'CanceledError' || error.name === 'AbortError') {
+        if (process.env.NODE_ENV === 'development') console.debug('loadConversations request cancelled', error);
+      } else {
+        console.error('載入對話失敗:', error);
+        setError('載入對話失敗，請稍後重試');
+      }
+      clearTimeout(timeoutId);
       return [];
+    } finally {
+      loadConversationsAbortRef.current = null;
     }
   }, [currentConversation, viewMode, loadConversation]);
+
+  // Load more (older) messages for the current conversation
+  const loadMoreMessages = useCallback(async () => {
+    if (!currentConversation || loadingMore || !hasMoreMessages) {
+      return;
+    }
+    
+    setLoadingMore(true);
+    
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => abortController.abort(), 45000); // 45 秒超時
+    
+    try {
+      const response = await api.get(
+        `/chat/conversations/${currentConversation.id}/messages?limit=50&offset=${messagesOffset}`,
+        { signal: abortController.signal }
+      );
+      
+      const olderMessages = response.data || [];
+      
+      if (olderMessages.length > 0) {
+        // Prepend older messages to the beginning
+        setMessages(prev => [...olderMessages, ...prev]);
+        setMessagesOffset(prev => prev + olderMessages.length);
+      }
+      
+      // If we got fewer than 50, we've reached the end
+      setHasMoreMessages(olderMessages.length === 50);
+      
+      clearTimeout(timeoutId);
+    } catch (error) {
+      if (error.name === 'CanceledError' || error.name === 'AbortError') {
+        if (process.env.NODE_ENV === 'development') console.debug('loadMoreMessages request cancelled', error);
+      } else {
+        console.error('載入更多消息失敗:', error);
+        setError('載入更多消息失敗');
+      }
+      clearTimeout(timeoutId);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [currentConversation, loadingMore, hasMoreMessages, messagesOffset]);
 
   // Effects should be after function definitions
   useEffect(() => {
     loadAvailableModels();
   }, [loadAvailableModels]);
 
-  // Poll for available models every 15 seconds to keep list up-to-date (即时更新)
+  // Poll for available models every 5 minutes to keep list up-to-date
+  // 在 DevTunnels 環境下減少請求頻率以避免超時
   useEffect(() => {
-    const intervalMs = 15000; // 15s
+    const intervalMs = 5 * 60 * 1000; // 5 分鐘（從 15 秒優化為 5 分鐘）
     const id = setInterval(() => {
-      loadAvailableModels();
+      loadAvailableModels(false); // 使用緩存策略
     }, intervalMs);
     return () => clearInterval(id);
   }, [loadAvailableModels]);
@@ -201,6 +349,35 @@ function Chat() {
       scrollToBottom();
     }
   }, [messages, viewMode]);
+
+  // IntersectionObserver for auto-loading more messages when scrolling to top
+  useEffect(() => {
+    if (!messagesTopRef.current || !hasMoreMessages || loadingMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        // When the top marker becomes visible, load more messages
+        if (entry.isIntersecting && hasMoreMessages && !loadingMore) {
+          loadMoreMessages();
+        }
+      },
+      {
+        root: null, // viewport
+        rootMargin: '100px', // trigger 100px before reaching the top
+        threshold: 0.1
+      }
+    );
+
+    observer.observe(messagesTopRef.current);
+
+    return () => {
+      if (messagesTopRef.current) {
+        observer.unobserve(messagesTopRef.current);
+      }
+      observer.disconnect();
+    };
+  }, [hasMoreMessages, loadingMore, loadMoreMessages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -377,6 +554,23 @@ function Chat() {
                 </Paper>
                 {error && (<Alert severity="error" onClose={() => setError('')}>{error}</Alert>)}
                 <Box sx={{ height: 'calc(100% - 68px)', overflow: 'auto', p: 2 }}>
+                    {/* 載入更多按鈕 - 顯示在消息列表頂部 */}
+                    {hasMoreMessages && (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                            <Button 
+                                variant="outlined" 
+                                size="small"
+                                onClick={loadMoreMessages}
+                                disabled={loadingMore}
+                                startIcon={loadingMore ? <CircularProgress size={16} /> : null}
+                            >
+                                {loadingMore ? '載入中...' : '載入更多訊息'}
+                            </Button>
+                        </Box>
+                    )}
+                    {/* IntersectionObserver 目標 - 用於自動載入 */}
+                    <div ref={messagesTopRef} style={{ height: '1px' }} />
+                    
                     {messages.map((message, index) => {
                         // 解析 <think> ... </think> 區塊
                         let thinkContent = null;

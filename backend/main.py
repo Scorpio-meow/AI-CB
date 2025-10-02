@@ -6,6 +6,11 @@ from app.models.database import create_tables
 from app.tasks.uploads_watcher import scan_and_cleanup_uploads
 from app.tasks.index_rebuilder import start_index_rebuilder
 from app.core.rag_manager import get_rag_system
+from app.core.security import (
+    SecurityHeadersMiddleware, 
+    RateLimitMiddleware,
+    validate_api_endpoint
+)
 import asyncio
 import os
 from dotenv import load_dotenv
@@ -102,7 +107,18 @@ app = FastAPI(
     lifespan=lifespan  # 使用新的 lifespan 參數
 )
 
+# Security middleware - 添加安全標頭
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Rate limiting middleware - 防止 API 濫用
+rate_limit_enabled = os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "true"
+if rate_limit_enabled:
+    rate_limit_per_minute = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
+    app.add_middleware(RateLimitMiddleware, calls=rate_limit_per_minute, period=60)
+    logger.info(f"Rate limiting enabled: {rate_limit_per_minute} requests per minute")
+
 # CORS middleware - 修正：確保在所有路由之前添加
+# 在生產環境中移除 ALLOWED_ORIGIN_REGEX
 cors_kwargs = dict(
     allow_origins=ALLOWED_ORIGINS,  # 修正：直接使用列表
     allow_credentials=True,
@@ -110,8 +126,10 @@ cors_kwargs = dict(
     allow_headers=["*"],
 )
 
-if ALLOWED_ORIGIN_REGEX:
+# 只在開發環境使用 regex（生產環境應該使用明確的域名列表）
+if os.getenv("ENVIRONMENT") != "production" and ALLOWED_ORIGIN_REGEX:
     cors_kwargs["allow_origin_regex"] = ALLOWED_ORIGIN_REGEX
+    logger.warning("Using ALLOWED_ORIGIN_REGEX - this should only be used in development!")
 
 app.add_middleware(
     CORSMiddleware,
@@ -120,7 +138,9 @@ app.add_middleware(
 
 # Include routers
 from app.api import tags as tags_router
+from app.api import auth  # 添加認證路由
 
+app.include_router(auth.router, tags=["authentication"])  # 認證端點 (無前綴,直接 /api/auth)
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])

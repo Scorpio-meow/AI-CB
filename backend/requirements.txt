@@ -24,11 +24,11 @@ scikit-learn==1.3.2
 
 # Communication
 websockets==12.0
-requests==2.31.0
+requests>=2.32.0  # 升級以修復安全漏洞
 httpx==0.25.0
 
-# Document processing
-PyPDF2==3.0.1
+# Document processing - 升級到更安全的版本
+pypdf>=3.17.0  # 替換 PyPDF2，修復已知漏洞
 python-docx==1.1.0
 
 # Search and indexing
@@ -38,3 +38,10 @@ jieba==0.42.1
 # Utilities
 filelock==3.12.2
 huggingface_hub==0.19.3
+
+# Security utilities (新增)
+python-multipart>=0.0.6  # 檔案上傳安全
+python-jose[cryptography]==3.3.0  # JWT 處理
+passlib[bcrypt]==1.7.4  # 密碼加密
+email-validator>=2.0.0  # Email 驗證 (Pydantic EmailStr)
+

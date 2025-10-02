@@ -185,52 +185,55 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
 
     const connect = () => {
       try {
-        const fallbackProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        let protocol = fallbackProtocol;
-        let host = null;
-
         const envWs = process.env.REACT_APP_WS_URL;
         const envApi = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE;
-        const isLocalDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
-        if (isLocalDevelopment) {
-          if (envWs) {
-            const parsed = parseHostFromUrl(envWs, fallbackProtocol);
-            host = parsed.host;
-            protocol = parsed.protocol;
-          } else if (envApi) {
-            const parsed = parseHostFromUrl(envApi, fallbackProtocol);
-            host = parsed.host;
-          } else {
-            host = stripDevTunnelPort(window.location.host);
-          }
-        } else if (window.location.hostname.includes('devtunnels.ms')) {
-          if (envWs) {
-            const parsed = parseHostFromUrl(envWs, fallbackProtocol);
-            host = parsed.host;
-            protocol = parsed.protocol;
-          } else if (envApi) {
-            const parsed = parseHostFromUrl(envApi, fallbackProtocol);
-            host = parsed.host;
-          } else {
-            host = stripDevTunnelPort(window.location.hostname);
-          }
+        
+        let websocketURL;
+        
+        // 優先使用完整的 REACT_APP_WS_URL（包含完整路徑）
+        if (envWs) {
+          // 直接使用完整的 WebSocket URL
+          websocketURL = envWs;
+          console.log('使用環境變數 REACT_APP_WS_URL:', websocketURL);
         } else {
-          if (envWs) {
-            const parsed = parseHostFromUrl(envWs, fallbackProtocol);
-            host = parsed.host;
-            protocol = parsed.protocol;
-          } else if (envApi) {
-            const parsed = parseHostFromUrl(envApi, fallbackProtocol);
-            host = parsed.host;
-          } else {
-            host = stripDevTunnelPort(window.location.host);
-          }
-        }
+          // Fallback: 根據當前環境構建 URL
+          const fallbackProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          let protocol = fallbackProtocol;
+          let host = null;
+          const isLocalDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-        host = stripDevTunnelPort(host);
-        const websocketURL = `${protocol}//${host}/api/workflow/ws`;
-        console.log('建立 WebSocket，URL:', websocketURL);
+          if (isLocalDevelopment) {
+            // 本地開發環境: 直接使用後端端口
+            protocol = 'ws:';
+            host = 'localhost:8001';
+            
+            // 如果有 API base 配置，從中提取 host
+            if (envApi) {
+              const parsed = parseHostFromUrl(envApi, fallbackProtocol);
+              host = parsed.host;
+            }
+          } else if (window.location.hostname.includes('devtunnels.ms')) {
+            // DevTunnels 環境
+            if (envApi) {
+              const parsed = parseHostFromUrl(envApi, fallbackProtocol);
+              host = parsed.host;
+            } else {
+              host = stripDevTunnelPort(window.location.hostname);
+            }
+          } else {
+            // 其他生產環境
+            if (envApi) {
+              const parsed = parseHostFromUrl(envApi, fallbackProtocol);
+              host = parsed.host;
+            } else {
+              host = stripDevTunnelPort(window.location.host);
+            }
+          }
+
+          host = stripDevTunnelPort(host);
+          websocketURL = `${protocol}//${host}/api/workflow/ws`;
+          console.log('構建 WebSocket URL:', websocketURL);
+        }
 
         // close existing socket if any
         if (socketRef.current) {

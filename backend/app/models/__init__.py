@@ -14,7 +14,9 @@ class User(Base):
     hashed_password = Column(String)
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
+    role = Column(String, default="user")  # user, admin, moderator
     created_at = Column(DateTime, default=datetime.utcnow)
+    last_login = Column(DateTime, nullable=True)  # 追蹤最後登入時間
     
     conversations = relationship("Conversation", back_populates="user")
 

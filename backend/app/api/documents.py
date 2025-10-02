@@ -15,12 +15,47 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Get configuration from environment
-MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "50"))
+MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "10"))  # 降低到 10MB
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "data/uploads")
+
+# 允許的副檔名（白名單）
+ALLOWED_EXTENSIONS = {'.txt', '.pdf', '.docx'}
 
 # QA detection pattern (supports Q/A or Ｑ/Ａ with Chinese/fullwidth punctuation)
 QA_PATTERN = re.compile(r"(?:^|\n)\s*[QＱ]\s*[：:]\s*(.*?)\s*[\r\n]+\s*[AＡ]\s*[：:]\s*(.*?)(?=(?:\n\s*[QＱ]\s*[：:]|\Z))",
                         re.DOTALL)
+
+
+def validate_filename(filename: str) -> str:
+    """
+    驗證並清理檔名，防止路徑遍歷攻擊
+    
+    Args:
+        filename: 原始檔名
+        
+    Returns:
+        str: 清理後的安全檔名
+        
+    Raises:
+        ValueError: 如果檔名包含危險字符
+    """
+    # 移除路徑分隔符和其他危險字符
+    dangerous_chars = ['/', '\\', '..', '<', '>', ':', '"', '|', '?', '*', '\0']
+    for char in dangerous_chars:
+        if char in filename:
+            raise ValueError(f"檔名包含不允許的字符: {char}")
+    
+    # 檢查副檔名
+    from pathlib import Path
+    ext = Path(filename).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise ValueError(f"不允許的檔案類型: {ext}")
+    
+    # 限制檔名長度
+    if len(filename) > 255:
+        raise ValueError("檔名過長")
+    
+    return filename.replace(" ", "_")
 
 
 def split_faq(text: str):
@@ -38,31 +73,48 @@ async def upload_document(
     db: Session = Depends(get_db),
     user_id: int = Depends(get_current_user_id)
 ):
-    """上傳文件到知識庫"""
+    """上傳文件到知識庫（增強安全性）"""
     # 支援多檔案上傳
     if not file or len(file) == 0:
         raise HTTPException(status_code=400, detail="請上傳至少一個文件")
+    
+    # 限制單次上傳的檔案數量
+    MAX_FILES_PER_UPLOAD = 10
+    if len(file) > MAX_FILES_PER_UPLOAD:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"單次最多只能上傳 {MAX_FILES_PER_UPLOAD} 個檔案"
+        )
 
     upload_dir = UPLOAD_DIR
     os.makedirs(upload_dir, exist_ok=True)
 
     results = []
     for up in file:
-        # 檢查文件類型
-        if not DocumentProcessor.validate_file_type(up.content_type):
-            results.append({
-                "filename": up.filename,
-                "status": "failed",
-                "detail": f"不支援的文件類型: {up.content_type}",
-                "http_status": 400
-            })
-            continue
-
-        max_size = MAX_FILE_SIZE_MB * 1024 * 1024
-
         try:
-            # 生成安全且不重複的檔名
-            safe_filename = up.filename.replace(" ", "_").replace("..", "")
+            # 安全檢查 1: 驗證並清理檔名
+            try:
+                safe_filename = validate_filename(up.filename)
+            except ValueError as e:
+                results.append({
+                    "filename": up.filename,
+                    "status": "failed",
+                    "detail": f"檔名驗證失敗: {str(e)}",
+                    "http_status": 400
+                })
+                continue
+            
+            # 安全檢查 2: 檢查文件類型
+            if not DocumentProcessor.validate_file_type(up.content_type):
+                results.append({
+                    "filename": up.filename,
+                    "status": "failed",
+                    "detail": f"不支援的文件類型: {up.content_type}",
+                    "http_status": 400
+                })
+                continue
+
+            max_size = MAX_FILE_SIZE_MB * 1024 * 1024
             base_name, ext = os.path.splitext(safe_filename)
             file_path = os.path.join(upload_dir, safe_filename)
             counter = 1
@@ -95,9 +147,39 @@ async def upload_document(
 
             if bytes_written > max_size:
                 continue
+            
+            # 安全檢查 3: 計算檔案雜湊值（用於重複檢測和追蹤）
+            file_hash = DocumentProcessor.calculate_file_hash(file_path)
+            logger.info(f"Uploaded file hash: {file_hash}")
 
-            # 使用文檔處理器提取文本內容
-            content = DocumentProcessor.extract_text_from_file(file_path, up.content_type)
+            # 使用文檔處理器提取文本內容（包含檔案頭部驗證）
+            try:
+                content = DocumentProcessor.extract_text_from_file(file_path, up.content_type)
+            except ValueError as ve:
+                # 檔案頭部驗證失敗或其他安全問題
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                logger.warning(f"File security validation failed for {up.filename}: {ve}")
+                results.append({
+                    "filename": safe_filename,
+                    "status": "failed",
+                    "detail": f"安全驗證失敗: {str(ve)}",
+                    "http_status": 400
+                })
+                continue
+            except Exception as e:
+                # 其他處理錯誤
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                logger.error(f"File processing error for {up.filename}: {e}")
+                results.append({
+                    "filename": safe_filename,
+                    "status": "failed",
+                    "detail": f"檔案處理錯誤: {str(e)}",
+                    "http_status": 500
+                })
+                continue
+            
             if not content or not content.strip():
                 # 清理已上傳的文件
                 if os.path.exists(file_path):

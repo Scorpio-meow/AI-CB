@@ -1,4 +1,52 @@
+# Dependencies
 frontend/build
 frontend/node_modules
 CBvenv
+__pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+*.env
+!.env.example
+
+# Sensitive data
+backend/data/uploads/*
+!backend/data/uploads/.gitkeep
+backend/data/faiss_index.bin
+backend/data/documents.pkl
+backend/data/bm25_index/
+backend/data/index_metadata.pkl
+backend/data/workflow_outputs/
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE and OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Security and certificates
+*.pem
+*.key
+*.cert
+*.crt
+
+# Backup files
+*.bak
+*.backup
