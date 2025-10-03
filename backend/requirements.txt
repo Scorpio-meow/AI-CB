@@ -43,5 +43,11 @@ huggingface_hub==0.19.3
 python-multipart>=0.0.6  # 檔案上傳安全
 python-jose[cryptography]==3.3.0  # JWT 處理
 passlib[bcrypt]==1.7.4  # 密碼加密
+bcrypt==4.0.1  # 固定版本以相容 passlib 1.7.4
 email-validator>=2.0.0  # Email 驗證 (Pydantic EmailStr)
+
+# Advanced Security (新增 - 安全增強)
+cryptography>=41.0.0  # RSA 非對稱加密
+redis>=5.0.0  # Token 黑名單快取
+aioredis>=2.0.1  # 異步 Redis 客戶端
 

@@ -13,8 +13,13 @@
 - **自動重建索引**: 24 小時周期自動維護索引性能
 
 ### 👥 用戶管理
-- 本分支已移除用戶註冊/登入及 JWT 認證功能，相關路由與服務已刪除，系統以開放模式運作。
- - **權限控制**: 如需再次加入，請實作相應的認證與授權邏輯
+- **JWT 認證**: 基於 JSON Web Token 的安全認證系統
+- **RSA 非對稱加密**: 使用 RSA-2048 算法簽名 JWT（微服務友好）
+- **Token 黑名單**: Redis 實現的 Token 撤銷機制
+- **HttpOnly Cookie**: Refresh Token 安全存儲，防止 XSS 攻擊
+- **靜默刷新**: Token 即將過期時自動刷新，提升用戶體驗
+- **權限控制**: 基於角色的訪問控制（RBAC）
+- **密碼安全**: Bcrypt 加密 + 強度驗證
 
 ### 📚 知識庫管理
 - **文件上傳**: 支援多種文件格式（PDF, TXT, DOCX）
@@ -40,11 +45,20 @@
 
 ## 技術架構
 
-### 後端核心改進 (2025-09-30)
+### 後端核心改進
+
+#### 安全增強 (2025-10-03) 🔐
+- **RSA 非對稱加密**: 使用 RSA-2048 簽名 JWT，支援微服務架構
+- **Token 黑名單**: Redis 實現 Token 撤銷機制
+- **HttpOnly Cookie**: Refresh Token 安全存儲，防止 XSS
+- **靜默刷新**: 自動 Token 刷新，無需用戶重新登入
+- **離線處理**: 網絡狀態監控和離線緩存（IndexedDB）
+
+#### RAG 系統改進 (2025-09-30)
 - **單例RAG管理器**: 全局唯一RAG實例，避免記憶體浪費和索引不同步
 - **跨進程文件鎖**: 使用 filelock 解決 Windows 上 Whoosh BM25 索引鎖定問題
 - **智能索引重建**: 獨立後台任務定期重建索引，避免多進程競爭
-- **動態用戶上下文**: 支援透過 X-User-ID header 指定用戶（為未來認證系統預留）
+- **動態用戶上下文**: 支援透過 X-User-ID header 指定用戶
 
 ### 後端
 - **FastAPI**: 高性能 Web 框架
@@ -56,6 +70,8 @@
 - **Cross-Encoder**: ms-marco-MiniLM-L-6-v2 重新排序
 - **PyPDF2 + python-docx**: 文檔處理
 - **SQLite/PostgreSQL**: 主數據庫
+- **Redis**: Token 黑名單快取
+- **cryptography**: RSA 非對稱加密
 - **sentence-transformers**: paraphrase-multilingual-MiniLM-L12-v2 嵌入模型
 - **filelock**: 跨進程文件鎖管理
 
@@ -90,10 +106,21 @@ cd backend
 .\CBvenv\Scripts\Activate.ps1
 ```
 
-2. 啟動後端服務：
+2. （可選）啟動 Redis（用於 Token 黑名單）：
 ```bash
-python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+# 使用 Docker（推薦）
+docker run -d -p 6379:6379 --name chatbot-redis redis:alpine
+
+# 或使用 WSL
+sudo service redis-server start
 ```
+
+3. 啟動後端服務：
+```bash
+python -m uvicorn main:app --reload --host 0.0.0.0 --port 8001
+```
+
+首次啟動會自動生成 RSA 金鑰對（保存在 `backend/keys/`）。
 
 **前端設置**
 1. 進入前端目錄並啟動：
@@ -301,6 +328,15 @@ python .\backend\scripts\evaluate_faq_retrieval.py
 - **快速啟動**: 所有服務運行在 localhost，啟動迅速
 - **穩定連接**: 不依賴網路連接品質，避免外部服務中斷
 - **易於除錯**: 清晰的本地環境，便於開發和測試
+
+## 📚 相關文檔
+
+- 📖 [完整安全增強文檔](./docs/SECURITY_ENHANCEMENTS.md) - RSA、Token 黑名單、HttpOnly Cookie 詳細說明
+- 🚀 [安全功能快速啟動](./docs/SECURITY_QUICKSTART.md) - 5 分鐘快速配置指南
+- 🔐 [JWT 認證指南](./docs/JWT_Authentication_Guide.md) - JWT 認證系統說明
+- 🛡️ [安全最佳實踐](./Security-Guidelines_Traditional-Chinese.md) - 安全開發規範
+- 📊 [RAG 系統改進說明](./docs/RAG_系統改進說明_20250930.md) - 混合檢索系統文檔
+- 🔧 [故障排除](./TROUBLESHOOTING.md) - 常見問題解決方案
 - **無延遲**: 前後端通信零網路延遲
 - **安全性**: 僅本地訪問，無外部安全風險
 

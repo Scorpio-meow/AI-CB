@@ -10,7 +10,6 @@ import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
 import Layout from './components/Layout';
 import { PrivateRoute, AdminRoute, PublicRoute } from './components/PrivateRoute';
-import { AgentProvider } from './contexts/AgentContext';
 
 const theme = createTheme({
   palette: {

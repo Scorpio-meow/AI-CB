@@ -50,3 +50,5 @@ logs/
 # Backup files
 *.bak
 *.backup
+
+backend/scripts

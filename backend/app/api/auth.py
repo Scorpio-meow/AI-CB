@@ -1,9 +1,10 @@
 """
 認證 API 端點
 提供用戶註冊、登入、令牌刷新、資料管理等功能
+支援 HttpOnly Cookie 和 Token 黑名單
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
 from typing import List
@@ -24,7 +25,7 @@ from app.core.jwt_auth import (
     create_token_pair, verify_refresh_token,
     get_current_active_user, get_current_admin_user,
     validate_password_strength, sanitize_username,
-    PasswordManager
+    PasswordManager, revoke_token
 )
 from app.core.security_logging import log_security_event
 
@@ -36,6 +37,7 @@ security = HTTPBearer()
 async def register(
     user_data: UserRegister,
     request: Request,
+    response: Response,
     db: Session = Depends(get_db)
 ):
     """
@@ -45,7 +47,7 @@ async def register(
     - **email**: 電子郵件地址
     - **password**: 密碼 (至少 8 字符,包含大小寫字母和數字)
     
-    返回用戶資料和 JWT tokens
+    返回用戶資料和 JWT tokens (refresh_token 存儲在 HttpOnly Cookie)
     """
     # 1. 清理用戶名
     username = sanitize_username(user_data.username)
@@ -95,14 +97,29 @@ async def register(
             "is_admin": new_user.is_admin
         })
         
-        # 7. 記錄成功註冊
+        # 7. 將 refresh_token 存儲在 HttpOnly Cookie 中
+        response.set_cookie(
+            key="refresh_token",
+            value=tokens["refresh_token"],
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=7 * 24 * 60 * 60,
+            path="/api/auth"
+        )
+        
+        # 8. 記錄成功註冊
         log_security_event("USER_REGISTERED", request=request, user_id=new_user.id, details={
             "username": new_user.username
         })
         
         return LoginResponse(
             user=UserProfile.model_validate(new_user),
-            tokens=Token(**tokens),
+            tokens=Token(
+                access_token=tokens["access_token"],
+                token_type=tokens["token_type"],
+                refresh_token=""  # 不在響應體中返回
+            ),
             message="註冊成功"
         )
         
@@ -118,6 +135,7 @@ async def register(
 async def login(
     credentials: UserLogin,
     request: Request,
+    response: Response,
     db: Session = Depends(get_db)
 ):
     """
@@ -126,7 +144,7 @@ async def login(
     - **username**: 用戶名或電子郵件
     - **password**: 密碼
     
-    返回用戶資料和 JWT tokens
+    返回用戶資料和 JWT tokens (refresh_token 存儲在 HttpOnly Cookie)
     """
     # 1. 驗證用戶憑證
     user = authenticate_user(db, credentials.username, credentials.password)
@@ -154,32 +172,57 @@ async def login(
         "is_admin": user.is_admin
     })
     
-    # 4. 記錄成功登入
+    # 4. 將 refresh_token 存儲在 HttpOnly Cookie 中
+    response.set_cookie(
+        key="refresh_token",
+        value=tokens["refresh_token"],
+        httponly=True,  # 防止 JavaScript 訪問
+        secure=True,    # 僅在 HTTPS 下傳輸
+        samesite="lax", # CSRF 保護
+        max_age=7 * 24 * 60 * 60,  # 7 天
+        path="/api/auth"  # 僅在認證端點可用
+    )
+    
+    # 5. 記錄成功登入
     log_security_event("USER_LOGIN", request=request, user_id=user.id, details={
         "username": user.username
     })
     
+    # 6. 返回時不包含 refresh_token（已在 Cookie 中）
     return LoginResponse(
         user=UserProfile.model_validate(user),
-        tokens=Token(**tokens),
+        tokens=Token(
+            access_token=tokens["access_token"],
+            token_type=tokens["token_type"],
+            refresh_token=""  # 不在響應體中返回
+        ),
         message="登入成功"
     )
 
 
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
-    token_data: TokenRefresh,
     request: Request,
+    response: Response,
     db: Session = Depends(get_db)
 ):
     """
     刷新 Access Token
     
-    使用 Refresh Token 獲取新的 Access Token
+    從 HttpOnly Cookie 中讀取 Refresh Token 並生成新的 Access Token
     """
     try:
+        # 從 Cookie 中獲取 refresh_token
+        refresh_token_value = request.cookies.get("refresh_token")
+        
+        if not refresh_token_value:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="未找到刷新令牌"
+            )
+        
         # 驗證 refresh token 並獲取用戶信息
-        user = verify_refresh_token(db, token_data.refresh_token)
+        user = verify_refresh_token(db, refresh_token_value)
         
         if not user:
             raise HTTPException(
@@ -196,9 +239,24 @@ async def refresh_token(
             "is_admin": user.is_admin
         })
         
+        # 更新 Cookie 中的 refresh_token（刷新過期時間）
+        response.set_cookie(
+            key="refresh_token",
+            value=tokens["refresh_token"],
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=7 * 24 * 60 * 60,
+            path="/api/auth"
+        )
+        
         log_security_event("TOKEN_REFRESHED", request=request, user_id=user.id)
         
-        return Token(**tokens)
+        return Token(
+            access_token=tokens["access_token"],
+            token_type=tokens["token_type"],
+            refresh_token=""  # 不在響應體中返回
+        )
         
     except HTTPException:
         raise
@@ -349,18 +407,46 @@ async def change_password(
 @router.post("/logout", response_model=MessageResponse)
 async def logout(
     request: Request,
+    response: Response,
     user: dict = Depends(get_current_active_user)
 ):
     """
     用戶登出
     
-    記錄登出事件（實際令牌失效由前端處理）
+    將 access_token 加入黑名單並清除 refresh_token Cookie
     """
-    log_security_event("USER_LOGOUT", request=request, user_id=user["user_id"], details={
-        "username": user["username"]
-    })
+    try:
+        # 獲取當前的 access_token
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            access_token = auth_header.split(" ")[1]
+            # 將 access_token 加入黑名單
+            revoke_token(access_token)
+        
+        # 獲取並撤銷 refresh_token
+        refresh_token_value = request.cookies.get("refresh_token")
+        if refresh_token_value:
+            revoke_token(refresh_token_value)
+        
+        # 清除 refresh_token Cookie
+        response.delete_cookie(
+            key="refresh_token",
+            path="/api/auth"
+        )
+        
+        log_security_event("USER_LOGOUT", request=request, user_id=user["user_id"], details={
+            "username": user["username"]
+        })
+        
+        return MessageResponse(message="登出成功")
     
-    return MessageResponse(message="登出成功")
+    except Exception as e:
+        log_security_event("LOGOUT_ERROR", request=request, user_id=user.get("user_id"), details={
+            "error": str(e)
+        })
+        # 即使發生錯誤也清除 Cookie
+        response.delete_cookie(key="refresh_token", path="/api/auth")
+        return MessageResponse(message="登出成功")
 
 
 @router.post("/validate-token", response_model=MessageResponse)

@@ -22,7 +22,6 @@ import {
 } from '@mui/material';
 import {
   Person as PersonIcon,
-  Edit as EditIcon,
   Lock as LockIcon,
   AdminPanelSettings as AdminIcon
 } from '@mui/icons-material';

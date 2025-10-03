@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -31,18 +31,34 @@ function Layout({ children }) {
   const [user, setUser] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
     loadUser();
+    
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   const loadUser = async () => {
-    if (authService.isAuthenticated()) {
-      try {
-        const userData = await authService.getCurrentUser();
+    if (!authService.isAuthenticated()) return;
+    
+    try {
+      const userData = await authService.getCurrentUser();
+      
+      if (isMountedRef.current) {
         setUser(userData);
-      } catch (error) {
-        console.error('Failed to load user:', error);
+      }
+    } catch (error) {
+      // Silently handle errors during unmount or navigation
+      // authService.getCurrentUser already logs errors and handles timeout
+      if (isMountedRef.current && !error.isTimeout) {
+        // Only log non-timeout errors when component is still mounted
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('Layout.loadUser error (non-critical):', error.message);
+        }
       }
     }
   };

@@ -188,13 +188,16 @@ class AuthService {
     try {
       const response = await withTimeout(
         (signal) => api.get('/auth/me', { signal }),
-        45000 // 45 秒超時
+        90000 // 90 秒超時，給 DevTunnels + token refresh 充足時間
       );
       const user = response.data;
       this.saveUser(user);
       return user;
     } catch (error) {
-      console.error('獲取用戶資料失敗:', error);
+      // Only log timeout errors, other errors are handled by api interceptor
+      if (error.isTimeout && process.env.NODE_ENV === 'development') {
+        console.debug('getCurrentUser timeout (DevTunnels may be slow)');
+      }
       throw error;
     }
   }

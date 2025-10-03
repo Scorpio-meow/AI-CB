@@ -352,7 +352,8 @@ function Chat() {
 
   // IntersectionObserver for auto-loading more messages when scrolling to top
   useEffect(() => {
-    if (!messagesTopRef.current || !hasMoreMessages || loadingMore) return;
+    const element = messagesTopRef.current;
+    if (!element || !hasMoreMessages || loadingMore) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -369,11 +370,11 @@ function Chat() {
       }
     );
 
-    observer.observe(messagesTopRef.current);
+    observer.observe(element);
 
     return () => {
-      if (messagesTopRef.current) {
-        observer.unobserve(messagesTopRef.current);
+      if (element) {
+        observer.unobserve(element);
       }
       observer.disconnect();
     };

@@ -1,6 +1,7 @@
 """
 JWT 認證核心模組
 提供完整的 JWT Token 生成、驗證和密碼加密功能
+支援 RSA 非對稱加密和 Token 黑名單
 """
 
 from datetime import datetime, timedelta
@@ -17,9 +18,32 @@ load_dotenv()
 
 # JWT 配置
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-this-in-production")
-ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+ALGORITHM = os.getenv("JWT_ALGORITHM", "RS256")  # 改用 RSA 算法
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
+
+# 導入 RSA 金鑰管理器和 Token 黑名單
+try:
+    from app.core.rsa_keys import rsa_manager
+    USE_RSA = True
+    # 獲取 RSA 金鑰
+    RSA_PRIVATE_KEY = rsa_manager.get_private_key_pem()
+    RSA_PUBLIC_KEY = rsa_manager.get_public_key_pem()
+    print("✅ 使用 RSA 非對稱加密進行 JWT 簽名")
+except Exception as e:
+    USE_RSA = False
+    RSA_PRIVATE_KEY = None
+    RSA_PUBLIC_KEY = None
+    ALGORITHM = "HS256"  # 降級到 HS256
+    print(f"⚠️  RSA 金鑰載入失敗，使用 HS256: {e}")
+
+try:
+    from app.core.redis_client import TokenBlacklist
+    USE_BLACKLIST = True
+    print("✅ Token 黑名單功能已啟用")
+except Exception as e:
+    USE_BLACKLIST = False
+    print(f"⚠️  Token 黑名單功能不可用: {e}")
 
 # 密碼加密配置
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -96,7 +120,11 @@ class TokenManager:
             "iat": datetime.utcnow()
         })
         
-        encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+        # 使用 RSA 或 HS256
+        if USE_RSA:
+            encoded_jwt = jwt.encode(to_encode, RSA_PRIVATE_KEY, algorithm="RS256")
+        else:
+            encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm="HS256")
         return encoded_jwt
     
     @staticmethod
@@ -127,7 +155,11 @@ class TokenManager:
             "iat": datetime.utcnow()
         })
         
-        encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+        # 使用 RSA 或 HS256
+        if USE_RSA:
+            encoded_jwt = jwt.encode(to_encode, RSA_PRIVATE_KEY, algorithm="RS256")
+        else:
+            encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm="HS256")
         return encoded_jwt
     
     @staticmethod
@@ -144,8 +176,21 @@ class TokenManager:
         Raises:
             HTTPException: 如果 token 無效或過期
         """
+        # 檢查 Token 黑名單
+        if USE_BLACKLIST and TokenBlacklist.is_blacklisted(token):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="令牌已被撤銷",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
         try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            # 使用 RSA 公鑰或 HS256 密鑰
+            if USE_RSA:
+                # 對於 RSA，需要確保使用正確的算法列表
+                payload = jwt.decode(token, RSA_PUBLIC_KEY, algorithms=["RS256"])
+            else:
+                payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
             return payload
         except JWTError as e:
             raise HTTPException(
@@ -349,3 +394,34 @@ def sanitize_username(username: str) -> str:
     import re
     # 只允許字母、數字、下劃線和連字符
     return re.sub(r'[^\w\-]', '', username)
+
+
+def revoke_token(token: str, expires_in: int = None):
+    """
+    撤銷 Token (加入黑名單)
+    
+    Args:
+        token: JWT token
+        expires_in: 過期時間（秒），如果為 None 則自動從 token 中提取
+    """
+    if not USE_BLACKLIST:
+        print("⚠️  Token 黑名單功能未啟用")
+        return False
+    
+    try:
+        # 如果沒有指定過期時間，從 token 中提取
+        if expires_in is None:
+            payload = TokenManager.decode_token(token)
+            exp = payload.get("exp")
+            if exp:
+                # 計算剩餘時間
+                expires_in = max(int(exp - datetime.utcnow().timestamp()), 0)
+            else:
+                # 預設 1 天
+                expires_in = 86400
+        
+        return TokenBlacklist.add_token(token, expires_in)
+    except Exception as e:
+        print(f"❌ 撤銷 Token 失敗: {e}")
+        return False
+

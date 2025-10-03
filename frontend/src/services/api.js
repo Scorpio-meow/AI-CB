@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { shouldRefreshToken } from '../utils/tokenUtils';
 
 // Normalize API URL from REACT_APP_API_BASE (preferred) or REACT_APP_API_URL (fallback)
 // Prefer explicit REACT_APP_API_BASE or REACT_APP_API_URL, otherwise use same-origin relative path '/api'
@@ -37,18 +38,66 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,  // 啟用 Cookie 支援
 });
 
 // ==================== JWT 認證攔截器 ====================
 
-// Request Interceptor - 自動添加 Access Token
+// Token refresh lock - prevents multiple simultaneous refresh attempts
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+const onAccessTokenRefreshed = (accessToken) => {
+  refreshSubscribers.forEach((callback) => callback(accessToken));
+  refreshSubscribers = [];
+};
+
+const addRefreshSubscriber = (callback) => {
+  refreshSubscribers.push(callback);
+};
+
+// Request Interceptor - 自動添加 Access Token 和靜默刷新
 api.interceptors.request.use(
-  (config) => {
+  async (config) => {
     // 從 localStorage 獲取 token
     const token = localStorage.getItem('access_token');
     
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      // 檢查是否需要刷新 Token（提前 5 分鐘刷新）
+      if (shouldRefreshToken(token, 300) && !isRefreshing) {
+        console.log('[Token] Token 即將過期，觸發靜默刷新...');
+        
+        try {
+          isRefreshing = true;
+          
+          // 刷新 Token（使用 Cookie 中的 refresh_token）
+          const response = await axios.post(
+            `${API_BASE_URL}/auth/refresh`,
+            {},
+            { withCredentials: true }
+          );
+
+          const { access_token } = response.data;
+
+          // 保存新的 access token
+          localStorage.setItem('access_token', access_token);
+
+          // 通知所有等待的請求
+          onAccessTokenRefreshed(access_token);
+
+          // 更新當前請求的 token
+          config.headers.Authorization = `Bearer ${access_token}`;
+          
+          console.log('[Token] 靜默刷新成功');
+        } catch (error) {
+          console.error('[Token] 靜默刷新失敗:', error);
+          // 刷新失敗時，仍然使用原有 token 嘗試
+        } finally {
+          isRefreshing = false;
+        }
+      } else {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     
     return config;
@@ -58,7 +107,7 @@ api.interceptors.request.use(
   }
 );
 
-// Response Interceptor - 自動刷新 Token
+// Response Interceptor - 自動刷新 Token (with refresh lock)
 api.interceptors.response.use(
   (response) => {
     // 請求成功,直接返回
@@ -71,27 +120,34 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      try {
-        // 獲取 refresh token
-        const refreshToken = localStorage.getItem('refresh_token');
-        
-        if (!refreshToken) {
-          throw new Error('無刷新令牌');
-        }
+      // If already refreshing, wait for the new token
+      if (isRefreshing) {
+        return new Promise((resolve) => {
+          addRefreshSubscriber((accessToken) => {
+            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+            resolve(api(originalRequest));
+          });
+        });
+      }
 
-        // 刷新 access token
+      isRefreshing = true;
+
+      try {
+        // 刷新 access token（使用 Cookie 中的 refresh_token）
         const response = await axios.post(
           `${API_BASE_URL}/auth/refresh`,
-          { refresh_token: refreshToken }
+          {},
+          { withCredentials: true }
         );
 
-        const { access_token, refresh_token: new_refresh_token } = response.data;
+        const { access_token } = response.data;
 
-        // 保存新的 tokens
+        // 保存新的 access token
         localStorage.setItem('access_token', access_token);
-        if (new_refresh_token) {
-          localStorage.setItem('refresh_token', new_refresh_token);
-        }
+
+        // Notify all waiting requests with new token
+        isRefreshing = false;
+        onAccessTokenRefreshed(access_token);
 
         // 更新原始請求的 Authorization header
         originalRequest.headers.Authorization = `Bearer ${access_token}`;
@@ -100,9 +156,11 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         // 刷新失敗,清除認證信息並跳轉到登入頁
+        isRefreshing = false;
+        refreshSubscribers = [];
+        
         console.error('Token 刷新失敗:', refreshError);
         localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
         localStorage.removeItem('user_info');
         
         // 跳轉到登入頁
@@ -170,7 +228,7 @@ export const documentService = {
   },
 
   async getDocuments() {
-    const response = await api.get('/documents');
+    const response = await api.get('/documents/');  // 修正：加上 trailing slash 避免 307 redirect
     return response.data;
   },
 
