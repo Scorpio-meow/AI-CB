@@ -189,13 +189,13 @@ const ProfilePage = () => {
               <Typography variant="caption" color="text.secondary">
                 帳號狀態
               </Typography>
-              <Typography variant="body1" sx={{ fontWeight: 500 }}>
+              <Box sx={{ mt: 0.5 }}>
                 {user.is_active ? (
                   <Chip label="已啟用" color="success" size="small" />
                 ) : (
                   <Chip label="已停用" color="error" size="small" />
                 )}
-              </Typography>
+              </Box>
             </Box>
 
             <Box sx={{ mb: 2 }}>
