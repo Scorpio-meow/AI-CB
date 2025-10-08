@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { shouldRefreshToken } from '../utils/tokenUtils';
+import { shouldRefreshToken, hasValidAuth, clearAuth } from '../utils/tokenUtils';
 
 // Normalize API URL from REACT_APP_API_BASE (preferred) or REACT_APP_API_URL (fallback)
 // Prefer explicit REACT_APP_API_BASE or REACT_APP_API_URL, otherwise use same-origin relative path '/api'
@@ -90,11 +90,22 @@ api.interceptors.request.use(
           
           console.log('[Token] 靜默刷新成功');
         } catch (error) {
-          console.error('[Token] 靜默刷新失敗:', error);
-          // 刷新失敗時，仍然使用原有 token 嘗試
+          console.warn('[Token] 靜默刷新失敗，清除無效 Token:', error.response?.status);
+          // 刷新失敗，清除無效的 token 避免無限循環
+          if (error.response?.status === 401) {
+            clearAuth();
+            // 不要立即跳轉，讓 response interceptor 處理
+          } else {
+            // 非 401 錯誤（網絡問題等），使用原有 token 嘗試
+            config.headers.Authorization = `Bearer ${token}`;
+          }
         } finally {
           isRefreshing = false;
         }
+      } else if (!hasValidAuth() && token) {
+        // Token 已完全過期，清除它
+        console.log('[Token] Token 已完全過期，清除認證信息');
+        clearAuth();
       } else {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -159,13 +170,17 @@ api.interceptors.response.use(
         isRefreshing = false;
         refreshSubscribers = [];
         
-        console.error('Token 刷新失敗:', refreshError);
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('user_info');
+        console.warn('[Token] Token 刷新失敗，清除認證信息:', refreshError.response?.status);
+        clearAuth();
         
-        // 跳轉到登入頁
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
+        // 只有在非登錄頁面才跳轉，避免無限循環
+        const currentPath = window.location.pathname;
+        if (currentPath !== '/login' && currentPath !== '/register') {
+          console.log('[Token] 跳轉到登錄頁面');
+          // 使用 setTimeout 避免在請求攔截器中直接跳轉
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 100);
         }
         
         return Promise.reject(refreshError);

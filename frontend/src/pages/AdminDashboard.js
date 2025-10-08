@@ -115,7 +115,7 @@ function AdminDashboard() {
         const [statsResponse, usersResponse, docsResponse] = await Promise.all([
           api.get('/admin/statistics', { signal: abortControllerRef.current.signal }),
           api.get('/admin/users', { signal: abortControllerRef.current.signal }),
-          api.get('/documents', { signal: abortControllerRef.current.signal })
+          api.get('/admin/documents', { signal: abortControllerRef.current.signal })
         ]);
         
         // 只有當組件還在時才更新狀態

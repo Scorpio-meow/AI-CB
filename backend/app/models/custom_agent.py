@@ -1,5 +1,6 @@
 
-from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy import Column, Integer, String, Text, Boolean, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.types import JSON
 from app.models.database import Base
 
@@ -29,3 +30,12 @@ class CustomAgent(Base):
 
     # Agent 可用的工具列表，以 JSON 格式儲存
     tools = Column(JSON, nullable=True, comment="Agent 可用的工具列表")
+
+    # Agent 是否為公開（所有用戶可見）或私人（僅創建者可見）
+    is_public = Column(Boolean, default=True, nullable=False, comment="是否為公開 Agent")
+
+    # 創建此 Agent 的用戶 ID
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True, comment="創建者用戶 ID")
+
+    # 關聯到創建者（User 模型）
+    creator = relationship("User", foreign_keys=[created_by])

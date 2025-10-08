@@ -26,6 +26,7 @@ from app.api.chat import manager
 from app.models.database import get_db, SessionLocal
 from app.services.chat_service import ChatService
 from app.crud import crud_custom_agent
+from app.core.jwt_auth import get_current_active_user  # JWT 認證
 
 # --- Constants and System Prompts ---
 try:
@@ -40,26 +41,56 @@ except KeyError:
 
 
 WORKFLOW_TIMEOUT = float(os.getenv("WORKFLOW_TIMEOUT", "180"))
+CYCLE_LIMIT = int(os.getenv("WORKFLOW_CYCLE_LIMIT", "2"))  # 可配置的循環限制
+MAX_HISTORY_SIZE = int(os.getenv("WORKFLOW_MAX_HISTORY", "20"))  # 防止記憶體洩漏
+MAX_CONTEXT_MESSAGES = int(os.getenv("WORKFLOW_MAX_CONTEXT", "5"))  # LLM 上下文限制
 
-CYCLE_LIMIT = 2
+# 全局 HTTP 客戶端 (連接池) - 提升效能
+_http_client: Optional[httpx.AsyncClient] = None
+_client_lock = asyncio.Lock()
 
 def get_default_prompt():
     """獲取預設的 prompt。"""
     return "你是一位資深編輯與溝通專家。請將內容優化得更清晰、結構化且具說服力：1) 核心訊息、2) 結構邏輯、3) 受眾語氣。盡量使用小節與條列；適合時用簡短表格輔助呈現。"
 
+async def get_http_client() -> httpx.AsyncClient:
+    """獲取或創建全局 HTTP 客戶端 (連接池模式)"""
+    global _http_client
+    async with _client_lock:
+        if _http_client is None or _http_client.is_closed:
+            _http_client = httpx.AsyncClient(
+                timeout=httpx.Timeout(WORKFLOW_TIMEOUT),
+                limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
+            )
+        return _http_client
+
+async def close_http_client():
+    """關閉全局 HTTP 客戶端"""
+    global _http_client
+    async with _client_lock:
+        if _http_client is not None:
+            await _http_client.aclose()
+            _http_client = None
+
 router = APIRouter()
 chat_service = ChatService()
 
 @router.get("/professions", response_model=List[str], summary="獲取所有可用的專業角色")
-def get_professions(db: Session = Depends(get_db)):
+def get_professions(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_active_user)
+):
     """
-    返回所有可用的專業角色列表，僅包含自訂的角色。
+    返回所有可用的專業角色列表，僅包含當前用戶可見的角色。
+    包含所有公開 Agent 和用戶自己的私人 Agent。
     會對列表進行去重和排序。
     """
     unique_professions: set[str] = set()
 
     try:
-        custom_agents = crud_custom_agent.get_custom_agents(db)
+        user_id = current_user.get("user_id")
+        # 獲取用戶可見的 Agent (公開 + 自己的私人)
+        custom_agents = crud_custom_agent.get_custom_agents(db, user_id=user_id)
         for agent in custom_agents:
             unique_professions.add(agent.name)
             unique_professions.add(agent.role)
@@ -73,14 +104,22 @@ OUTPUT_DIR = (Path(__file__).resolve().parents[2] / "data" / "workflow_outputs")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 def _sanitize_filename(name: str) -> str:
+    """清理檔名,防止安全漏洞"""
     safe = "".join(c for c in name if c.isalnum() or c in ("-", "_", "+", ".", " "))
     return (safe.strip().replace(" ", "_") or "output")[:120]
 
-def _save_text_file(basename: str, content: str) -> Path:
+async def _save_text_file_async(basename: str, content: str) -> Path:
+    """異步儲存檔案,避免阻塞事件循環"""
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
     filename = f"{ts}_{_sanitize_filename(basename)}.md"
     path = OUTPUT_DIR / filename
-    path.write_text(content or "", encoding="utf-8")
+    
+    # 使用 asyncio 寫入檔案
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(
+        None, 
+        lambda: path.write_text(content or "", encoding="utf-8")
+    )
     return path
 
 # =================================================================
@@ -116,6 +155,9 @@ class WorkflowNode:
         self.log_prefix = f"[節點: {self.id} ({self.profession})]"
         self.activation_counts: Dict[str, int] = {input_id: 0 for input_id in self.input_ids}
         
+        # 並發控制鎖 - 防止競態條件
+        self._lock = asyncio.Lock()
+        
         # 動態獲取 System Prompt
         self._set_system_prompt()
 
@@ -129,13 +171,15 @@ class WorkflowNode:
     def _set_system_prompt(self):
         """動態設定此節點的 system_prompt"""
         db = self.manager.db
+        user_id = self.manager.user_id
         system_prompt = None
 
-        # 從資料庫查詢自訂 agent
-        agent = crud_custom_agent.get_custom_agent_by_name_or_role(db, self.profession)
+        # 從資料庫查詢用戶可見的自訂 agent
+        agent = crud_custom_agent.get_custom_agent_by_name_or_role(db, self.profession, user_id=user_id)
         if agent:
             system_prompt = agent.prompt
-            print(f"{self.log_prefix} 成功從資料庫載入自訂 prompt。")
+            visibility = "公開" if agent.is_public else "私人"
+            print(f"{self.log_prefix} 成功從資料庫載入自訂 prompt ({visibility})。")
 
         # 如果找不到，使用預設值
         if not system_prompt:
@@ -145,28 +189,35 @@ class WorkflowNode:
         self.system_prompt = system_prompt
 
     async def check_and_run(self, sender_id: str):
-        print(f"{self.log_prefix} 由 {sender_id} 觸發檢查... (收到 {len(self.received_inputs)} / 需要 {len(self.input_ids)})")
-        if self.status == "COMPLETED":
-            count = self.activation_counts.get(sender_id, 0)
-            print(f"{self.log_prefix} 已完成，但收到來自 {sender_id} 的循環激活。當前計數: {count}/{CYCLE_LIMIT}")
-            if count < CYCLE_LIMIT:
-                self.activation_counts[sender_id] = count + 1
-                self.status = "PENDING"
-                print(f"{self.log_prefix} 循環次數未達上限，重置狀態為 PENDING。")
-            else:
-                print(f"{self.log_prefix} 已達到循環次數上限，忽略來自 {sender_id} 的激活。")
-                await self.manager.check_completion()
+        """檢查並運行節點 (帶並發控制)"""
+        async with self._lock:  # 防止競態條件
+            print(f"{self.log_prefix} 由 {sender_id} 觸發檢查... (收到 {len(self.received_inputs)} / 需要 {len(self.input_ids)})")
+            
+            if self.status == "COMPLETED":
+                count = self.activation_counts.get(sender_id, 0)
+                print(f"{self.log_prefix} 已完成，但收到來自 {sender_id} 的循環激活。當前計數: {count}/{CYCLE_LIMIT}")
+                
+                if count < CYCLE_LIMIT:
+                    self.activation_counts[sender_id] = count + 1
+                    self.status = "PENDING"
+                    print(f"{self.log_prefix} 循環次數未達上限，重置狀態為 PENDING。")
+                else:
+                    print(f"{self.log_prefix} 已達到循環次數上限 ({CYCLE_LIMIT})，忽略來自 {sender_id} 的激活。")
+                    # 不在鎖內調用 check_completion,避免死鎖
+                    asyncio.create_task(self.manager.check_completion())
+                    return
+
+            if self.status != "PENDING":
+                print(f"{self.log_prefix} 狀態為 {self.status}，跳過執行。")
                 return
 
-        if self.status != "PENDING":
-            print(f"{self.log_prefix} 狀態為 {self.status}，跳過執行。")
-            return
-
-        if all(input_id in self.received_inputs for input_id in self.input_ids):
-            print(f"{self.log_prefix} ✅ 所有依賴項均已滿足，準備執行。")
-            await self.run()
-        else:
-            print(f"{self.log_prefix} 依賴項未完全滿足，繼續等待。")
+            if all(input_id in self.received_inputs for input_id in self.input_ids):
+                print(f"{self.log_prefix} ✅ 所有依賴項均已滿足，準備執行。")
+                # 在鎖外執行,避免長時間持鎖
+                self.status = "RUNNING"
+        
+        # 鎖外執行實際工作
+        await self.run()
 
     async def run(self):
         print(f"{self.log_prefix} 開始執行 `run` 函數。")
@@ -193,10 +244,10 @@ class WorkflowNode:
             self.status = "COMPLETED"
             print(f"{self.log_prefix} 執行成功。")
 
-            # 將節點輸出寫入檔案
+            # 將節點輸出寫入檔案 (異步)
             try:
                 basename = f"{self.id}_{self.profession}"
-                saved_path = _save_text_file(basename, self.output_content)
+                saved_path = await _save_text_file_async(basename, self.output_content)
                 file_name = saved_path.name
             except Exception as fe:
                 print(f"{self.log_prefix} 儲存檔案失敗: {fe}")
@@ -262,10 +313,17 @@ class DynamicWorkflowManager:
         print(f"\n{self.log_prefix} ===== 開始傳播結果 (來源: {completed_node_id}) =====")
         if self.is_failed: return
 
+        # 添加到歷史記錄,並限制大小防止記憶體洩漏
         self.master_history.append({
             "role": self.nodes[completed_node_id].profession,
             "content": result
         })
+        
+        # 保持歷史記錄在合理範圍內
+        if len(self.master_history) > MAX_HISTORY_SIZE:
+            # 保留第一條 (User 初始問題) 和最近的記錄
+            self.master_history = [self.master_history[0]] + self.master_history[-(MAX_HISTORY_SIZE-1):]
+            print(f"{self.log_prefix} 歷史記錄已裁剪至 {MAX_HISTORY_SIZE} 條")
 
         output_target_ids = self.nodes[completed_node_id].output_ids
         if not output_target_ids:
@@ -312,10 +370,10 @@ class DynamicWorkflowManager:
                 print(f"{self.log_prefix} DEFAULT Agent 總結失敗: {e}")
                 final_summary = f"最終總結步驟失敗: {e}"
 
-            # 儲存最終總結為檔案
+            # 儲存最終總結為檔案 (異步)
             final_file_name = None
             try:
-                final_path = _save_text_file("final_summary", final_summary)
+                final_path = await _save_text_file_async("final_summary", final_summary)
                 final_file_name = final_path.name
             except Exception as fe:
                 print(f"{self.log_prefix} 儲存最終總結檔案失敗: {fe}")
@@ -349,23 +407,94 @@ class DynamicWorkflowManager:
         await self.websocket.send_json(data)
 
     async def execute_llm_call(self, system_prompt: str, task_description: str) -> str:
-        """獨立的 LLM 調用函數，返回純文本。"""
+        """獨立的 LLM 調用函數，使用連接池和精確錯誤處理。"""
         print(f"{self.log_prefix} 開始執行 `execute_llm_call`。 ")
-        full_prompt = f"System Prompt: {system_prompt}\n\n--- 對話歷史與當前任務 ---\n{task_description}"
+        
+        # 輸入驗證
+        if not system_prompt or not task_description:
+            raise ValueError("system_prompt 和 task_description 不能為空")
+        
         try:
-            async with httpx.AsyncClient() as client:
-                url = f"{OLLAMA_HOST}/api/generate"
-                payload = {"model": MODEL_NAME, "prompt": full_prompt, "stream": False}
-                response = await client.post(url, json=payload, timeout=WORKFLOW_TIMEOUT)
-                response.raise_for_status()
-                data = response.json()
-                response_text = data.get("response", "").strip()
-            print(f"{self.log_prefix} LLM API 調用成功。 ")
+            client = await get_http_client()  # 使用連接池
+            url = f"{OLLAMA_HOST}/api/chat"
+            
+            # 構建 messages 列表
+            messages = [
+                {
+                    "role": "system",
+                    "content": system_prompt[:4000]  # 限制長度,防止過長
+                }
+            ]
+            
+            # 添加工作流歷史上下文 (限制數量,防止記憶體洩漏)
+            if self.master_history:
+                context_messages = self.master_history[-MAX_CONTEXT_MESSAGES:]
+                for entry in context_messages:
+                    role = entry.get("role", "")
+                    content = entry.get("content", "")
+                    
+                    # 跳過 User 角色,避免與 task_description 重複
+                    if role == "User":
+                        continue
+                        
+                    # 其他專業角色視為 assistant,並保留角色標註
+                    messages.append({
+                        "role": "assistant",
+                        "content": f"[{role}]\n{content[:2000]}"  # 限制單條長度
+                    })
+            
+            # 添加當前任務描述
+            messages.append({
+                "role": "user",
+                "content": task_description[:4000]  # 限制長度
+            })
+            
+            payload = {
+                "model": MODEL_NAME,
+                "messages": messages,
+                "stream": False
+            }
+            
+            print(f"{self.log_prefix} 調用 LLM API，messages 數量: {len(messages)}")
+            
+            # 使用連接池的客戶端
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            
+            # /api/chat 返回格式: {"message": {"role": "assistant", "content": "..."}}
+            response_text = data.get("message", {}).get("content", "").strip()
+            
+            if not response_text:
+                raise ValueError("LLM 返回空響應")
+            
+            print(f"{self.log_prefix} LLM API 調用成功，響應長度: {len(response_text)} 字符。 ")
             return response_text
+            
+        except httpx.TimeoutException as e:
+            error_msg = f"LLM API 請求超時 ({WORKFLOW_TIMEOUT}s): {str(e)}"
+            print(f"{self.log_prefix} {error_msg}")
+            raise TimeoutError(error_msg) from e
+            
+        except httpx.HTTPStatusError as e:
+            error_msg = f"LLM API HTTP 錯誤 {e.response.status_code}: {e.response.text[:200]}"
+            print(f"{self.log_prefix} {error_msg}")
+            raise RuntimeError(error_msg) from e
+            
         except httpx.RequestError as e:
-            raise Exception(f"請求 LLM API 失敗: {e}")
+            error_msg = f"LLM API 網路請求失敗: {str(e)}"
+            print(f"{self.log_prefix} {error_msg}")
+            raise ConnectionError(error_msg) from e
+            
+        except (KeyError, ValueError) as e:
+            error_msg = f"LLM API 響應格式錯誤: {str(e)}"
+            print(f"{self.log_prefix} {error_msg}")
+            raise ValueError(error_msg) from e
+            
         except Exception as e:
-            raise Exception(f"處理 LLM 回應時出錯: {e}")
+            error_msg = f"LLM API 未預期錯誤 ({type(e).__name__}): {str(e)}"
+            print(f"{self.log_prefix} {error_msg}")
+            raise RuntimeError(error_msg) from e
 
     async def _save_workflow_history(self) -> int:
         print(f"{self.log_prefix} 開始執行 `_save_workflow_history`。 ")
@@ -384,51 +513,140 @@ class DynamicWorkflowManager:
 
 @router.websocket("/ws")
 async def workflow_websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
-    user_id = 1
+    """工作流 WebSocket 端點 - 改進錯誤處理和資源管理"""
+    user_id = 1  # TODO: 實施適當的身份驗證
     await manager.connect(websocket, user_id)
     print(f"使用者 {user_id} 的 Workflow WebSocket 連線成功 (驗證已繞過)。 ")
     
     try:
         while True:
-            data = await websocket.receive_text()
-            message = json.loads(data)
-            msg_type = message.get("type")
-
-            if msg_type == "start_workflow":
-                payload_data = message.get("payload")
-                if not payload_data:
-                    await websocket.send_json({"status": "error", "response": "Payload 不得為空"})
+            try:
+                # 設置接收超時,避免無限等待
+                data = await asyncio.wait_for(
+                    websocket.receive_text(),
+                    timeout=3600.0  # 1小時超時
+                )
+                
+                # 驗證 JSON 格式
+                try:
+                    message = json.loads(data)
+                except json.JSONDecodeError as e:
+                    await websocket.send_json({
+                        "status": "error", 
+                        "response": f"無效的 JSON 格式: {str(e)}"
+                    })
                     continue
                 
-                workflow_process = WorkflowProcess(**payload_data)
-                
-                manager_instance = DynamicWorkflowManager(workflow_process, websocket, user_id, db)
-                asyncio.create_task(manager_instance.start())
+                msg_type = message.get("type")
 
+                if msg_type == "start_workflow":
+                    payload_data = message.get("payload")
+                    
+                    # 輸入驗證
+                    if not payload_data:
+                        await websocket.send_json({
+                            "status": "error", 
+                            "response": "Payload 不得為空"
+                        })
+                        continue
+                    
+                    # 驗證 payload 結構
+                    try:
+                        workflow_process = WorkflowProcess(**payload_data)
+                    except Exception as e:
+                        await websocket.send_json({
+                            "status": "error",
+                            "response": f"Payload 格式錯誤: {str(e)}"
+                        })
+                        continue
+                    
+                    # 啟動工作流
+                    try:
+                        manager_instance = DynamicWorkflowManager(
+                            workflow_process, websocket, user_id, db
+                        )
+                        asyncio.create_task(manager_instance.start())
+                    except Exception as e:
+                        await websocket.send_json({
+                            "status": "error",
+                            "response": f"工作流啟動失敗: {str(e)}"
+                        })
+                else:
+                    await websocket.send_json({
+                        "status": "error",
+                        "response": f"未知的訊息類型: {msg_type}"
+                    })
+                    
+            except asyncio.TimeoutError:
+                print(f"使用者 {user_id} 的 WebSocket 連線超時，發送心跳...")
+                try:
+                    await websocket.send_json({"status": "ping"})
+                except Exception:
+                    break  # 連接已斷開
+                    
     except WebSocketDisconnect:
-        manager.disconnect(websocket, user_id)
-        print(f"使用者 {user_id} 的 WebSocket 連線已斷開。 ")
+        print(f"使用者 {user_id} 的 WebSocket 正常斷線。 ")
+        
     except Exception as e:
-        print(f"WebSocket 發生錯誤: {e}")
-        if websocket.client_state.value != 3:
+        print(f"WebSocket 發生未預期錯誤 ({type(e).__name__}): {e}")
+        # 嘗試發送錯誤訊息
+        if websocket.client_state.value != 3:  # 3 = CLOSED
             try:
-                await websocket.send_json({"status": "error", "response": f"伺服器內部錯誤: {e}"})
+                await websocket.send_json({
+                    "status": "error", 
+                    "response": f"伺服器內部錯誤: {type(e).__name__}"
+                })
             except Exception as send_e:
                 print(f"傳送錯誤訊息時失敗: {send_e}")
+                
+    finally:
+        # 確保清理資源
         manager.disconnect(websocket, user_id)
+        print(f"使用者 {user_id} 的 WebSocket 資源已清理。 ")
 
 @router.get("/download/{file_name}")
 async def download_generated_file(file_name: str):
-    # 僅允許從 workflow_outputs 目錄下載
-    target_path = (OUTPUT_DIR / file_name).resolve()
+    """下載工作流生成的檔案 - 改進安全性"""
+    # 清理檔名,防止路徑穿越攻擊
+    safe_filename = _sanitize_filename(file_name)
+    target_path = (OUTPUT_DIR / safe_filename).resolve()
+    
     try:
-        # 防止目錄穿越
-        if OUTPUT_DIR not in target_path.parents and target_path != OUTPUT_DIR:
+        # 嚴格的路徑驗證
+        if not target_path.is_relative_to(OUTPUT_DIR):
             raise HTTPException(status_code=400, detail="非法路徑")
+            
         if not target_path.exists():
             raise HTTPException(status_code=404, detail="檔案不存在")
-        return FileResponse(path=str(target_path), filename=file_name, media_type="text/markdown; charset=utf-8")
+            
+        if not target_path.is_file():
+            raise HTTPException(status_code=400, detail="目標不是檔案")
+        
+        # 檢查檔案大小 (防止大檔案攻擊)
+        file_size = target_path.stat().st_size
+        max_size = 50 * 1024 * 1024  # 50MB
+        if file_size > max_size:
+            raise HTTPException(status_code=413, detail="檔案過大")
+            
+        return FileResponse(
+            path=str(target_path), 
+            filename=safe_filename, 
+            media_type="text/markdown; charset=utf-8"
+        )
+        
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"下載失敗: {e}")
+        print(f"下載檔案時發生錯誤: {e}")
+        raise HTTPException(status_code=500, detail=f"下載失敗: {type(e).__name__}")
+
+# =================================================================
+# 應用生命週期管理
+# =================================================================
+
+@router.on_event("shutdown")
+async def shutdown_event():
+    """應用關閉時清理資源"""
+    print("正在關閉 Workflow 模組...")
+    await close_http_client()
+    print("HTTP 客戶端已關閉")

@@ -1,6 +1,12 @@
 import requests
-url = "https://blowfish-absolute-absolutely.ngrok-free.app/api/tags"
-r = requests.get(url, headers={"ngrok-skip-browser-warning":"true"}, timeout=10)
-print(r.status_code)
-print(r.headers.get("content-type"))
-print(r.text[:1000])
+import json
+
+url = "https://blowfish-absolute-absolutely.ngrok-free.app/api/generate"
+data = {
+    "model": "granite4:small-h",
+    "prompt": "你是神通資訊科技內部的知識型助理...",
+    "stream": False
+}
+
+response = requests.post(url, json=data)
+print(response.json())

@@ -46,7 +46,7 @@ const router = createBrowserRouter([
       },
       { 
         path: 'documents', 
-        element: <PrivateRoute element={<Documents />} /> 
+        element: <AdminRoute element={<Documents />} /> 
       },
       { 
         path: 'custom-agents', 

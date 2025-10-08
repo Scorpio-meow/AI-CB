@@ -12,6 +12,7 @@ class CustomAgentBase(BaseModel):
     expertise: str = Field(..., description="Agent 的專業領域描述")
     prompt: str = Field(..., description="用於指導 Agent 行為的核心 Prompt")
     tools: Optional[List[str]] = Field([], description="Agent 可以使用的工具列表，例如 ['File', 'Search']")
+    is_public: bool = Field(True, description="是否為公開 Agent，公開則所有用戶可見，否則僅創建者可見")
 
 # 用於創建新 Agent 的模型，繼承自基礎模型
 class CustomAgentCreate(CustomAgentBase):
@@ -30,6 +31,7 @@ class CustomAgentUpdate(BaseModel):
     expertise: Optional[str] = None
     prompt: Optional[str] = None
     tools: Optional[List[str]] = None
+    is_public: Optional[bool] = None
 
 # 用於從資料庫讀取並返回給客戶端的模型，包含 id
 class CustomAgent(CustomAgentBase):
@@ -37,6 +39,8 @@ class CustomAgent(CustomAgentBase):
     用於 API 回應的自訂 Agent 模型，包含資料庫 ID。
     """
     id: int
+    created_by: Optional[int] = None
+    creator_username: Optional[str] = None
     # 使用 Pydantic V2 建議的 model_config 風格，保留 from_attributes 行為
     model_config = {
         "from_attributes": True,  # 允許模型從 ORM 物件 (如 SQLAlchemy 模型) 進行轉換

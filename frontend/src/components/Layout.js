@@ -99,13 +99,15 @@ function Layout({ children }) {
               聊天
             </Button>
             
-            <Button 
-              color="inherit" 
-              startIcon={<Description />}
-              onClick={() => navigate('/documents')}
-            >
-              知識庫
-            </Button>
+            {user?.is_admin && (
+              <Button 
+                color="inherit" 
+                startIcon={<Description />}
+                onClick={() => navigate('/documents')}
+              >
+                知識庫
+              </Button>
+            )}
 
             <Button 
               color="inherit" 

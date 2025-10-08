@@ -4,6 +4,7 @@ from app.models.database import get_db
 from app.models import Document, DocumentChunk
 from app.core.rag_manager import get_rag_system
 from app.core.user_context import get_current_user_id, get_default_user_id
+from app.core.jwt_auth import get_current_admin_user
 from app.services.document_processor import DocumentProcessor
 import re
 from langchain.schema import Document as LangchainDocument
@@ -71,9 +72,10 @@ def split_faq(text: str):
 async def upload_document(
     file: List[UploadFile] = File(...),
     db: Session = Depends(get_db),
-    user_id: int = Depends(get_current_user_id)
+    user_id: int = Depends(get_current_user_id),
+    current_user: dict = Depends(get_current_admin_user)
 ):
-    """上傳文件到知識庫（增強安全性）"""
+    """上傳文件到知識庫（需要管理員權限）"""
     # 支援多檔案上傳
     if not file or len(file) == 0:
         raise HTTPException(status_code=400, detail="請上傳至少一個文件")
@@ -304,9 +306,10 @@ async def upload_document(
 
 @router.get("/")
 async def get_documents(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user)
 ):
-    """獲取文件列表"""
+    """獲取文件列表（需要管理員權限）"""
     # 返回所有文件
     documents = db.query(Document).all()
     return documents
@@ -314,9 +317,10 @@ async def get_documents(
 @router.delete("/{document_id}")
 async def delete_document(
     document_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user)
 ):
-    """刪除文件"""
+    """刪除文件（需要管理員權限）"""
     document = db.query(Document).filter(Document.id == document_id).first()
     if not document:
         raise HTTPException(status_code=404, detail="文件不存在")

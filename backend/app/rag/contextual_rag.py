@@ -797,83 +797,149 @@ class HybridContextualRAG:
     
     def build_context_prompt(self, query: str, relevant_docs: List[Document], 
                            conversation_id: Optional[int] = None,
-                           user_id: Optional[int] = None) -> str:
-        """Build enhanced context-aware prompt with citations"""
+                           user_id: Optional[int] = None) -> Tuple[str, List[Dict[str, str]]]:
+        """Build enhanced context-aware prompt with System/User separation
+        
+        Returns:
+            Tuple of (user_prompt, conversation_history)
+            - user_prompt: The current user message with document context
+            - conversation_history: List of previous messages for multi-turn conversation
+        """
         # Get conversation history (scoped by user and conversation)
-        conversation_context = ""
+        conversation_history = []
         if conversation_id is not None:
             key = f"{user_id}:{conversation_id}" if user_id is not None else f"{conversation_id}"
             if key in self.context_memory:
+                # 只保留最近3輪對話 (6條訊息: user + assistant)
                 recent_context = self.context_memory[key][-3:]
                 for exchange in recent_context:
-                    conversation_context += f"用戶: {exchange['user']}\nAI: {exchange['assistant']}\n\n"
+                    conversation_history.append({
+                        "role": "user",
+                        "content": exchange['user']
+                    })
+                    conversation_history.append({
+                        "role": "assistant", 
+                        "content": exchange['assistant']
+                    })
         
         # Build document context with improved citations (only include top-N to control prompt size)
         document_context = ""
-        sources = []
         max_docs = min(len(relevant_docs), 5)
         for i, doc in enumerate(relevant_docs[:max_docs]):
             source = doc.metadata.get('source', '未知來源')
-            sources.append(source)
             chunk_id = doc.metadata.get('chunk_index', 0)
             document_context += f"文檔 [{i+1}] (來源: {source}, 段落: {chunk_id}):\n{doc.page_content}\n\n"
         
-        prompt = f"""你是神通資訊科技內部的知識型助理，綽號為「通哥」，負責根據下列用戶問題、對話上下文與檔案片段，產出準確、可追溯中文回答。
+        # 構建當前用戶訊息 (User role)
+        user_prompt = f"""用戶問題: {query}
+
+檔案片段:
+{document_context}"""
+        
+        return user_prompt, conversation_history
+    
+    async def call_llm_api(self, prompt: str, model_name: str = None, 
+                          conversation_history: List[Dict[str, str]] = None) -> str:
+        """Enhanced LLM API call with multi-turn conversation support
+        
+        Args:
+            prompt: The current user message
+            model_name: Optional model override
+            conversation_history: List of previous messages with 'role' and 'content'
+        
+        Returns:
+            The model's response text
+        """
+        try:
+            # Use provided model or fall back to default
+            model_to_use = model_name or self.model_name
+            
+            # Use Ollama chat API for multi-turn conversations
+            url = f"{self.api_base}/api/chat"
+            
+            # Construct messages list
+            messages = [
+                {
+                    "role": "system",
+                    "content": """你是神通資訊科技內部的知識型助理，綽號為「通哥」，負責根據用戶問題、對話上下文與檔案片段，產出準確、可追溯的中文回答。
 
 規則：
 1) 以中文回答問題。
 2) 在回答末尾列出使用到的來源，格式為："[n] 來源名稱 (段落: m)"。若來源未知請標示為「無來源」。
 3) 避免編造事實；若資料不足或為推論，請在回覆中明確標註「推論」或回報「無法確定」，並建議下一步可查詢的關鍵字或資料位置。
-4) 回應中不得包含任何系統內部實作細節、索引 id 或未經驗證的 URL。
-
-以下資料：
-用戶問題:"{query}"
-
-對話上下文:"{conversation_context}"
-
-檔案片段："{document_context}"
-
-請依上述規則開始回答。
-"""
-        return prompt
-    
-    async def call_llm_api(self, prompt: str, model_name: str = None) -> str:
-        """Enhanced LLM API call with Ollama format and optional model override"""
-        try:
-            # Use provided model or fall back to default
-            model_to_use = model_name or self.model_name
+4) 回應中不得包含任何系統內部實作細節、索引 id 或未經驗證的 URL。"""
+                }
+            ]
             
-            # Use Ollama format directly
-            url = f"{self.api_base}/api/generate"
+            # Add conversation history (if provided, already limited to last 3 turns = 6 messages)
+            if conversation_history:
+                messages.extend(conversation_history)
+            
+            # Add current user message
+            messages.append({
+                "role": "user",
+                "content": prompt
+            })
+            
             payload = {
                 "model": model_to_use,
-                "prompt": prompt,
+                "messages": messages,
                 "stream": False  # Get complete response at once
             }
             
-            headers = {"Content-Type": "application/json"}
+            headers = {
+                "Content-Type": "application/json",
+                "ngrok-skip-browser-warning": "true"  # Required for ngrok tunnels
+            }
             
+            logger.info(f"Calling LLM API: model={model_to_use}, messages={len(messages)}, url={url}, timeout={self.llm_timeout}s")
             resp = self.requests.post(url, json=payload, headers=headers, timeout=self.llm_timeout)
             resp.raise_for_status()
             
             data = resp.json()
-            response_text = data.get("response", "").strip()
+            # Ollama chat API returns message.content
+            response_text = data.get("message", {}).get("content", "").strip()
             
             if response_text:
+                logger.info(f"LLM response received: {len(response_text)} chars")
                 return response_text
             else:
+                logger.warning("LLM returned empty response")
                 return "抱歉，模型沒有返回有效回應。"
                 
         except self.requests.exceptions.Timeout:
-            return "抱歉，請求超時。請稍後再試。"
-        except self.requests.exceptions.ConnectionError:
-            return "抱歉，無法連接到語言模型服務。請檢查網路連接。"
+            logger.error(f"LLM API timeout after {self.llm_timeout}s for model {model_to_use}")
+            return f"抱歉，請求超時 ({self.llm_timeout}秒)。請嘗試使用較小的模型或稍後再試。"
+        except self.requests.exceptions.ConnectionError as e:
+            logger.error(f"LLM API connection error: {e}")
+            return "抱歉，無法連接到語言模型服務。請檢查網路連接或 ngrok 隧道狀態。"
+        except self.requests.exceptions.HTTPError as e:
+            status_code = e.response.status_code if e.response else "unknown"
+            error_detail = ""
+            try:
+                error_detail = e.response.text if e.response else ""
+            except:
+                pass
+            logger.error(f"LLM API HTTP error {status_code}: {e}, detail: {error_detail[:200]}")
+            if status_code == 500:
+                return f"抱歉，模型服務器錯誤 (500)。可能是模型 '{model_to_use}' 負載過重或通過 ngrok 超時，建議切換到較小的模型 (如 gpt-oss:20b)。"
+            return f"抱歉，模型 API 返回錯誤 ({status_code}): {str(e)}"
         except Exception as e:
-            logger.error(f"LLM API error: {e}")
+            logger.error(f"LLM API unexpected error: {type(e).__name__}: {e}")
             return f"抱歉，生成回應時出現錯誤: {str(e)}"
     
     async def generate_response(self, query: str, conversation_id: Optional[int] = None, model_name: str = None, user_id: Optional[int] = None) -> Dict[str, Any]:
-        """Generate response using enhanced RAG pipeline with optional model override"""
+        """Generate response using enhanced RAG pipeline with multi-turn conversation support
+        
+        Args:
+            query: The user's question
+            conversation_id: Optional conversation ID for context tracking
+            model_name: Optional model override
+            user_id: Optional user ID for context isolation
+            
+        Returns:
+            Dict containing answer, sources, timing info, and retrieval metadata
+        """
         start_time = time.time()
         
         # Smart retrieval (with scores)
@@ -882,12 +948,14 @@ class HybridContextualRAG:
         relevant_docs = [doc for doc, _ in doc_score_pairs]
         retrieval_time = time.time() - start_time
         
-        # Build context prompt (pass user_id to scope context)
-        context_prompt = self.build_context_prompt(query, relevant_docs, conversation_id, user_id)
+        # Build context prompt (returns user_prompt and conversation_history)
+        user_prompt, conversation_history = self.build_context_prompt(
+            query, relevant_docs, conversation_id, user_id
+        )
         
-        # Generate response
+        # Generate response with multi-turn conversation
         generation_start = time.time()
-        answer = await self.call_llm_api(context_prompt, model_name)
+        answer = await self.call_llm_api(user_prompt, model_name, conversation_history)
         generation_time = time.time() - generation_start
         
         # Update conversation memory (scoped by user and conversation)

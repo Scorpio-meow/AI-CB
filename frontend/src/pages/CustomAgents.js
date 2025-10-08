@@ -18,9 +18,12 @@ import {
   TableHead,
   TableRow,
   Paper,
-  IconButton
+  IconButton,
+  FormControlLabel,
+  Switch,
+  Chip
 } from '@mui/material';
-import { Add, Edit, Delete } from '@mui/icons-material';
+import { Add, Edit, Delete, Public, Lock } from '@mui/icons-material';
 import * as customAgentService from '../services/customAgentService';
 import { useAgents } from '../contexts/AgentContext';
 
@@ -31,7 +34,8 @@ const initialFormState = {
   role: '',
   expertise: '',
   prompt: '',
-  tools: ''
+  tools: '',
+  is_public: true  // 默認為公開
 };
 
 function CustomAgents() {
@@ -53,7 +57,11 @@ function CustomAgents() {
     setFormError(null);
     if (agent) {
       // 編輯模式：載入 agent 資料，確保 tools 是字串
-      setFormData({ ...agent, tools: agent.tools ? agent.tools.join(', ') : '' });
+      setFormData({ 
+        ...agent, 
+        tools: agent.tools ? agent.tools.join(', ') : '',
+        is_public: agent.is_public !== undefined ? agent.is_public : true
+      });
     } else {
       // 新增模式：重設為初始表單
       setFormData(initialFormState);
@@ -70,12 +78,17 @@ function CustomAgents() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleSwitchChange = (event) => {
+    setFormData(prev => ({ ...prev, is_public: event.target.checked }));
+  };
+
   const handleFormSubmit = async () => {
     try {
       setFormError(null);
       const submissionData = {
         ...formData,
-        tools: formData.tools.split(',').map(t => t.trim()).filter(t => t)
+        tools: formData.tools.split(',').map(t => t.trim()).filter(t => t),
+        is_public: formData.is_public
       };
 
       if (formData.id) {
@@ -90,7 +103,7 @@ function CustomAgents() {
       
       handleCloseDialog();
     } catch (err) {
-      setFormError('儲存失敗，請檢查資料是否正確。');
+      setFormError('儲存失敗：' + (err.response?.data?.detail || err.message || '請檢查資料是否正確'));
       console.error(err);
     }
   };
@@ -102,7 +115,7 @@ function CustomAgents() {
         await customAgentService.deleteCustomAgent(id);
         removeAgent(id);
       } catch (err) {
-        // 這裡可以選擇性地顯示一個錯誤提示
+        alert('刪除失敗：' + (err.response?.data?.detail || err.message));
         console.error('刪除失敗。', err);
       }
     }
@@ -132,6 +145,8 @@ function CustomAgents() {
               <TableCell>角色 (Role)</TableCell>
               <TableCell>專業領域</TableCell>
               <TableCell>工具</TableCell>
+              <TableCell>可見性</TableCell>
+              <TableCell>創建者</TableCell>
               <TableCell align="right">操作</TableCell>
             </TableRow>
           </TableHead>
@@ -142,6 +157,26 @@ function CustomAgents() {
                 <TableCell>{agent.role}</TableCell>
                 <TableCell>{agent.expertise}</TableCell>
                 <TableCell>{Array.isArray(agent.tools) ? agent.tools.join(', ') : ''}</TableCell>
+                <TableCell>
+                  {agent.is_public !== false ? (
+                    <Chip 
+                      icon={<Public />} 
+                      label="公開" 
+                      color="success" 
+                      size="small" 
+                    />
+                  ) : (
+                    <Chip 
+                      icon={<Lock />} 
+                      label="私人" 
+                      color="default" 
+                      size="small" 
+                    />
+                  )}
+                </TableCell>
+                <TableCell>
+                  {agent.creator_username || '未知'}
+                </TableCell>
                 <TableCell align="right">
                   <IconButton onClick={() => handleOpenDialog(agent)}><Edit /></IconButton>
                   <IconButton onClick={() => handleDelete(agent.id)}><Delete /></IconButton>
@@ -157,11 +192,69 @@ function CustomAgents() {
         <DialogTitle>{formData.id ? '編輯 Agent' : '新增 Agent'}</DialogTitle>
         <DialogContent>
           {formError && <Alert severity="error" sx={{ mb: 2 }}>{formError}</Alert>}
-          <TextField name="name" label="名稱 (例如: 產品經理)" value={formData.name} onChange={handleFormChange} fullWidth margin="normal" />
-          <TextField name="role" label="角色 (英文，例如: Product Manager)" value={formData.role} onChange={handleFormChange} fullWidth margin="normal" />
-          <TextField name="expertise" label="專業領域" value={formData.expertise} onChange={handleFormChange} fullWidth margin="normal" multiline rows={3} />
-          <TextField name="prompt" label="系統提示 (Prompt)" value={formData.prompt} onChange={handleFormChange} fullWidth margin="normal" multiline rows={6} />
-          <TextField name="tools" label="工具 (用逗號分隔，例如: File, Search)" value={formData.tools} onChange={handleFormChange} fullWidth margin="normal" helperText="請以逗號分隔多個工具。" />
+          <TextField 
+            name="name" 
+            label="名稱 (例如: 產品經理)" 
+            value={formData.name} 
+            onChange={handleFormChange} 
+            fullWidth 
+            margin="normal" 
+          />
+          <TextField 
+            name="role" 
+            label="角色 (英文，例如: Product Manager)" 
+            value={formData.role} 
+            onChange={handleFormChange} 
+            fullWidth 
+            margin="normal" 
+          />
+          <TextField 
+            name="expertise" 
+            label="專業領域" 
+            value={formData.expertise} 
+            onChange={handleFormChange} 
+            fullWidth 
+            margin="normal" 
+            multiline 
+            rows={3} 
+          />
+          <TextField 
+            name="prompt" 
+            label="系統提示 (Prompt)" 
+            value={formData.prompt} 
+            onChange={handleFormChange} 
+            fullWidth 
+            margin="normal" 
+            multiline 
+            rows={6} 
+          />
+          <TextField 
+            name="tools" 
+            label="工具 (用逗號分隔，例如: File, Search)" 
+            value={formData.tools} 
+            onChange={handleFormChange} 
+            fullWidth 
+            margin="normal" 
+            helperText="請以逗號分隔多個工具。" 
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={formData.is_public}
+                onChange={handleSwitchChange}
+                color="primary"
+              />
+            }
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {formData.is_public ? <Public /> : <Lock />}
+                <Typography>
+                  {formData.is_public ? '公開 Agent (所有用戶可見)' : '私人 Agent (僅自己可見)'}
+                </Typography>
+              </Box>
+            }
+            sx={{ mt: 2 }}
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>取消</Button>

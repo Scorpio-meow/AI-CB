@@ -52,3 +52,4 @@ logs/
 *.backup
 
 backend/scripts
+*test*.py
