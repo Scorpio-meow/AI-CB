@@ -2124,14 +2124,7 @@ python scripts/reset_faiss.py
 ## 👨‍💻 作者
 
 Scorpio-meow
-
-## 🙏 致謝
-
-- FastAPI 團隊
-- LangChain 團隊  
-- sentence-transformers 團隊
-- Material-UI 團隊
-- 所有開源貢獻者
+yutachen-cpu
 
 ## 📞 聯繫方式
 
@@ -2144,4 +2137,3 @@ Scorpio-meow
   <p>Made with ❤️ by Scorpio-meow</p>
   <p>⭐ 如果這個專案對你有幫助，請給個 Star！</p>
 </div>
-- 啟用圖片壓縮和優化
