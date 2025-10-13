@@ -5322,3 +5322,1174 @@ FROM documents]
 2025-10-09 17:19:22 - security - INFO - {"timestamp": "2025-10-09T09:19:22.515406", "event_type": "USER_REGISTERED", "severity": "INFO", "user_id": 3, "client_ip": null, "method": "POST", "path": "/api/auth/register", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36", "details": {"username": "yutachen"}}
 2025-10-09 17:19:27 - security - INFO - {"timestamp": "2025-10-09T09:19:27.459414", "event_type": "USER_LOGOUT", "severity": "INFO", "user_id": 3, "client_ip": null, "method": "POST", "path": "/api/auth/logout", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36", "details": {"username": "yutachen"}}
 2025-10-09 17:19:33 - security - INFO - {"timestamp": "2025-10-09T09:19:33.495578", "event_type": "USER_LOGIN", "severity": "INFO", "user_id": 1, "client_ip": null, "method": "POST", "path": "/api/auth/login", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36", "details": {"username": "yalkyao"}}
+2025-10-09 17:55:43 - app.tasks.index_rebuilder - INFO - Periodic reindex triggered - checking if rebuild is needed...
+2025-10-09 17:55:43 - app.tasks.index_rebuilder - INFO - Starting index rebuild...
+2025-10-09 17:55:43 - app.rag.contextual_rag - INFO - Forcing reindex...
+2025-10-09 17:55:43 - app.rag.contextual_rag - INFO - Rebuilding indices...
+2025-10-09 17:55:55 - app.rag.contextual_rag - INFO - Saved indices with 1080 vectors
+2025-10-09 17:55:55 - app.rag.contextual_rag - INFO - Indices rebuilt successfully
+2025-10-09 17:55:55 - app.tasks.index_rebuilder - INFO - Index rebuild completed successfully
+2025-10-10 17:55:56 - app.tasks.index_rebuilder - INFO - Periodic reindex triggered - checking if rebuild is needed...
+2025-10-10 17:55:56 - app.tasks.index_rebuilder - INFO - Starting index rebuild...
+2025-10-10 17:55:56 - app.rag.contextual_rag - INFO - Forcing reindex...
+2025-10-10 17:55:56 - app.rag.contextual_rag - INFO - Rebuilding indices...
+2025-10-10 17:56:07 - app.rag.contextual_rag - INFO - Saved indices with 1080 vectors
+2025-10-10 17:56:07 - app.rag.contextual_rag - INFO - Indices rebuilt successfully
+2025-10-10 17:56:07 - app.tasks.index_rebuilder - INFO - Index rebuild completed successfully
+2025-10-11 17:56:08 - app.tasks.index_rebuilder - INFO - Periodic reindex triggered - checking if rebuild is needed...
+2025-10-11 17:56:09 - app.tasks.index_rebuilder - INFO - Starting index rebuild...
+2025-10-11 17:56:09 - app.rag.contextual_rag - INFO - Forcing reindex...
+2025-10-11 17:56:09 - app.rag.contextual_rag - INFO - Rebuilding indices...
+2025-10-11 17:56:20 - app.rag.contextual_rag - INFO - Saved indices with 1080 vectors
+2025-10-11 17:56:20 - app.rag.contextual_rag - INFO - Indices rebuilt successfully
+2025-10-11 17:56:20 - app.tasks.index_rebuilder - INFO - Index rebuild completed successfully
+2025-10-12 17:56:21 - app.tasks.index_rebuilder - INFO - Periodic reindex triggered - checking if rebuild is needed...
+2025-10-12 17:56:21 - app.tasks.index_rebuilder - INFO - Starting index rebuild...
+2025-10-12 17:56:21 - app.rag.contextual_rag - INFO - Forcing reindex...
+2025-10-12 17:56:21 - app.rag.contextual_rag - INFO - Rebuilding indices...
+2025-10-12 17:56:33 - app.rag.contextual_rag - INFO - Saved indices with 1080 vectors
+2025-10-12 17:56:33 - app.rag.contextual_rag - INFO - Indices rebuilt successfully
+2025-10-12 17:56:33 - app.tasks.index_rebuilder - INFO - Index rebuild completed successfully
+2025-10-13 12:45:02 - main - INFO - Shutting down ChatBot application...
+2025-10-13 12:45:02 - main - INFO - Uploads watcher task stopped
+2025-10-13 12:45:02 - main - INFO - Index rebuilder task stopped
+2025-10-13 12:45:02 - main - INFO - ChatBot application shutdown complete
+2025-10-13 12:45:13 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-10-13 12:45:13 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://localhost:3000', 'http://127.0.0.1:3000']
+2025-10-13 12:45:13 - main - INFO - Starting ChatBot application...
+2025-10-13 12:45:13 - main - INFO - Initializing global RAG system...
+2025-10-13 12:45:13 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 12:45:13 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 12:45:14 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 12:45:16 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 12:45:16 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 12:45:16 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 12:45:16 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 12:45:16 - jieba - DEBUG - Loading model cost 0.278 seconds.
+2025-10-13 12:45:16 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 12:45:16 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 12:45:16 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 12:45:16 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 12:45:16 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 12:45:16 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 24}
+2025-10-13 12:45:16 - main - INFO - Uploads watcher task started
+2025-10-13 12:45:16 - main - INFO - Index rebuilder task started
+2025-10-13 12:45:16 - main - INFO - ChatBot application startup complete
+2025-10-13 12:45:16 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 12:45:40 - main - INFO - Shutting down ChatBot application...
+2025-10-13 12:45:40 - main - INFO - Uploads watcher task stopped
+2025-10-13 12:45:40 - main - INFO - Index rebuilder task stopped
+2025-10-13 12:45:40 - main - INFO - ChatBot application shutdown complete
+2025-10-13 12:45:45 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-10-13 12:45:45 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://localhost:3000', 'http://127.0.0.1:3000']
+2025-10-13 12:45:45 - main - INFO - Starting ChatBot application...
+2025-10-13 12:45:45 - main - INFO - Initializing global RAG system...
+2025-10-13 12:45:45 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 12:45:45 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 12:45:46 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 12:45:47 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 12:45:47 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 12:45:47 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 12:45:47 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 12:45:47 - jieba - DEBUG - Loading model cost 0.266 seconds.
+2025-10-13 12:45:47 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 12:45:47 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 12:45:47 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 12:45:47 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 12:45:47 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 12:45:47 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 24}
+2025-10-13 12:45:47 - main - INFO - Uploads watcher task started
+2025-10-13 12:45:47 - main - INFO - Index rebuilder task started
+2025-10-13 12:45:47 - main - INFO - ChatBot application startup complete
+2025-10-13 12:45:47 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 12:46:11 - main - INFO - Shutting down ChatBot application...
+2025-10-13 12:46:11 - main - INFO - Uploads watcher task stopped
+2025-10-13 12:46:11 - main - INFO - Index rebuilder task stopped
+2025-10-13 12:46:11 - main - INFO - ChatBot application shutdown complete
+2025-10-13 12:46:16 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-10-13 12:46:16 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://localhost:3000', 'http://127.0.0.1:3000']
+2025-10-13 12:46:16 - main - INFO - Starting ChatBot application...
+2025-10-13 12:46:16 - main - INFO - Initializing global RAG system...
+2025-10-13 12:46:16 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 12:46:16 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 12:46:17 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 12:46:18 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 12:46:18 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 12:46:18 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 12:46:18 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 12:46:18 - jieba - DEBUG - Loading model cost 0.271 seconds.
+2025-10-13 12:46:18 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 12:46:18 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 12:46:18 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 12:46:18 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 12:46:18 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 12:46:18 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 24}
+2025-10-13 12:46:18 - main - INFO - Uploads watcher task started
+2025-10-13 12:46:18 - main - INFO - Index rebuilder task started
+2025-10-13 12:46:18 - main - INFO - ChatBot application startup complete
+2025-10-13 12:46:18 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 12:46:35 - main - INFO - Shutting down ChatBot application...
+2025-10-13 12:46:35 - main - INFO - Uploads watcher task stopped
+2025-10-13 12:46:35 - main - INFO - Index rebuilder task stopped
+2025-10-13 12:46:35 - main - INFO - ChatBot application shutdown complete
+2025-10-13 12:46:39 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-10-13 12:46:39 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://localhost:3000', 'http://127.0.0.1:3000']
+2025-10-13 12:46:39 - main - INFO - Starting ChatBot application...
+2025-10-13 12:46:39 - main - INFO - Initializing global RAG system...
+2025-10-13 12:46:39 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 12:46:39 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 12:46:39 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 12:46:40 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 12:46:40 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 12:46:40 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 12:46:40 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 12:46:41 - jieba - DEBUG - Loading model cost 0.272 seconds.
+2025-10-13 12:46:41 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 12:46:41 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 12:46:41 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 12:46:41 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 12:46:41 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 12:46:41 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 24}
+2025-10-13 12:46:41 - main - INFO - Uploads watcher task started
+2025-10-13 12:46:41 - main - INFO - Index rebuilder task started
+2025-10-13 12:46:41 - main - INFO - ChatBot application startup complete
+2025-10-13 12:46:41 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 12:46:48 - main - INFO - Shutting down ChatBot application...
+2025-10-13 12:46:48 - main - INFO - Uploads watcher task stopped
+2025-10-13 12:46:48 - main - INFO - Index rebuilder task stopped
+2025-10-13 12:46:48 - main - INFO - ChatBot application shutdown complete
+2025-10-13 12:46:53 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-10-13 12:46:53 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://localhost:3000', 'http://127.0.0.1:3000']
+2025-10-13 12:46:53 - main - INFO - Starting ChatBot application...
+2025-10-13 12:46:53 - main - INFO - Initializing global RAG system...
+2025-10-13 12:46:53 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 12:46:53 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 12:46:54 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 12:46:54 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 12:46:54 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 12:46:54 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 12:46:54 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 12:46:55 - jieba - DEBUG - Loading model cost 0.272 seconds.
+2025-10-13 12:46:55 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 12:46:55 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 12:46:55 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 12:46:55 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 12:46:55 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 12:46:55 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 24}
+2025-10-13 12:46:55 - main - INFO - Uploads watcher task started
+2025-10-13 12:46:55 - main - INFO - Index rebuilder task started
+2025-10-13 12:46:55 - main - INFO - ChatBot application startup complete
+2025-10-13 12:46:55 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 12:48:08 - main - INFO - Shutting down ChatBot application...
+2025-10-13 12:48:08 - main - INFO - Uploads watcher task stopped
+2025-10-13 12:48:08 - main - INFO - Index rebuilder task stopped
+2025-10-13 12:48:08 - main - INFO - ChatBot application shutdown complete
+2025-10-13 12:48:12 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-10-13 12:48:12 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://localhost:3000', 'http://127.0.0.1:3000']
+2025-10-13 12:48:12 - main - INFO - Starting ChatBot application...
+2025-10-13 12:48:12 - main - INFO - Initializing global RAG system...
+2025-10-13 12:48:12 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 12:48:12 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 12:48:12 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 12:48:13 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 12:48:13 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 12:48:13 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 12:48:13 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 12:48:14 - jieba - DEBUG - Loading model cost 0.263 seconds.
+2025-10-13 12:48:14 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 12:48:14 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 12:48:14 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 12:48:14 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 12:48:14 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 12:48:14 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 24}
+2025-10-13 12:48:14 - main - INFO - Uploads watcher task started
+2025-10-13 12:48:14 - main - INFO - Index rebuilder task started
+2025-10-13 12:48:14 - main - INFO - ChatBot application startup complete
+2025-10-13 12:48:14 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 13:02:24 - main - INFO - Shutting down ChatBot application...
+2025-10-13 13:02:24 - main - INFO - Uploads watcher task stopped
+2025-10-13 13:02:24 - main - INFO - Index rebuilder task stopped
+2025-10-13 13:02:24 - main - INFO - ChatBot application shutdown complete
+2025-10-13 13:02:28 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-10-13 13:02:28 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://localhost:3000', 'http://127.0.0.1:3000']
+2025-10-13 13:02:28 - main - INFO - Starting ChatBot application...
+2025-10-13 13:02:28 - main - INFO - Initializing global RAG system...
+2025-10-13 13:02:28 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 13:02:28 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 13:02:28 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 13:02:29 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 13:02:29 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 13:02:29 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 13:02:29 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 13:02:30 - jieba - DEBUG - Loading model cost 0.428 seconds.
+2025-10-13 13:02:30 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 13:02:30 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 13:02:30 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 13:02:30 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 13:02:30 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 13:02:30 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 24}
+2025-10-13 13:02:30 - main - INFO - Uploads watcher task started
+2025-10-13 13:02:30 - main - INFO - Index rebuilder task started
+2025-10-13 13:02:30 - main - INFO - ChatBot application startup complete
+2025-10-13 13:02:30 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 13:02:35 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-10-13 13:02:35 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://localhost:3000', 'http://127.0.0.1:3000']
+2025-10-13 13:02:35 - main - INFO - Starting ChatBot application...
+2025-10-13 13:02:35 - main - INFO - Initializing global RAG system...
+2025-10-13 13:02:35 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 13:02:35 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 13:02:36 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 13:02:37 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 13:02:37 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 13:02:37 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 13:02:37 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 13:02:37 - jieba - DEBUG - Loading model cost 0.275 seconds.
+2025-10-13 13:02:37 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 13:02:37 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 13:02:37 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 13:02:37 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 13:02:37 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 13:02:37 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 24}
+2025-10-13 13:02:37 - main - INFO - Uploads watcher task started
+2025-10-13 13:02:37 - main - INFO - Index rebuilder task started
+2025-10-13 13:02:37 - main - INFO - ChatBot application startup complete
+2025-10-13 13:02:37 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 13:02:51 - main - INFO - Shutting down ChatBot application...
+2025-10-13 13:02:51 - main - INFO - Uploads watcher task stopped
+2025-10-13 13:02:51 - main - INFO - Index rebuilder task stopped
+2025-10-13 13:02:51 - main - INFO - ChatBot application shutdown complete
+2025-10-13 13:02:55 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-10-13 13:02:55 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://localhost:3000', 'http://127.0.0.1:3000']
+2025-10-13 13:02:55 - main - INFO - Starting ChatBot application...
+2025-10-13 13:02:55 - main - INFO - Initializing global RAG system...
+2025-10-13 13:02:55 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 13:02:55 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 13:02:55 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 13:02:56 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 13:02:56 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 13:02:56 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 13:02:56 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 13:02:57 - jieba - DEBUG - Loading model cost 0.280 seconds.
+2025-10-13 13:02:57 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 13:02:57 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 13:02:57 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 13:02:57 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 13:02:57 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 13:02:57 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 24}
+2025-10-13 13:02:57 - main - INFO - Uploads watcher task started
+2025-10-13 13:02:57 - main - INFO - Index rebuilder task started
+2025-10-13 13:02:57 - main - INFO - ChatBot application startup complete
+2025-10-13 13:02:57 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 13:04:29 - main - INFO - Shutting down ChatBot application...
+2025-10-13 13:04:29 - main - INFO - Uploads watcher task stopped
+2025-10-13 13:04:29 - main - INFO - Index rebuilder task stopped
+2025-10-13 13:04:29 - main - INFO - ChatBot application shutdown complete
+2025-10-13 13:04:36 - main - INFO - Rate limiting enabled: 100 requests per minute
+2025-10-13 13:04:36 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://localhost:3000', 'http://127.0.0.1:3000']
+2025-10-13 13:04:36 - main - INFO - Starting ChatBot application...
+2025-10-13 13:04:36 - main - INFO - Initializing global RAG system...
+2025-10-13 13:04:36 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 13:04:36 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 13:04:36 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 13:04:37 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 13:04:37 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 13:04:37 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 13:04:37 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 13:04:38 - jieba - DEBUG - Loading model cost 0.277 seconds.
+2025-10-13 13:04:38 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 13:04:38 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 13:04:38 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 13:04:38 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 13:04:38 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 13:04:38 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 13:04:38 - main - INFO - Uploads watcher task started
+2025-10-13 13:04:38 - main - INFO - Index rebuilder task started
+2025-10-13 13:04:38 - main - INFO - ChatBot application startup complete
+2025-10-13 13:04:38 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 13:08:15 - main - INFO - Shutting down ChatBot application...
+2025-10-13 13:08:15 - main - INFO - Uploads watcher task stopped
+2025-10-13 13:08:15 - main - INFO - Index rebuilder task stopped
+2025-10-13 13:08:15 - main - INFO - ChatBot application shutdown complete
+2025-10-13 13:08:20 - main - INFO - Rate limiting enabled: 100 requests per minute
+2025-10-13 13:08:20 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://localhost:3000', 'http://127.0.0.1:3000']
+2025-10-13 13:08:20 - main - INFO - Starting ChatBot application...
+2025-10-13 13:08:20 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-10-13 13:08:20 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("users")
+2025-10-13 13:08:20 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-10-13 13:08:20 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("conversations")
+2025-10-13 13:08:20 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-10-13 13:08:20 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("messages")
+2025-10-13 13:08:20 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-10-13 13:08:20 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("documents")
+2025-10-13 13:08:20 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-10-13 13:08:20 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("document_chunks")
+2025-10-13 13:08:20 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-10-13 13:08:20 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("custom_agents")
+2025-10-13 13:08:20 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-10-13 13:08:20 - sqlalchemy.engine.Engine - INFO - COMMIT
+2025-10-13 13:08:20 - main - INFO - Initializing global RAG system...
+2025-10-13 13:08:20 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 13:08:20 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 13:08:21 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 13:08:21 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 13:08:21 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 13:08:21 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 13:08:21 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 13:08:22 - jieba - DEBUG - Loading model cost 0.271 seconds.
+2025-10-13 13:08:22 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 13:08:22 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 13:08:22 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 13:08:22 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 13:08:22 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 13:08:22 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 13:08:22 - main - INFO - Uploads watcher task started
+2025-10-13 13:08:22 - main - INFO - Index rebuilder task started
+2025-10-13 13:08:22 - main - INFO - ChatBot application startup complete
+2025-10-13 13:08:22 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-10-13 13:08:22 - sqlalchemy.engine.Engine - INFO - SELECT documents.id AS documents_id, documents.filename AS documents_filename, documents.content AS documents_content, documents.file_type AS documents_file_type, documents.uploaded_by AS documents_uploaded_by, documents.created_at AS documents_created_at, documents.is_processed AS documents_is_processed 
+FROM documents
+2025-10-13 13:08:22 - sqlalchemy.engine.Engine - INFO - [generated in 0.00031s] ()
+2025-10-13 13:08:22 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2025-10-13 13:08:22 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 13:08:52 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-10-13 13:08:52 - sqlalchemy.engine.Engine - INFO - SELECT documents.id AS documents_id, documents.filename AS documents_filename, documents.content AS documents_content, documents.file_type AS documents_file_type, documents.uploaded_by AS documents_uploaded_by, documents.created_at AS documents_created_at, documents.is_processed AS documents_is_processed 
+FROM documents
+2025-10-13 13:08:52 - sqlalchemy.engine.Engine - INFO - [cached since 30s ago] ()
+2025-10-13 13:08:52 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2025-10-13 13:09:22 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-10-13 13:09:22 - sqlalchemy.engine.Engine - INFO - SELECT documents.id AS documents_id, documents.filename AS documents_filename, documents.content AS documents_content, documents.file_type AS documents_file_type, documents.uploaded_by AS documents_uploaded_by, documents.created_at AS documents_created_at, documents.is_processed AS documents_is_processed 
+FROM documents
+2025-10-13 13:09:22 - sqlalchemy.engine.Engine - INFO - [cached since 60s ago] ()
+2025-10-13 13:09:22 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2025-10-13 13:09:42 - main - INFO - Shutting down ChatBot application...
+2025-10-13 13:09:42 - main - INFO - Uploads watcher task stopped
+2025-10-13 13:09:42 - main - INFO - Index rebuilder task stopped
+2025-10-13 13:09:42 - main - INFO - ChatBot application shutdown complete
+2025-10-13 13:09:45 - main - INFO - Rate limiting enabled: 100 requests per minute
+2025-10-13 13:09:45 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://localhost:3000', 'http://127.0.0.1:3000']
+2025-10-13 13:09:45 - main - INFO - Starting ChatBot application...
+2025-10-13 13:09:45 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-10-13 13:09:45 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("users")
+2025-10-13 13:09:45 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-10-13 13:09:45 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("conversations")
+2025-10-13 13:09:45 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-10-13 13:09:45 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("messages")
+2025-10-13 13:09:45 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-10-13 13:09:45 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("documents")
+2025-10-13 13:09:45 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-10-13 13:09:45 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("document_chunks")
+2025-10-13 13:09:45 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-10-13 13:09:45 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("custom_agents")
+2025-10-13 13:09:45 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-10-13 13:09:45 - sqlalchemy.engine.Engine - INFO - COMMIT
+2025-10-13 13:09:45 - main - INFO - Initializing global RAG system...
+2025-10-13 13:09:45 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 13:09:45 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 13:09:46 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 13:09:47 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 13:09:47 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 13:09:47 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 13:09:47 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 13:09:47 - jieba - DEBUG - Loading model cost 0.277 seconds.
+2025-10-13 13:09:47 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 13:09:47 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 13:09:47 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 13:09:47 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 13:09:47 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 13:09:47 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 13:09:47 - main - INFO - Uploads watcher task started
+2025-10-13 13:09:47 - main - INFO - Index rebuilder task started
+2025-10-13 13:09:47 - main - INFO - ChatBot application startup complete
+2025-10-13 13:09:47 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-10-13 13:09:47 - sqlalchemy.engine.Engine - INFO - SELECT documents.id AS documents_id, documents.filename AS documents_filename, documents.content AS documents_content, documents.file_type AS documents_file_type, documents.uploaded_by AS documents_uploaded_by, documents.created_at AS documents_created_at, documents.is_processed AS documents_is_processed 
+FROM documents
+2025-10-13 13:09:47 - sqlalchemy.engine.Engine - INFO - [generated in 0.00038s] ()
+2025-10-13 13:09:47 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2025-10-13 13:09:47 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 13:10:17 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-10-13 13:10:17 - sqlalchemy.engine.Engine - INFO - SELECT documents.id AS documents_id, documents.filename AS documents_filename, documents.content AS documents_content, documents.file_type AS documents_file_type, documents.uploaded_by AS documents_uploaded_by, documents.created_at AS documents_created_at, documents.is_processed AS documents_is_processed 
+FROM documents
+2025-10-13 13:10:17 - sqlalchemy.engine.Engine - INFO - [cached since 30s ago] ()
+2025-10-13 13:10:17 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2025-10-13 13:10:47 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-10-13 13:10:47 - sqlalchemy.engine.Engine - INFO - SELECT documents.id AS documents_id, documents.filename AS documents_filename, documents.content AS documents_content, documents.file_type AS documents_file_type, documents.uploaded_by AS documents_uploaded_by, documents.created_at AS documents_created_at, documents.is_processed AS documents_is_processed 
+FROM documents
+2025-10-13 13:10:47 - sqlalchemy.engine.Engine - INFO - [cached since 60s ago] ()
+2025-10-13 13:10:47 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2025-10-13 13:11:17 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-10-13 13:11:17 - sqlalchemy.engine.Engine - INFO - SELECT documents.id AS documents_id, documents.filename AS documents_filename, documents.content AS documents_content, documents.file_type AS documents_file_type, documents.uploaded_by AS documents_uploaded_by, documents.created_at AS documents_created_at, documents.is_processed AS documents_is_processed 
+FROM documents
+2025-10-13 13:11:17 - sqlalchemy.engine.Engine - INFO - [cached since 90.01s ago] ()
+2025-10-13 13:11:17 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2025-10-13 13:11:22 - main - INFO - Shutting down ChatBot application...
+2025-10-13 13:11:22 - main - INFO - Uploads watcher task stopped
+2025-10-13 13:11:22 - main - INFO - Index rebuilder task stopped
+2025-10-13 13:11:22 - main - INFO - ChatBot application shutdown complete
+2025-10-13 13:11:27 - main - INFO - Rate limiting enabled: 100 requests per minute
+2025-10-13 13:11:27 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://localhost:3000', 'http://127.0.0.1:3000']
+2025-10-13 13:11:27 - main - INFO - Starting ChatBot application...
+2025-10-13 13:11:27 - main - INFO - Initializing global RAG system...
+2025-10-13 13:11:27 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 13:11:27 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 13:11:28 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 13:11:29 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 13:11:29 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 13:11:29 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 13:11:29 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 13:11:29 - jieba - DEBUG - Loading model cost 0.276 seconds.
+2025-10-13 13:11:29 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 13:11:29 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 13:11:29 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 13:11:29 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 13:11:29 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 13:11:29 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 13:11:29 - main - INFO - Uploads watcher task started
+2025-10-13 13:11:29 - main - INFO - Index rebuilder task started
+2025-10-13 13:11:29 - main - INFO - ChatBot application startup complete
+2025-10-13 13:11:29 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 13:12:42 - main - INFO - Shutting down ChatBot application...
+2025-10-13 13:12:42 - main - INFO - Uploads watcher task stopped
+2025-10-13 13:12:42 - main - INFO - Index rebuilder task stopped
+2025-10-13 13:12:42 - main - INFO - ChatBot application shutdown complete
+2025-10-13 13:12:48 - main - INFO - Rate limiting enabled: 100 requests per minute
+2025-10-13 13:12:48 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://localhost:3000', 'http://127.0.0.1:3000']
+2025-10-13 13:12:48 - main - INFO - Starting ChatBot application...
+2025-10-13 13:12:48 - main - INFO - Initializing global RAG system...
+2025-10-13 13:12:48 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 13:12:48 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 13:12:49 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 13:12:50 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 13:12:50 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 13:12:50 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 13:12:50 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 13:12:50 - jieba - DEBUG - Loading model cost 0.316 seconds.
+2025-10-13 13:12:50 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 13:12:50 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 13:12:50 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 13:12:50 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 13:12:50 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 13:12:50 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 13:12:50 - main - INFO - Uploads watcher task started
+2025-10-13 13:12:50 - main - INFO - Index rebuilder task started
+2025-10-13 13:12:50 - main - INFO - ChatBot application startup complete
+2025-10-13 13:12:50 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 13:16:33 - main - INFO - Shutting down ChatBot application...
+2025-10-13 13:16:33 - main - INFO - Uploads watcher task stopped
+2025-10-13 13:16:33 - main - INFO - Index rebuilder task stopped
+2025-10-13 13:16:33 - main - INFO - ChatBot application shutdown complete
+2025-10-13 13:16:36 - main - INFO - Rate limiting enabled: 100 requests per minute
+2025-10-13 13:16:36 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://localhost:3000', 'http://127.0.0.1:3000']
+2025-10-13 13:16:37 - main - INFO - Starting ChatBot application...
+2025-10-13 13:16:37 - main - INFO - Initializing global RAG system...
+2025-10-13 13:16:37 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 13:16:37 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 13:16:37 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 13:16:38 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 13:16:38 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 13:16:38 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 13:16:38 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 13:16:38 - jieba - DEBUG - Loading model cost 0.283 seconds.
+2025-10-13 13:16:38 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 13:16:38 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 13:16:38 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 13:16:38 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 13:16:38 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 13:16:38 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 13:16:38 - main - INFO - Uploads watcher task started
+2025-10-13 13:16:38 - main - INFO - Index rebuilder task started
+2025-10-13 13:16:38 - main - INFO - ChatBot application startup complete
+2025-10-13 13:16:38 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 13:16:43 - main - INFO - Shutting down ChatBot application...
+2025-10-13 13:16:43 - main - INFO - Uploads watcher task stopped
+2025-10-13 13:16:43 - main - INFO - Index rebuilder task stopped
+2025-10-13 13:16:43 - main - INFO - ChatBot application shutdown complete
+2025-10-13 13:16:47 - main - INFO - Rate limiting enabled: 100 requests per minute
+2025-10-13 13:16:47 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://localhost:3000', 'http://127.0.0.1:3000']
+2025-10-13 13:16:47 - main - INFO - Starting ChatBot application...
+2025-10-13 13:16:47 - main - INFO - Initializing global RAG system...
+2025-10-13 13:16:47 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 13:16:47 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 13:16:48 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 13:16:49 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 13:16:49 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 13:16:49 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 13:16:49 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 13:16:49 - jieba - DEBUG - Loading model cost 0.277 seconds.
+2025-10-13 13:16:49 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 13:16:49 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 13:16:49 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 13:16:49 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 13:16:49 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 13:16:49 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 13:16:49 - main - INFO - Uploads watcher task started
+2025-10-13 13:16:49 - main - INFO - Index rebuilder task started
+2025-10-13 13:16:49 - main - INFO - ChatBot application startup complete
+2025-10-13 13:16:49 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 13:18:34 - main - INFO - Shutting down ChatBot application...
+2025-10-13 13:18:34 - main - INFO - Uploads watcher task stopped
+2025-10-13 13:18:34 - main - INFO - Index rebuilder task stopped
+2025-10-13 13:18:34 - main - INFO - ChatBot application shutdown complete
+2025-10-13 13:18:38 - main - INFO - Rate limiting enabled: 100 requests per minute
+2025-10-13 13:18:38 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://localhost:3000', 'http://127.0.0.1:3000']
+2025-10-13 13:18:38 - main - INFO - Starting ChatBot application...
+2025-10-13 13:18:38 - main - INFO - Initializing global RAG system...
+2025-10-13 13:18:38 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 13:18:38 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 13:18:39 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 13:18:40 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 13:18:40 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 13:18:40 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 13:18:40 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 13:18:40 - jieba - DEBUG - Loading model cost 0.277 seconds.
+2025-10-13 13:18:40 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 13:18:40 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 13:18:40 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 13:18:40 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 13:18:40 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 13:18:40 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 13:18:40 - main - INFO - Uploads watcher task started
+2025-10-13 13:18:40 - main - INFO - Index rebuilder task started
+2025-10-13 13:18:40 - main - INFO - ChatBot application startup complete
+2025-10-13 13:18:40 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 13:22:54 - main - INFO - Shutting down ChatBot application...
+2025-10-13 13:22:54 - main - INFO - Uploads watcher task stopped
+2025-10-13 13:22:54 - main - INFO - Index rebuilder task stopped
+2025-10-13 13:22:54 - main - INFO - ChatBot application shutdown complete
+2025-10-13 13:22:57 - main - INFO - Rate limiting enabled: 100 requests per minute
+2025-10-13 13:22:57 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://localhost:3000', 'http://127.0.0.1:3000']
+2025-10-13 13:22:57 - main - INFO - Starting ChatBot application...
+2025-10-13 13:22:57 - main - INFO - Initializing global RAG system...
+2025-10-13 13:22:57 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 13:22:57 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 13:22:58 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 13:22:59 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 13:22:59 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 13:22:59 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 13:22:59 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 13:22:59 - jieba - DEBUG - Loading model cost 0.293 seconds.
+2025-10-13 13:22:59 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 13:22:59 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 13:22:59 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 13:22:59 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 13:22:59 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 13:22:59 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 13:22:59 - main - INFO - Uploads watcher task started
+2025-10-13 13:22:59 - main - INFO - Index rebuilder task started
+2025-10-13 13:22:59 - main - INFO - ChatBot application startup complete
+2025-10-13 13:22:59 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 15:38:55 - main - INFO - Shutting down ChatBot application...
+2025-10-13 15:38:55 - main - INFO - Uploads watcher task stopped
+2025-10-13 15:38:55 - main - INFO - Index rebuilder task stopped
+2025-10-13 15:38:55 - main - INFO - ChatBot application shutdown complete
+2025-10-13 15:39:01 - main - INFO - Rate limiting enabled: 100 requests per minute
+2025-10-13 15:39:01 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://localhost:3000', 'http://127.0.0.1:3000']
+2025-10-13 15:39:01 - main - INFO - Starting ChatBot application...
+2025-10-13 15:39:01 - main - INFO - Initializing global RAG system...
+2025-10-13 15:39:01 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 15:39:01 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 15:39:02 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 15:39:02 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 15:39:02 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 15:39:02 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 15:39:02 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 15:39:03 - jieba - DEBUG - Loading model cost 0.286 seconds.
+2025-10-13 15:39:03 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 15:39:03 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 15:39:03 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 15:39:03 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 15:39:03 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 15:39:03 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 15:39:03 - main - INFO - Uploads watcher task started
+2025-10-13 15:39:03 - main - INFO - Index rebuilder task started
+2025-10-13 15:39:03 - main - INFO - ChatBot application startup complete
+2025-10-13 15:39:03 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 15:39:42 - main - INFO - Shutting down ChatBot application...
+2025-10-13 15:39:42 - main - INFO - Uploads watcher task stopped
+2025-10-13 15:39:42 - main - INFO - Index rebuilder task stopped
+2025-10-13 15:39:42 - main - INFO - ChatBot application shutdown complete
+2025-10-13 15:39:48 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://localhost:3000', 'http://127.0.0.1:3000']
+2025-10-13 15:39:48 - main - INFO - Starting ChatBot application...
+2025-10-13 15:39:48 - main - INFO - Initializing global RAG system...
+2025-10-13 15:39:48 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 15:39:48 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 15:39:49 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 15:39:50 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 15:39:50 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 15:39:50 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 15:39:50 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 15:39:50 - jieba - DEBUG - Loading model cost 0.289 seconds.
+2025-10-13 15:39:50 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 15:39:50 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 15:39:50 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 15:39:50 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 15:39:50 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 15:39:50 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 15:39:50 - main - INFO - Uploads watcher task started
+2025-10-13 15:39:50 - main - INFO - Index rebuilder task started
+2025-10-13 15:39:50 - main - INFO - ChatBot application startup complete
+2025-10-13 15:39:50 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 15:40:09 - main - INFO - Shutting down ChatBot application...
+2025-10-13 15:40:09 - main - INFO - Uploads watcher task stopped
+2025-10-13 15:40:09 - main - INFO - Index rebuilder task stopped
+2025-10-13 15:40:09 - main - INFO - ChatBot application shutdown complete
+2025-10-13 15:40:18 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://localhost:3000', 'http://127.0.0.1:3000']
+2025-10-13 15:40:18 - main - INFO - Starting ChatBot application...
+2025-10-13 15:40:18 - main - INFO - Initializing global RAG system...
+2025-10-13 15:40:18 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 15:40:18 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 15:40:18 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 15:40:19 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 15:40:19 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 15:40:19 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 15:40:19 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 15:40:20 - jieba - DEBUG - Loading model cost 0.281 seconds.
+2025-10-13 15:40:20 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 15:40:20 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 15:40:20 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 15:40:20 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 15:40:20 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 15:40:20 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 15:40:20 - main - INFO - Uploads watcher task started
+2025-10-13 15:40:20 - main - INFO - Index rebuilder task started
+2025-10-13 15:40:20 - main - INFO - ChatBot application startup complete
+2025-10-13 15:40:20 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 15:41:17 - security - INFO - {"timestamp": "2025-10-13T07:41:17.352254", "event_type": "USER_LOGIN", "severity": "INFO", "user_id": 1, "client_ip": null, "method": "POST", "path": "/api/auth/login", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36", "details": {"username": "yalkyao"}}
+2025-10-13 15:41:31 - security - INFO - {"timestamp": "2025-10-13T07:41:31.020089", "event_type": "USER_LOGOUT", "severity": "INFO", "user_id": 1, "client_ip": null, "method": "POST", "path": "/api/auth/logout", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36", "details": {"username": "yalkyao"}}
+2025-10-13 15:41:46 - security - INFO - {"timestamp": "2025-10-13T07:41:46.242005", "event_type": "USER_LOGIN", "severity": "INFO", "user_id": 1, "client_ip": null, "method": "POST", "path": "/api/auth/login", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36", "details": {"username": "yalkyao"}}
+2025-10-13 15:42:41 - app.rag.contextual_rag - INFO - Retrieval strategy=HYBRID(FAQ-like) query='午餐吃甚麼?' candidates=50
+2025-10-13 15:42:41 - app.rag.contextual_rag - INFO - Retrieval pre-rerank top5: [{'source': '休假排休管理辦法(GEP-CW-3-10)V1.0_神資.docx', 'chunk': 0, 'score': 0.7}, {'source': '人資作業FAQ.docx', 'chunk': 0, 'score': 0.6747}, {'source': '人資作業FAQ.docx', 'chunk': 0, 'score': 0.6448}, {'source': '年度調薪作業程序(GEP-CW-2-12)V1.0_神資.docx', 'chunk': 5, 'score': 0.6414}, {'source': '資深員工獎勵作業程序(GEP-CW-2-08)V1.0_神資.docx', 'chunk': 4, 'score': 0.6414}]
+2025-10-13 15:42:44 - app.rag.contextual_rag - INFO - Retrieval post-rerank top5: [{'source': '人資作業FAQ.docx', 'chunk': 0, 'score': 0.9206}, {'source': '人資作業FAQ.docx', 'chunk': 0, 'score': 0.9034}, {'source': '休假排休管理辦法(GEP-CW-3-10)V1.0_神資.docx', 'chunk': 0, 'score': 0.9032}, {'source': '人資作業FAQ.docx', 'chunk': 0, 'score': 0.8632}, {'source': '出勤管理辦法(GEP-CW-3-02)V4.4_神資.docx', 'chunk': 2, 'score': 0.8507}]
+2025-10-13 15:42:44 - app.rag.contextual_rag - INFO - Calling LLM API: model=gpt-oss:20b, messages=2, url=https://blowfish-absolute-absolutely.ngrok-free.app/api/chat, timeout=90s
+2025-10-13 15:43:13 - app.rag.contextual_rag - INFO - LLM response received: 401 chars
+2025-10-13 15:47:40 - app.rag.contextual_rag - INFO - Retrieval strategy=HYBRID(FAQ-like) query='三明治' candidates=50
+2025-10-13 15:47:40 - app.rag.contextual_rag - INFO - Retrieval pre-rerank top5: [{'source': '年度調薪作業程序(GEP-CW-2-12)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}, {'source': '資深員工獎勵作業程序(GEP-CW-2-08)V1.0_神資.docx', 'chunk': 4, 'score': 0.7}, {'source': '神通資科員工紅利發放辦法(GEP-CW-3-07)V1.0_神資.docx', 'chunk': 6, 'score': 0.7}, {'source': '神通之星選拔作業程序(GEP-CW-2-09)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}, {'source': '扣繳憑單作業程序(GEP-CW-2-13)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}]
+2025-10-13 15:47:41 - app.rag.contextual_rag - INFO - Retrieval post-rerank top5: [{'source': '出勤管理辦法(GEP-CW-3-02)V4.4_神資.docx', 'chunk': 24, 'score': 0.8007}, {'source': '關於神通資訊科技股份有限公司.docx', 'chunk': 21, 'score': 0.7764}, {'source': '組織異動作業程序(GEP-CW-2-02)V1.1_神資.docx', 'chunk': 0, 'score': 0.7619}, {'source': '差勤卡鐘暨門禁權限管理辦法(GEP-CW-3-18)V1.4_神資.docx', 'chunk': 13, 'score': 0.738}, {'source': '關於神通資訊科技股份有限公司.docx', 'chunk': 26, 'score': 0.7305}]
+2025-10-13 15:47:41 - app.rag.contextual_rag - INFO - Calling LLM API: model=gpt-oss:20b, messages=4, url=https://blowfish-absolute-absolutely.ngrok-free.app/api/chat, timeout=90s
+2025-10-13 15:47:46 - app.rag.contextual_rag - INFO - LLM response received: 172 chars
+2025-10-13 16:38:22 - security - INFO - {"timestamp": "2025-10-13T08:38:22.816239", "event_type": "LOGIN_FAILED", "severity": "INFO", "user_id": null, "client_ip": null, "method": "POST", "path": "/api/auth/login", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36", "details": {"username": "yalkyao@mitac.com.tw", "reason": "無效的憑證"}}
+2025-10-13 16:38:23 - security - INFO - {"timestamp": "2025-10-13T08:38:23.125720", "event_type": "TOKEN_REFRESH_ERROR", "severity": "INFO", "user_id": null, "client_ip": null, "method": "POST", "path": "/api/auth/refresh", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36", "details": {"error": "verify_refresh_token() takes 1 positional argument but 2 were given"}}
+2025-10-13 16:38:42 - security - INFO - {"timestamp": "2025-10-13T08:38:42.443750", "event_type": "USER_LOGIN", "severity": "INFO", "user_id": 1, "client_ip": null, "method": "POST", "path": "/api/auth/login", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36", "details": {"username": "yalkyao"}}
+2025-10-13 16:41:43 - main - INFO - Shutting down ChatBot application...
+2025-10-13 16:41:43 - main - INFO - Uploads watcher task stopped
+2025-10-13 16:41:43 - main - INFO - Index rebuilder task stopped
+2025-10-13 16:41:43 - main - INFO - ChatBot application shutdown complete
+2025-10-13 16:41:50 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://127.0.0.1:3000', 'http://127.0.0.1:8001']
+2025-10-13 16:41:50 - main - INFO - Starting ChatBot application...
+2025-10-13 16:41:50 - main - INFO - Initializing global RAG system...
+2025-10-13 16:41:50 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 16:41:50 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 16:41:51 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 16:41:52 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 16:41:52 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 16:41:52 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 16:41:52 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 16:41:52 - jieba - DEBUG - Loading model cost 0.272 seconds.
+2025-10-13 16:41:52 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 16:41:52 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 16:41:52 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 16:41:52 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 16:41:52 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 16:41:52 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 16:41:52 - main - INFO - Uploads watcher task started
+2025-10-13 16:41:52 - main - INFO - Index rebuilder task started
+2025-10-13 16:41:52 - main - INFO - ChatBot application startup complete
+2025-10-13 16:41:52 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 16:50:55 - main - INFO - Shutting down ChatBot application...
+2025-10-13 16:50:55 - main - INFO - Uploads watcher task stopped
+2025-10-13 16:50:55 - main - INFO - Index rebuilder task stopped
+2025-10-13 16:50:55 - main - INFO - ChatBot application shutdown complete
+2025-10-13 16:53:53 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://127.0.0.1:3000', 'http://127.0.0.1:8001']
+2025-10-13 16:53:53 - main - INFO - Starting ChatBot application...
+2025-10-13 16:53:53 - main - INFO - Initializing global RAG system...
+2025-10-13 16:53:53 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 16:53:53 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 16:53:53 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device: cpu
+2025-10-13 16:53:55 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-10-13 16:53:55 - app.rag.contextual_rag - INFO - Loaded cross-encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 16:53:55 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 16:53:55 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 16:53:55 - jieba - DEBUG - Loading model cost 0.269 seconds.
+2025-10-13 16:53:55 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 16:53:55 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 16:53:55 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 16:53:55 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 16:53:55 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 16:53:55 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 16:53:55 - main - INFO - Uploads watcher task started
+2025-10-13 16:53:55 - main - INFO - Index rebuilder task started
+2025-10-13 16:53:55 - main - INFO - ChatBot application startup complete
+2025-10-13 16:53:55 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 17:10:05 - main - INFO - Shutting down ChatBot application...
+2025-10-13 17:10:05 - main - INFO - Uploads watcher task stopped
+2025-10-13 17:10:05 - main - INFO - Index rebuilder task stopped
+2025-10-13 17:10:05 - main - INFO - ChatBot application shutdown complete
+2025-10-13 17:19:11 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://127.0.0.1:3000', 'http://127.0.0.1:8001']
+2025-10-13 17:19:11 - main - INFO - Starting ChatBot application...
+2025-10-13 17:19:11 - main - INFO - Initializing global RAG system...
+2025-10-13 17:19:11 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 17:19:11 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce RTX 4090 (23.99GB 顯存)
+2025-10-13 17:19:11 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 17:19:13 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384)
+2025-10-13 17:19:14 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 17:19:14 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 17:19:14 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 17:19:14 - jieba - DEBUG - Loading model cost 0.293 seconds.
+2025-10-13 17:19:14 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 17:19:14 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 17:19:14 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 17:19:14 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 17:19:14 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 17:19:14 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 17:19:14 - main - INFO - Uploads watcher task started
+2025-10-13 17:19:14 - main - INFO - Index rebuilder task started
+2025-10-13 17:19:14 - main - INFO - ChatBot application startup complete
+2025-10-13 17:19:14 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 17:19:44 - main - INFO - Shutting down ChatBot application...
+2025-10-13 17:19:44 - main - INFO - Uploads watcher task stopped
+2025-10-13 17:19:44 - main - INFO - Index rebuilder task stopped
+2025-10-13 17:19:44 - main - INFO - ChatBot application shutdown complete
+2025-10-13 17:19:48 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://127.0.0.1:3000', 'http://127.0.0.1:8001']
+2025-10-13 17:19:48 - main - INFO - Starting ChatBot application...
+2025-10-13 17:19:48 - main - INFO - Initializing global RAG system...
+2025-10-13 17:19:48 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 17:19:48 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce RTX 4090 (23.99GB 顯存)
+2025-10-13 17:19:48 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 17:19:49 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384)
+2025-10-13 17:19:50 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 17:19:50 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 17:19:50 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 17:19:51 - jieba - DEBUG - Loading model cost 0.270 seconds.
+2025-10-13 17:19:51 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 17:19:51 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 17:19:51 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 17:19:51 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 17:19:51 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 17:19:51 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 17:19:51 - main - INFO - Uploads watcher task started
+2025-10-13 17:19:51 - main - INFO - Index rebuilder task started
+2025-10-13 17:19:51 - main - INFO - ChatBot application startup complete
+2025-10-13 17:19:51 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 17:20:37 - security - INFO - {"timestamp": "2025-10-13T09:20:37.989704", "event_type": "USER_LOGIN", "severity": "INFO", "user_id": 1, "client_ip": null, "method": "POST", "path": "/api/auth/login", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36", "details": {"username": "yalkyao"}}
+2025-10-13 17:20:49 - app.services.cache_service - INFO - Redis 快取已禁用 (設定 ENABLE_REDIS_CACHE=true 啟用)
+2025-10-13 17:20:50 - app.rag.contextual_rag - INFO - Retrieval strategy=HYBRID(FAQ-like) query='你好' candidates=50
+2025-10-13 17:20:50 - app.rag.contextual_rag - INFO - Retrieval pre-rerank top5: [{'source': '年度調薪作業程序(GEP-CW-2-12)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}, {'source': '資深員工獎勵作業程序(GEP-CW-2-08)V1.0_神資.docx', 'chunk': 4, 'score': 0.7}, {'source': '神通資科員工紅利發放辦法(GEP-CW-3-07)V1.0_神資.docx', 'chunk': 6, 'score': 0.7}, {'source': '神通之星選拔作業程序(GEP-CW-2-09)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}, {'source': '扣繳憑單作業程序(GEP-CW-2-13)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}]
+2025-10-13 17:20:50 - app.rag.contextual_rag - INFO - Retrieval post-rerank top5: [{'source': '關於神通資訊科技股份有限公司.docx', 'chunk': 21, 'score': 0.8264}, {'source': '關於神通資訊科技股份有限公司.docx', 'chunk': 23, 'score': 0.823}, {'source': '關於神通資訊科技股份有限公司.docx', 'chunk': 22, 'score': 0.8074}, {'source': '人資作業FAQ.docx', 'chunk': 0, 'score': 0.7974}, {'source': '關於神通資訊科技股份有限公司.docx', 'chunk': 25, 'score': 0.7915}]
+2025-10-13 17:20:50 - app.rag.contextual_rag - INFO - Calling LLM API: model=gpt-oss:20b, messages=2, url=https://blowfish-absolute-absolutely.ngrok-free.app/api/chat, timeout=90s
+2025-10-13 17:21:17 - app.rag.contextual_rag - INFO - LLM response received: 14 chars
+2025-10-13 17:21:17 - main - INFO - Shutting down ChatBot application...
+2025-10-13 17:21:17 - main - INFO - Uploads watcher task stopped
+2025-10-13 17:21:17 - main - INFO - Index rebuilder task stopped
+2025-10-13 17:21:17 - main - INFO - ChatBot application shutdown complete
+2025-10-13 17:21:22 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://127.0.0.1:3000', 'http://127.0.0.1:8001']
+2025-10-13 17:21:22 - main - INFO - Starting ChatBot application...
+2025-10-13 17:21:22 - main - INFO - Initializing global RAG system...
+2025-10-13 17:21:22 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 17:21:22 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce RTX 4090 (23.99GB 顯存)
+2025-10-13 17:21:22 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 17:21:23 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384)
+2025-10-13 17:21:24 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 17:21:24 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 17:21:24 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 17:21:25 - jieba - DEBUG - Loading model cost 0.286 seconds.
+2025-10-13 17:21:25 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 17:21:25 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 17:21:25 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 17:21:25 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 17:21:25 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 17:21:25 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 17:21:25 - main - INFO - Uploads watcher task started
+2025-10-13 17:21:25 - main - INFO - Index rebuilder task started
+2025-10-13 17:21:25 - main - INFO - ChatBot application startup complete
+2025-10-13 17:21:25 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 17:23:08 - app.services.cache_service - INFO - Redis 快取已禁用 (設定 ENABLE_REDIS_CACHE=true 啟用)
+2025-10-13 17:23:09 - app.rag.contextual_rag - INFO - Retrieval strategy=HYBRID(FAQ-like) query='介紹神通資科' candidates=50
+2025-10-13 17:23:09 - app.rag.contextual_rag - INFO - Retrieval pre-rerank top5: [{'source': '年度調薪作業程序(GEP-CW-2-12)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}, {'source': '資深員工獎勵作業程序(GEP-CW-2-08)V1.0_神資.docx', 'chunk': 4, 'score': 0.7}, {'source': '神通資科員工紅利發放辦法(GEP-CW-3-07)V1.0_神資.docx', 'chunk': 6, 'score': 0.7}, {'source': '神通之星選拔作業程序(GEP-CW-2-09)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}, {'source': '扣繳憑單作業程序(GEP-CW-2-13)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}]
+2025-10-13 17:23:09 - app.rag.contextual_rag - INFO - Retrieval post-rerank top5: [{'source': '神通之星選拔作業程序(GEP-CW-2-09)V1.0_神資.docx', 'chunk': 4, 'score': 0.9184}, {'source': '神通之星選拔作業程序(GEP-CW-2-09)V1.0_神資.docx', 'chunk': 0, 'score': 0.9039}, {'source': '關於神通資訊科技股份有限公司.docx', 'chunk': 37, 'score': 0.8634}, {'source': '關於神通資訊科技股份有限公司.docx', 'chunk': 2, 'score': 0.8499}, {'source': '新進同仁入職指南_20250507.docx', 'chunk': 10, 'score': 0.848}]
+2025-10-13 17:23:09 - app.rag.contextual_rag - INFO - Calling LLM API: model=gpt-oss:20b, messages=2, url=https://blowfish-absolute-absolutely.ngrok-free.app/api/chat, timeout=90s
+2025-10-13 17:23:23 - app.rag.contextual_rag - INFO - LLM response received: 1012 chars
+2025-10-13 17:23:49 - main - INFO - Shutting down ChatBot application...
+2025-10-13 17:23:49 - main - INFO - Uploads watcher task stopped
+2025-10-13 17:23:49 - main - INFO - Index rebuilder task stopped
+2025-10-13 17:23:49 - main - INFO - ChatBot application shutdown complete
+2025-10-13 17:23:58 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://127.0.0.1:3000', 'http://127.0.0.1:8001']
+2025-10-13 17:23:58 - main - INFO - Starting ChatBot application...
+2025-10-13 17:23:58 - main - INFO - Initializing global RAG system...
+2025-10-13 17:23:58 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 17:23:58 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce RTX 4090 (23.99GB 顯存)
+2025-10-13 17:23:58 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 17:23:59 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384)
+2025-10-13 17:23:59 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 17:23:59 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 17:23:59 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 17:24:00 - jieba - DEBUG - Loading model cost 0.284 seconds.
+2025-10-13 17:24:00 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 17:24:00 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 17:24:00 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 17:24:00 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 17:24:00 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 17:24:00 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 17:24:00 - main - INFO - Uploads watcher task started
+2025-10-13 17:24:00 - main - INFO - Index rebuilder task started
+2025-10-13 17:24:00 - main - INFO - ChatBot application startup complete
+2025-10-13 17:24:00 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 17:24:21 - app.services.cache_service - INFO - Redis 快取已禁用 (設定 ENABLE_REDIS_CACHE=true 啟用)
+2025-10-13 17:24:21 - app.rag.contextual_rag - INFO - Retrieval strategy=HYBRID(FAQ-like) query='介紹神通資科' candidates=80
+2025-10-13 17:24:21 - app.rag.contextual_rag - INFO - Retrieval pre-rerank top5: [{'source': '年度調薪作業程序(GEP-CW-2-12)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}, {'source': '資深員工獎勵作業程序(GEP-CW-2-08)V1.0_神資.docx', 'chunk': 4, 'score': 0.7}, {'source': '神通資科員工紅利發放辦法(GEP-CW-3-07)V1.0_神資.docx', 'chunk': 6, 'score': 0.7}, {'source': '神通之星選拔作業程序(GEP-CW-2-09)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}, {'source': '扣繳憑單作業程序(GEP-CW-2-13)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}]
+2025-10-13 17:24:21 - app.rag.contextual_rag - INFO - Retrieval post-rerank top5: [{'source': '神通之星選拔作業程序(GEP-CW-2-09)V1.0_神資.docx', 'chunk': 4, 'score': 0.9231}, {'source': '神通之星選拔作業程序(GEP-CW-2-09)V1.0_神資.docx', 'chunk': 0, 'score': 0.9088}, {'source': '關於神通資訊科技股份有限公司.docx', 'chunk': 37, 'score': 0.8757}, {'source': '新進同仁入職指南_20250507.docx', 'chunk': 10, 'score': 0.8629}, {'source': '關於神通資訊科技股份有限公司.docx', 'chunk': 2, 'score': 0.8596}]
+2025-10-13 17:24:21 - app.rag.contextual_rag - INFO - Calling LLM API: model=gpt-oss:20b, messages=2, url=https://blowfish-absolute-absolutely.ngrok-free.app/api/chat, timeout=90s
+2025-10-13 17:24:38 - app.rag.contextual_rag - INFO - LLM response received: 1251 chars
+2025-10-13 17:25:42 - main - INFO - Shutting down ChatBot application...
+2025-10-13 17:25:42 - main - INFO - Uploads watcher task stopped
+2025-10-13 17:25:42 - main - INFO - Index rebuilder task stopped
+2025-10-13 17:25:42 - main - INFO - ChatBot application shutdown complete
+2025-10-13 17:25:56 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://127.0.0.1:3000', 'http://127.0.0.1:8001']
+2025-10-13 17:25:56 - main - INFO - Starting ChatBot application...
+2025-10-13 17:25:56 - main - INFO - Initializing global RAG system...
+2025-10-13 17:25:56 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 17:25:56 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce RTX 4090 (23.99GB 顯存)
+2025-10-13 17:25:56 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 17:25:57 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384)
+2025-10-13 17:25:58 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 17:25:58 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 17:25:58 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 17:25:58 - jieba - DEBUG - Loading model cost 0.302 seconds.
+2025-10-13 17:25:58 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 17:25:58 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 17:25:58 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 17:25:58 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 17:25:58 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 17:25:58 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 17:25:58 - main - INFO - Uploads watcher task started
+2025-10-13 17:25:58 - main - INFO - Index rebuilder task started
+2025-10-13 17:25:58 - main - INFO - ChatBot application startup complete
+2025-10-13 17:25:58 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 17:28:44 - main - INFO - Shutting down ChatBot application...
+2025-10-13 17:28:44 - main - INFO - Uploads watcher task stopped
+2025-10-13 17:28:44 - main - INFO - Index rebuilder task stopped
+2025-10-13 17:28:44 - main - INFO - ChatBot application shutdown complete
+2025-10-13 17:28:48 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://127.0.0.1:3000', 'http://127.0.0.1:8001']
+2025-10-13 17:28:48 - main - INFO - Starting ChatBot application...
+2025-10-13 17:28:48 - main - INFO - Initializing global RAG system...
+2025-10-13 17:28:48 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 17:28:48 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce RTX 4090 (23.99GB 顯存)
+2025-10-13 17:28:48 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 17:28:49 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384)
+2025-10-13 17:28:50 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 17:28:50 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 17:28:50 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 17:28:50 - jieba - DEBUG - Loading model cost 0.278 seconds.
+2025-10-13 17:28:50 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 17:28:50 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 17:28:50 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 17:28:50 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 17:28:50 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 17:28:50 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 17:28:50 - main - INFO - Uploads watcher task started
+2025-10-13 17:28:50 - main - INFO - Index rebuilder task started
+2025-10-13 17:28:50 - main - INFO - ChatBot application startup complete
+2025-10-13 17:28:50 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 17:29:10 - main - INFO - Shutting down ChatBot application...
+2025-10-13 17:29:10 - main - INFO - Uploads watcher task stopped
+2025-10-13 17:29:10 - main - INFO - Index rebuilder task stopped
+2025-10-13 17:29:10 - main - INFO - ChatBot application shutdown complete
+2025-10-13 17:29:14 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://127.0.0.1:3000', 'http://127.0.0.1:8001']
+2025-10-13 17:29:14 - main - INFO - Starting ChatBot application...
+2025-10-13 17:29:14 - main - INFO - Initializing global RAG system...
+2025-10-13 17:29:14 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 17:29:14 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce RTX 4090 (23.99GB 顯存)
+2025-10-13 17:29:14 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 17:29:15 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384)
+2025-10-13 17:29:16 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 17:29:16 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 17:29:16 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 17:29:16 - jieba - DEBUG - Loading model cost 0.326 seconds.
+2025-10-13 17:29:16 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 17:29:16 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 17:29:16 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 17:29:16 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 17:29:16 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 17:29:16 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 17:29:16 - main - INFO - Uploads watcher task started
+2025-10-13 17:29:16 - main - INFO - Index rebuilder task started
+2025-10-13 17:29:16 - main - INFO - ChatBot application startup complete
+2025-10-13 17:29:16 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 17:29:34 - main - INFO - Shutting down ChatBot application...
+2025-10-13 17:29:34 - main - INFO - Uploads watcher task stopped
+2025-10-13 17:29:34 - main - INFO - Index rebuilder task stopped
+2025-10-13 17:29:34 - main - INFO - ChatBot application shutdown complete
+2025-10-13 17:29:38 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://127.0.0.1:3000', 'http://127.0.0.1:8001']
+2025-10-13 17:29:38 - main - INFO - Starting ChatBot application...
+2025-10-13 17:29:38 - main - INFO - Initializing global RAG system...
+2025-10-13 17:29:38 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 17:29:38 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce RTX 4090 (23.99GB 顯存)
+2025-10-13 17:29:38 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 17:29:39 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384)
+2025-10-13 17:29:40 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 17:29:40 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 17:29:40 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 17:29:40 - jieba - DEBUG - Loading model cost 0.277 seconds.
+2025-10-13 17:29:40 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 17:29:40 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 17:29:40 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 17:29:40 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 17:29:40 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 17:29:40 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 17:29:40 - main - INFO - Uploads watcher task started
+2025-10-13 17:29:40 - main - INFO - Index rebuilder task started
+2025-10-13 17:29:40 - main - INFO - ChatBot application startup complete
+2025-10-13 17:29:40 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 17:29:59 - main - INFO - Shutting down ChatBot application...
+2025-10-13 17:29:59 - main - INFO - Uploads watcher task stopped
+2025-10-13 17:29:59 - main - INFO - Index rebuilder task stopped
+2025-10-13 17:29:59 - main - INFO - ChatBot application shutdown complete
+2025-10-13 17:30:02 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://127.0.0.1:3000', 'http://127.0.0.1:8001']
+2025-10-13 17:30:02 - main - INFO - Starting ChatBot application...
+2025-10-13 17:30:02 - main - INFO - Initializing global RAG system...
+2025-10-13 17:30:02 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 17:30:02 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce RTX 4090 (23.99GB 顯存)
+2025-10-13 17:30:02 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 17:30:03 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384)
+2025-10-13 17:30:04 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-10-13 17:30:04 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 17:30:04 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 17:30:05 - jieba - DEBUG - Loading model cost 0.266 seconds.
+2025-10-13 17:30:05 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 17:30:05 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 17:30:05 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 17:30:05 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 17:30:05 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 17:30:05 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 17:30:05 - main - INFO - Uploads watcher task started
+2025-10-13 17:30:05 - main - INFO - Index rebuilder task started
+2025-10-13 17:30:05 - main - INFO - ChatBot application startup complete
+2025-10-13 17:30:05 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 17:30:31 - main - INFO - Shutting down ChatBot application...
+2025-10-13 17:30:31 - main - INFO - Uploads watcher task stopped
+2025-10-13 17:30:31 - main - INFO - Index rebuilder task stopped
+2025-10-13 17:30:31 - main - INFO - ChatBot application shutdown complete
+2025-10-13 17:30:34 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://127.0.0.1:3000', 'http://127.0.0.1:8001']
+2025-10-13 17:30:34 - main - INFO - Starting ChatBot application...
+2025-10-13 17:30:34 - main - INFO - Initializing global RAG system...
+2025-10-13 17:30:34 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 17:30:34 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce RTX 4090 (23.99GB 顯存)
+2025-10-13 17:30:34 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 17:30:35 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-10-13 17:30:36 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2 (精度: FP32)
+2025-10-13 17:30:36 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 17:30:36 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 17:30:37 - jieba - DEBUG - Loading model cost 0.284 seconds.
+2025-10-13 17:30:37 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 17:30:37 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 17:30:37 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 17:30:37 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 17:30:37 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 17:30:37 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 17:30:37 - main - INFO - Uploads watcher task started
+2025-10-13 17:30:37 - main - INFO - Index rebuilder task started
+2025-10-13 17:30:37 - main - INFO - ChatBot application startup complete
+2025-10-13 17:30:37 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 17:31:02 - main - INFO - Shutting down ChatBot application...
+2025-10-13 17:31:02 - main - INFO - Uploads watcher task stopped
+2025-10-13 17:31:02 - main - INFO - Index rebuilder task stopped
+2025-10-13 17:31:02 - main - INFO - ChatBot application shutdown complete
+2025-10-13 17:31:06 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://127.0.0.1:3000', 'http://127.0.0.1:8001']
+2025-10-13 17:31:06 - main - INFO - Starting ChatBot application...
+2025-10-13 17:31:06 - main - INFO - Initializing global RAG system...
+2025-10-13 17:31:06 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 17:31:06 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce RTX 4090 (23.99GB 顯存)
+2025-10-13 17:31:06 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 17:31:07 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-10-13 17:31:08 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2 (精度: FP32)
+2025-10-13 17:31:08 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 17:31:08 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 17:31:08 - jieba - DEBUG - Loading model cost 0.287 seconds.
+2025-10-13 17:31:08 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 17:31:08 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 17:31:08 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 17:31:08 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 17:31:08 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 17:31:08 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 17:31:08 - main - INFO - Uploads watcher task started
+2025-10-13 17:31:08 - main - INFO - Index rebuilder task started
+2025-10-13 17:31:08 - main - INFO - ChatBot application startup complete
+2025-10-13 17:31:08 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 17:32:17 - main - INFO - Shutting down ChatBot application...
+2025-10-13 17:32:17 - main - INFO - Uploads watcher task stopped
+2025-10-13 17:32:17 - main - INFO - Index rebuilder task stopped
+2025-10-13 17:32:17 - main - INFO - ChatBot application shutdown complete
+2025-10-13 17:32:21 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://127.0.0.1:3000', 'http://127.0.0.1:8001']
+2025-10-13 17:32:21 - main - INFO - Starting ChatBot application...
+2025-10-13 17:32:21 - main - INFO - Initializing global RAG system...
+2025-10-13 17:32:21 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 17:32:21 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce RTX 4090 (23.99GB 顯存)
+2025-10-13 17:32:21 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 17:32:22 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-10-13 17:32:23 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2 (精度: FP32)
+2025-10-13 17:32:23 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 17:32:23 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 17:32:23 - jieba - DEBUG - Loading model cost 0.266 seconds.
+2025-10-13 17:32:23 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 17:32:23 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 17:32:23 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 17:32:23 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 17:32:23 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 17:32:23 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 17:32:23 - main - INFO - Uploads watcher task started
+2025-10-13 17:32:23 - main - INFO - Index rebuilder task started
+2025-10-13 17:32:23 - main - INFO - ChatBot application startup complete
+2025-10-13 17:32:23 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 17:34:08 - main - INFO - Shutting down ChatBot application...
+2025-10-13 17:34:08 - main - INFO - Uploads watcher task stopped
+2025-10-13 17:34:08 - main - INFO - Index rebuilder task stopped
+2025-10-13 17:34:08 - main - INFO - ChatBot application shutdown complete
+2025-10-13 17:34:13 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://127.0.0.1:3000', 'http://127.0.0.1:8001']
+2025-10-13 17:34:14 - main - INFO - Starting ChatBot application...
+2025-10-13 17:34:14 - main - INFO - Initializing global RAG system...
+2025-10-13 17:34:14 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 17:34:14 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce RTX 4090 (23.99GB 顯存)
+2025-10-13 17:34:14 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 17:34:14 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-10-13 17:34:15 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2 (精度: FP32)
+2025-10-13 17:34:15 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 17:34:15 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 17:34:16 - jieba - DEBUG - Loading model cost 0.289 seconds.
+2025-10-13 17:34:16 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 17:34:16 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 17:34:16 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 17:34:16 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 17:34:16 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 17:34:16 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 17:34:16 - main - INFO - Uploads watcher task started
+2025-10-13 17:34:16 - main - INFO - Index rebuilder task started
+2025-10-13 17:34:16 - main - INFO - ChatBot application startup complete
+2025-10-13 17:34:16 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 17:47:39 - security - INFO - {"timestamp": "2025-10-13T09:47:39.137558", "event_type": "TOKEN_REFRESH_ERROR", "severity": "INFO", "user_id": null, "client_ip": null, "method": "POST", "path": "/api/auth/refresh", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36", "details": {"error": "verify_refresh_token() takes 1 positional argument but 2 were given"}}
+2025-10-13 17:57:52 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://127.0.0.1:3000', 'http://127.0.0.1:8001']
+2025-10-13 17:57:52 - main - INFO - Starting ChatBot application...
+2025-10-13 17:57:52 - main - INFO - Initializing global RAG system...
+2025-10-13 17:57:52 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 17:57:52 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce RTX 4090 (23.99GB 顯存)
+2025-10-13 17:57:52 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 17:57:53 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-10-13 17:57:54 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2 (精度: FP32)
+2025-10-13 17:57:54 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 17:57:54 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 17:57:55 - jieba - DEBUG - Loading model cost 0.278 seconds.
+2025-10-13 17:57:55 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 17:57:55 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 17:57:55 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 17:57:55 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-10-13 17:57:55 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 17:57:55 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 17:57:55 - main - INFO - Uploads watcher task started
+2025-10-13 17:57:55 - main - INFO - Index rebuilder task started
+2025-10-13 17:57:55 - main - INFO - ChatBot application startup complete
+2025-10-13 17:57:55 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 18:18:26 - main - INFO - Shutting down ChatBot application...
+2025-10-13 18:18:26 - main - INFO - Uploads watcher task stopped
+2025-10-13 18:18:26 - main - INFO - Index rebuilder task stopped
+2025-10-13 18:18:26 - main - INFO - ChatBot application shutdown complete
+2025-10-13 18:18:32 - main - INFO - Rate limiting enabled: 100 requests per minute
+2025-10-13 18:18:32 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://127.0.0.1:3000', 'http://127.0.0.1:8001']
+2025-10-13 18:18:33 - main - INFO - Starting ChatBot application...
+2025-10-13 18:18:33 - main - INFO - Initializing global RAG system...
+2025-10-13 18:18:33 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 18:18:33 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce RTX 4090 (23.99GB 顯存)
+2025-10-13 18:18:33 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 18:18:33 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-10-13 18:18:34 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2 (精度: FP32)
+2025-10-13 18:18:34 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 18:18:34 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 18:18:35 - jieba - DEBUG - Loading model cost 0.308 seconds.
+2025-10-13 18:18:35 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 18:18:35 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 18:18:35 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 18:18:35 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 18:18:35 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 18:18:35 - main - INFO - Uploads watcher task started
+2025-10-13 18:18:35 - main - INFO - Index rebuilder task started
+2025-10-13 18:18:35 - main - INFO - ChatBot application startup complete
+2025-10-13 18:18:35 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 18:19:10 - security - INFO - {"timestamp": "2025-10-13T10:19:10.167036", "event_type": "USER_LOGIN", "severity": "INFO", "user_id": 1, "client_ip": null, "method": "POST", "path": "/api/auth/login", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36", "details": {"username": "yalkyao"}}
+2025-10-13 18:19:19 - app.services.cache_service - INFO - Redis 快取已禁用 (設定 ENABLE_REDIS_CACHE=true 啟用)
+2025-10-13 18:19:21 - app.rag.contextual_rag - INFO - Retrieval strategy=HYBRID(FAQ-like) query='詳細介紹神通' candidates=50
+2025-10-13 18:19:21 - app.rag.contextual_rag - INFO - Retrieval pre-rerank top5: [{'source': '年度調薪作業程序(GEP-CW-2-12)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}, {'source': '資深員工獎勵作業程序(GEP-CW-2-08)V1.0_神資.docx', 'chunk': 4, 'score': 0.7}, {'source': '神通資科員工紅利發放辦法(GEP-CW-3-07)V1.0_神資.docx', 'chunk': 6, 'score': 0.7}, {'source': '神通之星選拔作業程序(GEP-CW-2-09)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}, {'source': '扣繳憑單作業程序(GEP-CW-2-13)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}]
+2025-10-13 18:19:21 - app.rag.contextual_rag - INFO - Retrieval post-rerank top5: [{'source': '神通之星選拔作業程序(GEP-CW-2-09)V1.0_神資.docx', 'chunk': 4, 'score': 0.9165}, {'source': '神通之星選拔作業程序(GEP-CW-2-09)V1.0_神資.docx', 'chunk': 0, 'score': 0.9023}, {'source': '關於神通資訊科技股份有限公司.docx', 'chunk': 21, 'score': 0.8812}, {'source': '內部轉調作業辦法(GEP-CW-3-14)V2.3_神資.docx', 'chunk': 18, 'score': 0.8651}, {'source': '關於神通資訊科技股份有限公司.docx', 'chunk': 2, 'score': 0.8629}]
+2025-10-13 18:19:21 - app.rag.contextual_rag - INFO - Calling LLM API: model=gpt-oss:20b, messages=2, url=https://blowfish-absolute-absolutely.ngrok-free.app/api/chat, timeout=90s
+2025-10-13 18:19:58 - app.rag.contextual_rag - INFO - LLM response received: 1366 chars
+2025-10-13 18:19:59 - main - INFO - Shutting down ChatBot application...
+2025-10-13 18:19:59 - main - INFO - Uploads watcher task stopped
+2025-10-13 18:19:59 - main - INFO - Index rebuilder task stopped
+2025-10-13 18:19:59 - main - INFO - ChatBot application shutdown complete
+2025-10-13 18:20:04 - main - INFO - Rate limiting enabled: 100 requests per minute
+2025-10-13 18:20:04 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://127.0.0.1:3000', 'http://127.0.0.1:8001']
+2025-10-13 18:20:04 - main - INFO - Starting ChatBot application...
+2025-10-13 18:20:04 - main - INFO - Initializing global RAG system...
+2025-10-13 18:20:04 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 18:20:04 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce RTX 4090 (23.99GB 顯存)
+2025-10-13 18:20:04 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 18:20:06 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-10-13 18:20:07 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2 (精度: FP32)
+2025-10-13 18:20:07 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 18:20:07 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 18:20:07 - jieba - DEBUG - Loading model cost 0.470 seconds.
+2025-10-13 18:20:07 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 18:20:07 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 18:20:07 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 18:20:07 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 18:20:07 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 18:20:07 - main - INFO - Uploads watcher task started
+2025-10-13 18:20:07 - main - INFO - Index rebuilder task started
+2025-10-13 18:20:07 - main - INFO - ChatBot application startup complete
+2025-10-13 18:20:07 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 18:20:31 - main - INFO - Shutting down ChatBot application...
+2025-10-13 18:20:31 - main - INFO - Uploads watcher task stopped
+2025-10-13 18:20:31 - main - INFO - Index rebuilder task stopped
+2025-10-13 18:20:31 - main - INFO - ChatBot application shutdown complete
+2025-10-13 18:20:34 - main - INFO - Rate limiting enabled: 100 requests per minute
+2025-10-13 18:20:34 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://127.0.0.1:3000', 'http://127.0.0.1:8001']
+2025-10-13 18:20:34 - main - INFO - Starting ChatBot application...
+2025-10-13 18:20:34 - main - INFO - Initializing global RAG system...
+2025-10-13 18:20:34 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-13 18:20:34 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce RTX 4090 (23.99GB 顯存)
+2025-10-13 18:20:34 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-13 18:20:35 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-10-13 18:20:36 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2 (精度: FP32)
+2025-10-13 18:20:36 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-13 18:20:36 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-13 18:20:37 - jieba - DEBUG - Loading model cost 0.283 seconds.
+2025-10-13 18:20:37 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-13 18:20:37 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-13 18:20:37 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-13 18:20:37 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-13 18:20:37 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-12T17:56:33.030274', 'auto_reindex_hours': 48}
+2025-10-13 18:20:37 - main - INFO - Uploads watcher task started
+2025-10-13 18:20:37 - main - INFO - Index rebuilder task started
+2025-10-13 18:20:37 - main - INFO - ChatBot application startup complete
+2025-10-13 18:20:37 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-13 18:20:53 - app.services.cache_service - INFO - Redis 快取已禁用 (設定 ENABLE_REDIS_CACHE=true 啟用)
+2025-10-13 18:20:54 - app.rag.contextual_rag - INFO - Retrieval strategy=HYBRID(FAQ-like) query='詳細介紹神通資訊科技股份有限公司' candidates=50
+2025-10-13 18:20:54 - app.rag.contextual_rag - INFO - Retrieval pre-rerank top5: [{'source': '新進同仁入職指南_20250507.docx', 'chunk': 12, 'score': 0.7}, {'source': '新進同仁入職指南_20250507.docx', 'chunk': 11, 'score': 0.6872}, {'source': '新進同仁入職指南_20250507.docx', 'chunk': 10, 'score': 0.6842}, {'source': '國外出差作業程序(GEP-CW-2-18)V2.0_神資.docx', 'chunk': 27, 'score': 0.6688}, {'source': '內部轉調作業辦法(GEP-CW-3-14)V2.3_神資.docx', 'chunk': 18, 'score': 0.6676}]
+2025-10-13 18:20:54 - app.rag.contextual_rag - INFO - Retrieval post-rerank top5: [{'source': '新進同仁入職指南_20250507.docx', 'chunk': 12, 'score': 0.996}, {'source': '新進同仁入職指南_20250507.docx', 'chunk': 11, 'score': 0.9893}, {'source': '新進同仁入職指南_20250507.docx', 'chunk': 10, 'score': 0.9863}, {'source': '新進同仁入職指南_20250507.docx', 'chunk': 9, 'score': 0.929}, {'source': '關於神通資訊科技股份有限公司.docx', 'chunk': 1, 'score': 0.9284}]
+2025-10-13 18:20:54 - app.rag.contextual_rag - INFO - Calling LLM API: model=gpt-oss:20b, messages=2, url=https://blowfish-absolute-absolutely.ngrok-free.app/api/chat, timeout=90s
+2025-10-13 18:21:03 - app.rag.contextual_rag - INFO - LLM response received: 1103 chars
+2025-10-13 18:21:56 - app.rag.contextual_rag - INFO - Retrieval strategy=HYBRID(FAQ-like) query='國外出差作業程序' candidates=50
+2025-10-13 18:21:56 - app.rag.contextual_rag - INFO - Retrieval pre-rerank top5: [{'source': '國外出差作業程序(GEP-CW-2-18)V2.0_神資.docx', 'chunk': 30, 'score': 0.9059}, {'source': '國外出差作業程序(GEP-CW-2-18)V2.0_神資.docx', 'chunk': 1, 'score': 0.862}, {'source': '國外出差作業程序(GEP-CW-2-18)V2.0_神資.docx', 'chunk': 26, 'score': 0.8008}, {'source': '國外出差作業程序(GEP-CW-2-18)V2.0_神資.docx', 'chunk': 21, 'score': 0.7788}, {'source': '國外出差作業程序(GEP-CW-2-18)V2.0_神資.docx', 'chunk': 29, 'score': 0.7548}]
+2025-10-13 18:21:56 - app.rag.contextual_rag - INFO - Retrieval post-rerank top5: [{'source': '國外出差作業程序(GEP-CW-2-18)V2.0_神資.docx', 'chunk': 30, 'score': 0.9225}, {'source': '國外出差作業程序(GEP-CW-2-18)V2.0_神資.docx', 'chunk': 26, 'score': 0.913}, {'source': '國外出差作業程序(GEP-CW-2-18)V2.0_神資.docx', 'chunk': 12, 'score': 0.8757}, {'source': '國外出差作業程序(GEP-CW-2-18)V2.0_神資.docx', 'chunk': 6, 'score': 0.874}, {'source': '國外出差作業程序(GEP-CW-2-18)V2.0_神資.docx', 'chunk': 4, 'score': 0.853}]
+2025-10-13 18:21:56 - app.rag.contextual_rag - INFO - Calling LLM API: model=gpt-oss:20b, messages=2, url=https://blowfish-absolute-absolutely.ngrok-free.app/api/chat, timeout=90s
+2025-10-13 18:22:08 - app.rag.contextual_rag - INFO - LLM response received: 1189 chars
+2025-10-13 18:22:21 - app.rag.contextual_rag - INFO - Retrieval strategy=HYBRID(FAQ-like) query='特休' candidates=50
+2025-10-13 18:22:21 - app.rag.contextual_rag - INFO - Retrieval pre-rerank top5: [{'source': '年度調薪作業程序(GEP-CW-2-12)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}, {'source': '資深員工獎勵作業程序(GEP-CW-2-08)V1.0_神資.docx', 'chunk': 4, 'score': 0.7}, {'source': '神通資科員工紅利發放辦法(GEP-CW-3-07)V1.0_神資.docx', 'chunk': 6, 'score': 0.7}, {'source': '神通之星選拔作業程序(GEP-CW-2-09)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}, {'source': '扣繳憑單作業程序(GEP-CW-2-13)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}]
+2025-10-13 18:22:22 - app.rag.contextual_rag - INFO - Retrieval post-rerank top5: [{'source': '人資作業FAQ.docx', 'chunk': 0, 'score': 0.8908}, {'source': '關於神通資訊科技股份有限公司.docx', 'chunk': 21, 'score': 0.8287}, {'source': '關於神通資訊科技股份有限公司.docx', 'chunk': 23, 'score': 0.8246}, {'source': '休假排休管理辦法(GEP-CW-3-10)V1.0_神資.docx', 'chunk': 4, 'score': 0.8117}, {'source': '關於神通資訊科技股份有限公司.docx', 'chunk': 22, 'score': 0.8049}]
+2025-10-13 18:22:22 - app.rag.contextual_rag - INFO - Calling LLM API: model=gpt-oss:20b, messages=2, url=https://blowfish-absolute-absolutely.ngrok-free.app/api/chat, timeout=90s
+2025-10-13 18:22:26 - app.rag.contextual_rag - INFO - LLM response received: 217 chars
+2025-10-13 18:22:45 - app.rag.contextual_rag - INFO - Retrieval strategy=HYBRID(FAQ-like) query='計算' candidates=50
+2025-10-13 18:22:45 - app.rag.contextual_rag - INFO - Retrieval pre-rerank top5: [{'source': '年度調薪作業程序(GEP-CW-2-12)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}, {'source': '資深員工獎勵作業程序(GEP-CW-2-08)V1.0_神資.docx', 'chunk': 4, 'score': 0.7}, {'source': '神通資科員工紅利發放辦法(GEP-CW-3-07)V1.0_神資.docx', 'chunk': 6, 'score': 0.7}, {'source': '神通之星選拔作業程序(GEP-CW-2-09)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}, {'source': '扣繳憑單作業程序(GEP-CW-2-13)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}]
+2025-10-13 18:22:45 - app.rag.contextual_rag - INFO - Retrieval post-rerank top5: [{'source': '專案內部支援及產品研發補貼計價作業準則(GEP-03-3-05)V2.1_神資.docx', 'chunk': 17, 'score': 0.8532}, {'source': '工時填寫管理辦法(GEP-03-3-08)V3.0_神資.docx', 'chunk': 22, 'score': 0.8433}, {'source': '員工獎懲作業程序(GEP-CW-2-25)V2.3_神資.docx', 'chunk': 29, 'score': 0.8348}, {'source': '扣繳憑單作業程序(GEP-CW-2-13)V1.0_神資.docx', 'chunk': 3, 'score': 0.8289}, {'source': '新進同仁入職指南_20250507.docx', 'chunk': 7, 'score': 0.8171}]
+2025-10-13 18:22:45 - app.rag.contextual_rag - INFO - Calling LLM API: model=gpt-oss:20b, messages=4, url=https://blowfish-absolute-absolutely.ngrok-free.app/api/chat, timeout=90s
+2025-10-13 18:22:51 - app.rag.contextual_rag - INFO - LLM response received: 328 chars
+2025-10-13 18:23:17 - app.rag.contextual_rag - INFO - Retrieval strategy=HYBRID(FAQ-like) query='特休計算' candidates=50
+2025-10-13 18:23:17 - app.rag.contextual_rag - INFO - Retrieval pre-rerank top5: [{'source': '人資作業FAQ.docx', 'chunk': 0, 'score': 0.8938}, {'source': '人資作業FAQ.docx', 'chunk': 0, 'score': 0.8819}, {'source': '員工請假管理程序(GEP-CW-2-07)V4.4_神資.docx', 'chunk': 4, 'score': 0.7}, {'source': '工時填寫管理辦法(GEP-03-3-08)V3.0_神資.docx', 'chunk': 14, 'score': 0.6848}, {'source': '出勤管理辦法(GEP-CW-3-02)V4.4_神資.docx', 'chunk': 20, 'score': 0.6495}]
+2025-10-13 18:23:17 - app.rag.contextual_rag - INFO - Retrieval post-rerank top5: [{'source': '人資作業FAQ.docx', 'chunk': 0, 'score': 0.9548}, {'source': '人資作業FAQ.docx', 'chunk': 0, 'score': 0.9046}, {'source': '人資作業FAQ.docx', 'chunk': 0, 'score': 0.8229}, {'source': '員工請假管理程序(GEP-CW-2-07)V4.4_神資.docx', 'chunk': 4, 'score': 0.8192}, {'source': '人資作業FAQ.docx', 'chunk': 0, 'score': 0.8058}]
+2025-10-13 18:23:17 - app.rag.contextual_rag - INFO - Calling LLM API: model=gpt-oss:20b, messages=6, url=https://blowfish-absolute-absolutely.ngrok-free.app/api/chat, timeout=90s
+2025-10-13 18:23:24 - app.rag.contextual_rag - INFO - LLM response received: 356 chars

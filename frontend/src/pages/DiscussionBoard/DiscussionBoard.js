@@ -205,7 +205,7 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
           if (isLocalDevelopment) {
             // 本地開發環境: 直接使用後端端口
             protocol = 'ws:';
-            host = 'localhost:8001';
+            host = '127.0.0.1:8001';
             
             // 如果有 API base 配置，從中提取 host
             if (envApi) {

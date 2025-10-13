@@ -32,7 +32,9 @@ def init_redis():
             db=REDIS_DB,
             password=REDIS_PASSWORD,
             decode_responses=True,
-            max_connections=10
+            max_connections=10,
+            socket_connect_timeout=0.5,  # 連接超時 0.5 秒
+            socket_timeout=0.5  # 命令超時 0.5 秒
         )
         
         redis_client = redis.Redis(connection_pool=redis_pool)
@@ -40,6 +42,7 @@ def init_redis():
         # 測試連接
         redis_client.ping()
         print(f"✅ Redis 連接成功: {REDIS_HOST}:{REDIS_PORT}")
+        print(f"✅ Token 黑名單功能已啟用")
         return True
     except redis.ConnectionError as e:
         print(f"⚠️  Redis 連接失敗: {e}")

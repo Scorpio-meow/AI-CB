@@ -103,6 +103,95 @@
                 "focus": false,
                 "panel": "shared"
             }
+        },
+        {
+            "label": "🚀 生產環境啟動 (32 Workers)",
+            "type": "shell",
+            "command": "powershell.exe",
+            "args": [
+                "-ExecutionPolicy", "Bypass",
+                "-File", "${workspaceFolder}/backend/start_production.ps1",
+                "-Workers", "32",
+                "-Port", "8001"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/backend"
+            },
+            "group": "build",
+            "isBackground": true,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🎯 生產環境啟動 (24 Workers 保守)",
+            "type": "shell",
+            "command": "powershell.exe",
+            "args": [
+                "-ExecutionPolicy", "Bypass",
+                "-File", "${workspaceFolder}/backend/start_production.ps1",
+                "-Workers", "24",
+                "-Port", "8001"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/backend"
+            },
+            "group": "build",
+            "isBackground": true,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🔧 Waitress 啟動 (Windows 穩定版)",
+            "type": "shell",
+            "command": "powershell.exe",
+            "args": [
+                "-ExecutionPolicy", "Bypass",
+                "-File", "${workspaceFolder}/backend/start_waitress.ps1",
+                "-Threads", "32",
+                "-Port", "8001"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/backend"
+            },
+            "group": "build",
+            "isBackground": true,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🧪 測試 GPU 加速",
+            "type": "shell",
+            "command": "${workspaceFolder}/CBvenv/Scripts/python.exe",
+            "args": [
+                "-c",
+                "import torch; from sentence_transformers import SentenceTransformer; print('CUDA:', torch.cuda.is_available()); print('GPU:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'N/A'); model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2', device='cuda' if torch.cuda.is_available() else 'cpu'); print('Model Device:', model.device); texts = ['測試文本'] * 100; embeddings = model.encode(texts, batch_size=128); print('✅ GPU 加速測試成功！嵌入維度:', embeddings.shape)"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/backend"
+            },
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated"
+            },
+            "problemMatcher": []
         }
     ]
 }

@@ -92,17 +92,52 @@ class HybridContextualRAG:
             import requests
             self.requests = requests
             
-            # Embedding models
-            embedding_model = os.getenv("EMBEDDING_MODEL", "paraphrase-multilingual-MiniLM-L12-v2")
-            self.local_embeddings = SentenceTransformer(embedding_model)
-            self.embedding_dimension = self.local_embeddings.get_sentence_embedding_dimension()
+            # GPU Configuration - RTX 4090 Optimization
+            import torch
+            self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            if self.device == 'cuda':
+                gpu_name = torch.cuda.get_device_name(0)
+                gpu_memory = round(torch.cuda.get_device_properties(0).total_memory / 1024**3, 2)
+                logger.info(f"🚀 GPU加速已啟用: {gpu_name} ({gpu_memory}GB 顯存)")
+                # RTX 4090 optimized batch size (24GB VRAM)
+                self.batch_size = int(os.getenv("GPU_BATCH_SIZE", "128"))
+            else:
+                logger.warning("⚠️ 未檢測到 CUDA，使用 CPU 模式")
+                self.batch_size = int(os.getenv("CPU_BATCH_SIZE", "32"))
             
-            # Cross-encoder for reranking
+            # Embedding models with GPU acceleration
+            embedding_model = os.getenv("EMBEDDING_MODEL", "paraphrase-multilingual-MiniLM-L12-v2")
+            self.local_embeddings = SentenceTransformer(embedding_model, device=self.device)
+            
+            # 模型量化配置 (FP16)
+            self.use_fp16 = os.getenv("USE_FP16_QUANTIZATION", "false").lower() == "true"
+            if self.use_fp16 and self.device == 'cuda':
+                try:
+                    # 將模型轉換為 FP16
+                    self.local_embeddings = self.local_embeddings.half()
+                    logger.info("✅ 嵌入模型已量化為 FP16 (顯存減少 50%)")
+                except Exception as e:
+                    logger.warning(f"FP16 量化失敗，使用 FP32: {e}")
+                    self.use_fp16 = False
+            
+            self.embedding_dimension = self.local_embeddings.get_sentence_embedding_dimension()
+            logger.info(f"嵌入模型已載入至 {self.device.upper()}: {embedding_model} (維度: {self.embedding_dimension}, 精度: {'FP16' if self.use_fp16 else 'FP32'})")
+            
+            # Cross-encoder for reranking with GPU and FP16
             reranker_model = os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
             try:
-                self.cross_encoder = CrossEncoder(reranker_model)
+                self.cross_encoder = CrossEncoder(reranker_model, device=self.device)
+                
+                # 對 Cross-Encoder 應用 FP16
+                if self.use_fp16 and self.device == 'cuda':
+                    try:
+                        self.cross_encoder.model = self.cross_encoder.model.half()
+                        logger.info("✅ Cross-Encoder 已量化為 FP16")
+                    except Exception as e:
+                        logger.warning(f"Cross-Encoder FP16 量化失敗: {e}")
+                
                 self.has_reranker = True
-                logger.info(f"Loaded cross-encoder: {reranker_model}")
+                logger.info(f"Cross-Encoder 已載入至 {self.device.upper()}: {reranker_model} (精度: {'FP16' if self.use_fp16 else 'FP32'})")
             except Exception as e:
                 logger.warning(f"Failed to load cross-encoder {reranker_model}: {e}")
                 self.cross_encoder = None
@@ -140,7 +175,28 @@ class HybridContextualRAG:
             # Initialize storage
             os.makedirs(self.data_dir, exist_ok=True)
             
-            # Vector store
+            # FAISS GPU Configuration
+            self.use_faiss_gpu = os.getenv("USE_FAISS_GPU", "false").lower() == "true"
+            self.faiss_gpu_device = int(os.getenv("FAISS_GPU_DEVICE", "0"))
+            self.gpu_resources = None
+            
+            # Vector store with GPU support
+            if self.use_faiss_gpu and hasattr(faiss, 'StandardGpuResources'):
+                try:
+                    self.gpu_resources = faiss.StandardGpuResources()
+                    # 設定 GPU 記憶體限制 (bytes)
+                    gpu_temp_memory = int(os.getenv("FAISS_GPU_TEMP_MEMORY", str(2 * 1024 * 1024 * 1024)))  # 2GB
+                    self.gpu_resources.setTempMemory(gpu_temp_memory)
+                    logger.info(f"✅ FAISS-GPU 資源已初始化 (設備 {self.faiss_gpu_device}, 臨時記憶體: {gpu_temp_memory / 1024**3:.1f}GB)")
+                except Exception as e:
+                    logger.warning(f"FAISS-GPU 初始化失敗，回退到 CPU: {e}")
+                    self.use_faiss_gpu = False
+                    self.gpu_resources = None
+            elif self.use_faiss_gpu:
+                logger.warning("⚠️ FAISS-GPU 已啟用但庫不支援 GPU，請安裝 faiss-gpu。回退到 CPU 模式。")
+                self.use_faiss_gpu = False
+            
+            # 創建初始索引 (CPU)
             self.index = faiss.IndexFlatIP(self.embedding_dimension)
             self.documents = []
             self.context_memory = {}
@@ -198,7 +254,24 @@ class HybridContextualRAG:
         try:
             # Load FAISS
             if os.path.exists(self.faiss_index_path) and os.path.exists(self.documents_path):
-                self.index = faiss.read_index(self.faiss_index_path)
+                cpu_index = faiss.read_index(self.faiss_index_path)
+                
+                # 如果啟用 GPU，轉換索引
+                if self.use_faiss_gpu and self.gpu_resources:
+                    try:
+                        self.index = faiss.index_cpu_to_gpu(
+                            self.gpu_resources, 
+                            self.faiss_gpu_device, 
+                            cpu_index
+                        )
+                        logger.info(f"✅ FAISS 索引已轉換至 GPU (設備 {self.faiss_gpu_device})")
+                    except Exception as e:
+                        logger.warning(f"FAISS 索引 GPU 轉換失敗，使用 CPU: {e}")
+                        self.index = cpu_index
+                        self.use_faiss_gpu = False
+                else:
+                    self.index = cpu_index
+                
                 with open(self.documents_path, 'rb') as f:
                     self.documents = pickle.load(f)
                 logger.info(f"Loaded FAISS index with {self.index.ntotal} vectors")
@@ -269,8 +342,18 @@ class HybridContextualRAG:
     def _save_indices(self):
         """Save both FAISS and BM25 indices"""
         try:
-            # Save FAISS
-            faiss.write_index(self.index, self.faiss_index_path)
+            # Save FAISS (轉回 CPU 以便跨平台儲存)
+            if self.use_faiss_gpu and self.gpu_resources:
+                try:
+                    cpu_index = faiss.index_gpu_to_cpu(self.index)
+                    faiss.write_index(cpu_index, self.faiss_index_path)
+                    logger.info("FAISS-GPU 索引已轉回 CPU 並儲存")
+                except Exception as e:
+                    logger.warning(f"GPU 索引轉換失敗，嘗試直接儲存: {e}")
+                    faiss.write_index(self.index, self.faiss_index_path)
+            else:
+                faiss.write_index(self.index, self.faiss_index_path)
+                
             with open(self.documents_path, 'wb') as f:
                 pickle.dump(self.documents, f)
 
@@ -279,7 +362,8 @@ class HybridContextualRAG:
                 "last_reindex": datetime.now(),
                 "total_documents": len(self.documents),
                 "total_vectors": self.index.ntotal,
-                "tokenizer": "jieba" if _HAS_JIEBA else "standard"
+                "tokenizer": "jieba" if _HAS_JIEBA else "standard",
+                "faiss_gpu_enabled": self.use_faiss_gpu
             }
             with open(self.metadata_path, 'wb') as f:
                 pickle.dump(metadata, f)
@@ -320,14 +404,37 @@ class HybridContextualRAG:
             
         logger.info("Rebuilding indices...")
         
-        # Rebuild FAISS
+        # Rebuild FAISS with GPU-optimized batching
         all_texts = [doc.page_content for doc in self.documents]
-        embeddings = self.local_embeddings.encode(all_texts, show_progress_bar=True)
+        embeddings = self.local_embeddings.encode(
+            all_texts, 
+            batch_size=self.batch_size,
+            show_progress_bar=True,
+            convert_to_numpy=True,
+            device=self.device
+        )
         embeddings = embeddings.astype('float32')
         faiss.normalize_L2(embeddings)
         
-        self.index = faiss.IndexFlatIP(self.embedding_dimension)
-        self.index.add(embeddings)
+        # 創建 CPU 索引並添加向量
+        cpu_index = faiss.IndexFlatIP(self.embedding_dimension)
+        cpu_index.add(embeddings)
+        
+        # 如果啟用 GPU，轉換索引
+        if self.use_faiss_gpu and self.gpu_resources:
+            try:
+                self.index = faiss.index_cpu_to_gpu(
+                    self.gpu_resources,
+                    self.faiss_gpu_device,
+                    cpu_index
+                )
+                logger.info("索引已重建並轉換至 GPU")
+            except Exception as e:
+                logger.warning(f"GPU 轉換失敗，使用 CPU 索引: {e}")
+                self.index = cpu_index
+                self.use_faiss_gpu = False
+        else:
+            self.index = cpu_index
         
         # Rebuild BM25
         self._rebuild_bm25_index()
@@ -474,9 +581,15 @@ class HybridContextualRAG:
         if not all_chunks:
             return
         
-        # Add to vector index
+        # Add to vector index with GPU-optimized batching
         chunk_texts = [chunk.page_content for chunk in all_chunks]
-        embeddings = self.local_embeddings.encode(chunk_texts, show_progress_bar=True)
+        embeddings = self.local_embeddings.encode(
+            chunk_texts, 
+            batch_size=self.batch_size,
+            show_progress_bar=True,
+            convert_to_numpy=True,
+            device=self.device
+        )
         embeddings = embeddings.astype('float32')
         faiss.normalize_L2(embeddings)
         self.index.add(embeddings)
@@ -576,8 +689,13 @@ class HybridContextualRAG:
             
         top_k = top_k or self.top_k
         
-        # Generate and normalize query embedding
-        query_embedding = self.local_embeddings.encode([query])
+        # Generate and normalize query embedding with GPU
+        query_embedding = self.local_embeddings.encode(
+            [query],
+            batch_size=1,
+            convert_to_numpy=True,
+            device=self.device
+        )
         query_embedding = query_embedding.astype('float32')
         faiss.normalize_L2(query_embedding)
         
@@ -942,6 +1060,20 @@ class HybridContextualRAG:
         """
         start_time = time.time()
         
+        # 嘗試從 Redis 快取獲取結果
+        try:
+            from app.services.cache_service import get_cache
+            cache = get_cache()
+            cached_result = cache.get(query, user_id, conversation_id)
+            
+            if cached_result:
+                logger.info(f"🎯 使用快取結果，節省檢索時間")
+                cached_result["from_cache"] = True
+                cached_result["cache_hit_time"] = time.time() - start_time
+                return cached_result
+        except Exception as e:
+            logger.warning(f"Redis 快取讀取失敗: {e}")
+        
         # Smart retrieval (with scores)
         doc_score_pairs = self.smart_search(query)
         retrieval_strategy = getattr(self, "_last_retrieval_strategy", None)
@@ -989,7 +1121,7 @@ class HybridContextualRAG:
                 "snippet": doc.page_content[:200] + "..." if len(doc.page_content) > 200 else doc.page_content
             })
         
-        return {
+        result = {
             "answer": answer,
             "context_used": len(relevant_docs),
             "sources": [doc.metadata.get('source', '未知') for doc in relevant_docs[:3]],
@@ -997,8 +1129,19 @@ class HybridContextualRAG:
             "retrieval_time": retrieval_time,
             "generation_time": generation_time,
             "total_time": time.time() - start_time,
-            "retrieval_strategy": retrieval_strategy
+            "retrieval_strategy": retrieval_strategy,
+            "from_cache": False
         }
+        
+        # 儲存結果到 Redis 快取
+        try:
+            from app.services.cache_service import get_cache
+            cache = get_cache()
+            cache.set(query, result, user_id, conversation_id)
+        except Exception as e:
+            logger.warning(f"Redis 快取寫入失敗: {e}")
+        
+        return result
     
     def remove_document_by_id(self, document_id: int, rebuild_bm25: bool = True):
         """Enhanced document removal with optional BM25 rebuild.
@@ -1029,9 +1172,15 @@ class HybridContextualRAG:
                 # Nothing left: clear store
                 self.clear_vector_store()
             else:
-                # Recompute embeddings and rebuild FAISS index
+                # Recompute embeddings and rebuild FAISS index with GPU
                 all_texts = [doc.page_content for doc in self.documents]
-                embeddings = self.local_embeddings.encode(all_texts, show_progress_bar=False)
+                embeddings = self.local_embeddings.encode(
+                    all_texts, 
+                    batch_size=self.batch_size,
+                    show_progress_bar=False,
+                    convert_to_numpy=True,
+                    device=self.device
+                )
                 embeddings = embeddings.astype('float32')
                 faiss.normalize_L2(embeddings)
 

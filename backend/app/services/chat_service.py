@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.models import User, Conversation, Message, MessageResponse, ConversationResponse
 from app.core.rag_manager import get_rag_system
 from typing import List, Optional
@@ -78,17 +78,41 @@ class ChatService:
         return message
     
     async def get_user_conversations(self, db: Session, user_id: int) -> List[ConversationResponse]:
-        """獲取用戶的所有對話"""
+        """獲取用戶的所有對話 (優化版 - 使用 subquery 避免 N+1)"""
+        # 使用 joinedload 預載入最近的消息，避免 N+1 查詢問題
+        from sqlalchemy import select, and_
+        from sqlalchemy.orm import aliased
+        
+        # 先獲取所有對話
         conversations = db.query(Conversation).filter(
             Conversation.user_id == user_id
         ).order_by(Conversation.updated_at.desc()).all()
         
+        # 批次獲取所有對話的最近消息（單次查詢）
+        conv_ids = [conv.id for conv in conversations]
+        if not conv_ids:
+            return []
+        
+        # 使用窗口函數或子查詢獲取每個對話的最近5條消息
+        from sqlalchemy import func
+        
+        # 獲取所有相關消息並在 Python 中處理（比多次查詢更高效）
+        all_messages = db.query(Message).filter(
+            Message.conversation_id.in_(conv_ids)
+        ).order_by(Message.conversation_id, Message.created_at.desc()).all()
+        
+        # 將消息按對話分組
+        messages_by_conv = {}
+        for msg in all_messages:
+            if msg.conversation_id not in messages_by_conv:
+                messages_by_conv[msg.conversation_id] = []
+            if len(messages_by_conv[msg.conversation_id]) < 5:
+                messages_by_conv[msg.conversation_id].append(msg)
+        
         result = []
         for conv in conversations:
-            # 獲取最後幾條消息
-            recent_messages = db.query(Message).filter(
-                Message.conversation_id == conv.id
-            ).order_by(Message.created_at.desc()).limit(5).all()
+            # 獲取該對話的最近消息
+            recent_messages = messages_by_conv.get(conv.id, [])
             
             messages = [
                 MessageResponse(
