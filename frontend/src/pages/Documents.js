@@ -23,7 +23,8 @@ import {
   CloudUpload as UploadIcon,
   Delete as DeleteIcon,
   Description as DocumentIcon,
-  Cancel as CancelIcon
+  Cancel as CancelIcon,
+  Build as RebuildIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import api from '../services/api';
@@ -49,6 +50,8 @@ function Documents() {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [deletingStatus, setDeletingStatus] = useState({});
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
+  const [rebuildLoading, setRebuildLoading] = useState(false);
+  const [rebuildDialog, setRebuildDialog] = useState(false);
 
   // AbortController ref
   const loadAbortControllerRef = useRef(null);
@@ -385,6 +388,41 @@ function Documents() {
     }
   };
 
+  const handleRebuildIndex = async () => {
+    setRebuildDialog(false);
+    setRebuildLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await api.post('/documents/rebuild-index');
+      const data = response.data;
+      
+      // 顯示詳細的重建結果
+      const messageParts = [
+        `索引重建成功！`,
+        `文檔: ${data.document_count || 0}`,
+        `向量塊: ${data.chunk_count || 0}`,
+        `配置: ${data.chunk_size || '?'}/${data.chunk_overlap || '?'}`
+      ];
+      
+      // 如果檢測到 QA 對，添加到訊息中
+      if (data.qa_pairs_detected && data.qa_pairs_detected > 0) {
+        messageParts.push(`Q&A對: ${data.qa_pairs_detected}`);
+      }
+      
+      setSuccess(messageParts.join(' | '));
+      
+      // 重建後重新載入文檔列表
+      await loadDocuments(true);
+    } catch (err) {
+      console.error('重建索引錯誤:', err);
+      setError('重建索引失敗: ' + (err.response?.data?.detail || err.message || '未知錯誤'));
+    } finally {
+      setRebuildLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="50vh">
@@ -399,13 +437,23 @@ function Documents() {
       <Typography variant="h4" component="h1">
         知識庫管理
       </Typography>
-      <Button
-        variant="contained"
-        startIcon={<UploadIcon />}
-        onClick={() => setUploadDialog(true)}
-      >
-        上傳文檔
-      </Button>
+      <Box display="flex" gap={2}>
+        <Button
+          variant="outlined"
+          startIcon={<RebuildIcon />}
+          onClick={() => setRebuildDialog(true)}
+          disabled={rebuildLoading}
+        >
+          {rebuildLoading ? '重建中...' : '重建索引'}
+        </Button>
+        <Button
+          variant="contained"
+          startIcon={<UploadIcon />}
+          onClick={() => setUploadDialog(true)}
+        >
+          上傳文檔
+        </Button>
+      </Box>
     </Box>
 
     {error && (
@@ -511,8 +559,10 @@ function Documents() {
       onClose={() => setUploadDialog(false)}
       maxWidth="sm"
       fullWidth
+      disableRestoreFocus
+      aria-labelledby="upload-dialog-title"
     >
-      <DialogTitle>上傳文檔到知識庫</DialogTitle>
+      <DialogTitle id="upload-dialog-title">上傳文檔到知識庫</DialogTitle>
       <DialogContent>
         <Box sx={{ mt: 2 }}>
           <input
@@ -617,14 +667,64 @@ function Documents() {
       </DialogActions>
     </Dialog>
     {/* 移除檔案確認對話框 */}
-    <Dialog open={confirmRemoveOpen} onClose={cancelRemove}>
-      <DialogTitle>確認移除所選檔案？</DialogTitle>
+    <Dialog 
+      open={confirmRemoveOpen} 
+      onClose={cancelRemove}
+      disableRestoreFocus
+      aria-labelledby="confirm-remove-dialog-title"
+    >
+      <DialogTitle id="confirm-remove-dialog-title">確認移除所選檔案？</DialogTitle>
       <DialogContent>
         <Typography>此操作將清除目前選取的檔案。確定要移除嗎？</Typography>
       </DialogContent>
       <DialogActions>
         <Button onClick={cancelRemove}>取消</Button>
         <Button onClick={confirmRemoveSelectedFiles} variant="contained" color="error">確定移除</Button>
+      </DialogActions>
+    </Dialog>
+
+    {/* 重建索引確認對話框 */}
+    <Dialog 
+      open={rebuildDialog} 
+      onClose={() => !rebuildLoading && setRebuildDialog(false)}
+      disableRestoreFocus
+      aria-labelledby="rebuild-dialog-title"
+    >
+      <DialogTitle id="rebuild-dialog-title">確認重建知識庫索引？</DialogTitle>
+      <DialogContent>
+        <Typography gutterBottom>
+          此操作將重新建立所有文檔的向量索引和 BM25 索引。
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          • 適用於索引損壞或不一致時
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          • 處理時間取決於文檔數量
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          • 重建期間可能影響查詢性能
+        </Typography>
+        {rebuildLoading && (
+          <Box sx={{ mt: 2 }}>
+            <LinearProgress />
+            <Typography variant="body2" sx={{ mt: 1 }} align="center">
+              正在重建索引，請稍候...
+            </Typography>
+          </Box>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setRebuildDialog(false)} disabled={rebuildLoading}>
+          取消
+        </Button>
+        <Button 
+          onClick={handleRebuildIndex} 
+          variant="contained" 
+          color="primary"
+          disabled={rebuildLoading}
+        >
+          確認重建
+        </Button>
       </DialogActions>
     </Dialog>
     {/* Bulk delete UI removed */}

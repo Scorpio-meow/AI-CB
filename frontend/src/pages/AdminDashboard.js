@@ -413,8 +413,13 @@ function AdminDashboard() {
       </Paper>
 
       {/* 編輯用戶對話框 */}
-      <Dialog open={editUserDialog} onClose={() => setEditUserDialog(false)}>
-        <DialogTitle>編輯用戶</DialogTitle>
+      <Dialog 
+        open={editUserDialog} 
+        onClose={() => setEditUserDialog(false)}
+        disableRestoreFocus
+        aria-labelledby="edit-user-dialog-title"
+      >
+        <DialogTitle id="edit-user-dialog-title">編輯用戶</DialogTitle>
         <DialogContent>
           {editingUser && (
             <Box sx={{ pt: 1 }}>

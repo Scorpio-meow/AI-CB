@@ -539,12 +539,15 @@ function Chat() {
     }
   };
 
-  const handleWorkflowComplete = useCallback((conversationId) => {
+  const handleWorkflowComplete = useCallback(async (conversationId) => {
+    setViewMode('chat'); // 先切換回 chat 視圖
     if (conversationId) {
-      loadConversation({ id: conversationId });
+      // 先刷新對話列表，確保新對話出現在列表中
+      await loadConversations();
+      // 然後載入該對話
+      await loadConversation({ id: conversationId });
     }
-    setViewMode('chat'); // Switch back to chat view
-  }, [loadConversation]);
+  }, [loadConversation, loadConversations]);
 
   const startNewConversation = () => {
     // 只清空當前對話狀態，不在服務器創建新對話

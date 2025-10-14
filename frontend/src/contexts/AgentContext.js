@@ -1,6 +1,7 @@
 // src/contexts/AgentContext.js
 import React, { createContext, useState, useEffect, useCallback, useContext, useRef } from 'react';
 import * as customAgentService from '../services/customAgentService';
+import { hasValidAuth } from '../utils/tokenUtils';
 
 const AgentContext = createContext();
 
@@ -13,6 +14,18 @@ export const AgentProvider = ({ children }) => {
   const isMountedRef = useRef(true);
 
   const fetchAgents = useCallback(async () => {
+    // 檢查是否有有效的認證 token
+    if (!hasValidAuth()) {
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('AgentContext: 沒有有效認證，跳過獲取 agents');
+      }
+      if (isMountedRef.current) {
+        setLoading(false);
+        setAgents([]);
+      }
+      return;
+    }
+
     try {
       if (isMountedRef.current) {
         setLoading(true);
@@ -27,6 +40,19 @@ export const AgentProvider = ({ children }) => {
         if (process.env.NODE_ENV === 'development') console.debug('fetchAgents was cancelled', err);
         return;
       }
+      
+      // 403 錯誤表示未授權，可能是 token 過期或無效
+      if (err?.response?.status === 403) {
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('AgentContext: 403 Forbidden - token 可能過期或無效');
+        }
+        // 清空 agents 列表，但不顯示錯誤給用戶（token 刷新會自動處理）
+        if (isMountedRef.current) {
+          setAgents([]);
+        }
+        return;
+      }
+      
       if (isMountedRef.current) {
         setError('無法載入 Agents 列表。');
       }

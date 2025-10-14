@@ -188,8 +188,15 @@ function CustomAgents() {
       </TableContainer>
 
       {/* 新增/編輯用的 Dialog */}
-      <Dialog open={isDialogOpen} onClose={handleCloseDialog} fullWidth maxWidth="md">
-        <DialogTitle>{formData.id ? '編輯 Agent' : '新增 Agent'}</DialogTitle>
+      <Dialog 
+        open={isDialogOpen} 
+        onClose={handleCloseDialog} 
+        fullWidth 
+        maxWidth="md"
+        disableRestoreFocus
+        aria-labelledby="agent-dialog-title"
+      >
+        <DialogTitle id="agent-dialog-title">{formData.id ? '編輯 Agent' : '新增 Agent'}</DialogTitle>
         <DialogContent>
           {formError && <Alert severity="error" sx={{ mb: 2 }}>{formError}</Alert>}
           <TextField 

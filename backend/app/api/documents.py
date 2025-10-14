@@ -11,6 +11,7 @@ from langchain.schema import Document as LangchainDocument
 import os
 from typing import List
 import logging
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -60,6 +61,7 @@ def validate_filename(filename: str) -> str:
 
 
 def split_faq(text: str):
+    """分割 FAQ/Q&A 格式文本"""
     pairs = []
     for m in QA_PATTERN.finditer(text):
         q = m.group(1).strip()
@@ -67,6 +69,47 @@ def split_faq(text: str):
         if q and a:
             pairs.append((q, a))
     return pairs
+
+
+def process_document_for_rag(content: str, metadata: dict, rag_system) -> tuple:
+    """
+    統一的文檔處理邏輯，自動檢測 QA 格式
+    
+    Returns:
+        tuple: (langchain_docs, qa_count)
+    """
+    # 檢測 QA 格式
+    try:
+        qa_pairs = split_faq(content)
+    except Exception:
+        qa_pairs = []
+    
+    langchain_docs = []
+    
+    if qa_pairs:
+        # QA 格式：每個 Q&A 對作為獨立塊
+        for i, (q, a) in enumerate(qa_pairs):
+            chunk_content = f"Q：{q}\nA：{a}"
+            qa_metadata = {
+                **metadata,
+                "qa_index": i,
+                "question": q[:2000],
+                "preserve_whole": True  # 標記為完整保留，不再分塊
+            }
+            langchain_docs.append(LangchainDocument(
+                page_content=chunk_content,
+                metadata=qa_metadata
+            ))
+        logger.info(f"檢測到 {len(qa_pairs)} 個 Q&A 對，將作為完整塊處理")
+    else:
+        # 正常格式：使用標準分塊
+        langchain_docs.append(LangchainDocument(
+            page_content=content,
+            metadata=metadata
+        ))
+    
+    return langchain_docs, len(qa_pairs)
+
 
 @router.post("/upload")
 async def upload_document(
@@ -232,51 +275,24 @@ async def upload_document(
             db.commit()
             db.refresh(document)
 
-            # Detect FAQ/Q&A pairs and add as individual QA chunks when appropriate
-            try:
-                qa_pairs = split_faq(content)
-            except Exception:
-                qa_pairs = []
-
-            # Get global RAG instance
+            # 使用統一的文檔處理邏輯（自動檢測 QA 格式）
             rag_system = get_rag_system()
+            base_metadata = {
+                "source": safe_filename,
+                "document_id": document.id,
+                "uploaded_by": user_id,
+                "content_type": up.content_type,
+                "original_filename": up.filename
+            }
             
-            if qa_pairs:
-                langchain_docs = []
-                for i, (q, a) in enumerate(qa_pairs):
-                    chunk_content = f"Q：{q}\nA：{a}"
-                    md = {
-                        "source": safe_filename,
-                        "document_id": document.id,
-                        "uploaded_by": user_id,  # Use dynamic user_id
-                        "content_type": up.content_type,
-                        "original_filename": up.filename,
-                        "qa_index": i,
-                        "question": q[:2000],
-                        "preserve_whole": True
-                    }
-                    langchain_docs.append(LangchainDocument(page_content=chunk_content, metadata=md))
-                await rag_system.add_documents(langchain_docs)
-            else:
-                # 添加整個文件到 RAG
-                langchain_doc = LangchainDocument(
-                    page_content=content,
-                    metadata={
-                        "source": safe_filename,
-                        "document_id": document.id,
-                        "uploaded_by": user_id,  # Use dynamic user_id
-                        "content_type": up.content_type,
-                        "original_filename": up.filename
-                    }
-                )
-                await rag_system.add_documents([langchain_doc])
+            langchain_docs, qa_count = process_document_for_rag(content, base_metadata, rag_system)
+            await rag_system.add_documents(langchain_docs)
 
             # 標記為已處理
             document.is_processed = True
             db.commit()
 
-            # include QA detection info for traceability
-            qa_count = len(qa_pairs) if 'qa_pairs' in locals() and qa_pairs else 0
+            # 回傳處理結果
             results.append({
                 "filename": safe_filename,
                 "status": "success",
@@ -350,3 +366,81 @@ async def delete_document(
     db.commit()
     
     return {"message": "文件刪除成功"}
+
+@router.post("/rebuild-index")
+async def rebuild_index(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user)
+):
+    """重建知識庫索引（需要管理員權限）- 從數據庫重新載入並用新配置重新分塊"""
+    try:
+        logger.info(f"管理員 {current_user.get('username', 'unknown')} 觸發完整索引重建（含重新分塊）")
+        
+        # 獲取 RAG 系統
+        rag_system = get_rag_system()
+        
+        # 清空現有索引和文檔
+        logger.info("清空現有索引...")
+        rag_system.documents = []
+        rag_system.index.reset()
+        
+        # 從數據庫重新載入所有文檔
+        logger.info("從數據庫重新載入文檔...")
+        documents_from_db = db.query(Document).all()
+        
+        if not documents_from_db:
+            logger.warning("數據庫中沒有文檔")
+            return {
+                "message": "索引重建完成（沒有文檔）",
+                "document_count": 0,
+                "chunk_count": 0,
+                "timestamp": datetime.now().isoformat()
+            }
+        
+        # 用新配置重新分塊並添加到 RAG
+        logger.info(f"用新配置重新處理 {len(documents_from_db)} 個文檔（chunk_size={rag_system.chunk_size}, chunk_overlap={rag_system.chunk_overlap}）...")
+        
+        total_chunks = 0
+        total_qa_pairs = 0
+        for doc in documents_from_db:
+            try:
+                base_metadata = {
+                    "source": doc.filename,
+                    "document_id": doc.id,
+                    "uploaded_by": doc.uploaded_by,
+                    "content_type": doc.file_type,
+                    "original_filename": doc.filename
+                }
+                
+                # 🔑 使用統一處理邏輯，自動檢測 QA 格式
+                langchain_docs, qa_count = process_document_for_rag(doc.content, base_metadata, rag_system)
+                chunks_added = await rag_system.add_documents(langchain_docs)
+                
+                total_chunks += chunks_added or 0
+                if qa_count > 0:
+                    total_qa_pairs += qa_count
+                    logger.info(f"處理文檔 {doc.id} ({doc.filename}): {qa_count} 個 Q&A 對")
+                else:
+                    logger.info(f"處理文檔 {doc.id} ({doc.filename}): {chunks_added} 個分塊")
+            except Exception as e:
+                logger.error(f"處理文檔 {doc.id} ({doc.filename}) 失敗: {e}")
+                continue
+        
+        # 獲取統計信息
+        doc_count = len(documents_from_db)
+        vector_count = rag_system.index.ntotal
+        
+        logger.info(f"索引重建完成: {doc_count} 個文檔 -> {vector_count} 個向量塊 (含 {total_qa_pairs} 個 Q&A 對)")
+        
+        return {
+            "message": "索引重建成功（已用新配置重新分塊，並重新檢測 QA 格式）",
+            "document_count": doc_count,
+            "chunk_count": vector_count,
+            "qa_pairs_detected": total_qa_pairs,
+            "chunk_size": rag_system.chunk_size,
+            "chunk_overlap": rag_system.chunk_overlap,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"索引重建失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"索引重建失敗: {str(e)}")

@@ -258,8 +258,10 @@ const ProfilePage = () => {
           onClose={() => setPasswordDialog(false)}
           maxWidth="sm"
           fullWidth
+          disableRestoreFocus
+          aria-labelledby="change-password-dialog-title"
         >
-          <DialogTitle>修改密碼</DialogTitle>
+          <DialogTitle id="change-password-dialog-title">修改密碼</DialogTitle>
           <DialogContent>
             <TextField
               fullWidth

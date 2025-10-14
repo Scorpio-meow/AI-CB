@@ -6,3 +6,4 @@ docs
 backend/scripts
 *.ps1
 backend/data/workflow_outputs
+backend/data/converted

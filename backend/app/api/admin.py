@@ -286,6 +286,30 @@ async def get_vector_store_info(
     rag_system = get_rag_system()
     return rag_system.get_vector_store_info()
 
+@router.get("/rag-config")
+async def get_rag_config(
+    current_user: dict = Depends(get_current_admin_user)
+):
+    """獲取 RAG 系統配置 - 需要管理員權限"""
+    rag_system = get_rag_system()
+    return {
+        "chunk_size": rag_system.chunk_size,
+        "chunk_overlap": rag_system.chunk_overlap,
+        "top_k": rag_system.top_k,
+        "similarity_threshold": rag_system.similarity_threshold,
+        "rerank_top_k": rag_system.rerank_top_k,
+        "final_k": rag_system.final_k,
+        "hybrid_alpha": rag_system.hybrid_alpha,
+        "rerank_weight": rag_system.rerank_weight,
+        "final_threshold": rag_system.final_threshold,
+        "normalization": rag_system.normalization,
+        "batch_size": rag_system.batch_size,
+        "embedding_dimension": rag_system.embedding_dimension,
+        "reindex_threshold_hours": rag_system.reindex_threshold_hours,
+        "device": str(rag_system.device),
+        "use_faiss_gpu": rag_system.use_faiss_gpu
+    }
+
 @router.get("/vector-store/statistics")
 async def get_vector_store_statistics(
     current_user: dict = Depends(get_current_admin_user)
