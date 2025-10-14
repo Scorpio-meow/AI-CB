@@ -330,12 +330,6 @@ function Chat() {
         signal: abortController.signal
       });
       setConversations(response.data);
-      if (response.data.length > 0 && !currentConversation) {
-        if (viewMode === 'chat') {
-          // Automatically load the first conversation
-          loadConversation(response.data[0]);
-        }
-      }
       clearTimeout(timeoutId);
       // return fresh list to avoid callers using stale closure
       return response.data;
@@ -351,7 +345,7 @@ function Chat() {
     } finally {
       loadConversationsAbortRef.current = null;
     }
-  }, [currentConversation, viewMode, loadConversation]);
+  }, []);
 
   // Load more (older) messages for the current conversation
   const loadMoreMessages = useCallback(async () => {
@@ -553,20 +547,13 @@ function Chat() {
   }, [loadConversation]);
 
   const startNewConversation = () => {
-    // Create a new conversation on the server, then load it
+    // 只清空當前對話狀態，不在服務器創建新對話
+    // 實際的對話會在使用者發送第一條訊息時自動創建
     setViewMode('chat');
-    (async () => {
-      try {
-        const resp = await api.post('/chat/conversations');
-        const newConv = resp.data;
-        // refresh list and set current
-        await loadConversations();
-        setCurrentConversation(newConv);
-        setMessages([]);
-      } catch (e) {
-        setError('建立新對話失敗');
-      }
-    })();
+    setCurrentConversation(null);
+    setMessages([]);
+    setMessagesOffset(0);
+    setHasMoreMessages(false);
   };
 
   const handleKeyPress = (e) => {

@@ -4,5 +4,5 @@ frontend/build
 CBvenv
 docs
 backend/scripts
-*.md
 *.ps1
+backend/data/workflow_outputs

@@ -97,8 +97,10 @@ async def get_statistics(
         },
         "conversations": {
             "total": total_conversations,
-            "total_messages": total_messages,
-            "recent_messages": recent_messages
+        },
+        "messages": {
+            "total": total_messages,
+            "recent_7_days": recent_messages
         },
         "documents": {
             "total": total_documents,
@@ -233,6 +235,9 @@ async def update_user(
     db.commit()
     db.refresh(user)
     
+    # 清除統計快取
+    invalidate_cache("admin_stats")
+    
     return {"message": "用戶更新成功", "user": user}
 
 @router.delete("/users/{user_id}")
@@ -267,6 +272,9 @@ async def delete_user(
     # 刪除用戶
     db.delete(user)
     db.commit()
+    
+    # 清除統計快取
+    invalidate_cache("admin_stats")
     
     return {"message": "用戶刪除成功"}
 
