@@ -2,3 +2,7 @@
 frontend/node_modules
 frontend/build
 CBvenv
+docs
+backend/scripts
+*.md
+*.ps1
