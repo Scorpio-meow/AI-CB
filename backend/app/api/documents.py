@@ -6,6 +6,7 @@ from app.core.rag_manager import get_rag_system
 from app.core.user_context import get_current_user_id, get_default_user_id
 from app.core.jwt_auth import get_current_admin_user
 from app.services.document_processor import DocumentProcessor
+from app.core.input_validator import InputValidator
 import re
 from langchain.schema import Document as LangchainDocument
 import os
@@ -139,8 +140,13 @@ async def upload_document(
         try:
             # 安全檢查 1: 驗證並清理檔名
             try:
+                # 使用增強的檔名驗證
+                is_valid, error_msg = InputValidator.validate_filename(up.filename)
+                if not is_valid:
+                    raise ValueError(error_msg)
                 safe_filename = validate_filename(up.filename)
             except ValueError as e:
+                logger.warning(f"檔名驗證失敗: {up.filename} - {str(e)}")
                 results.append({
                     "filename": up.filename,
                     "status": "failed",
