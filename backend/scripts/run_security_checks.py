@@ -21,7 +21,7 @@ def run_command(cmd, description):
             capture_output=True,
             text=True,
             encoding='utf-8',
-            errors='ignore'
+            errors='replace'  # 將無法解碼的字符替換為 �
         )
         
         if result.stdout:
@@ -56,9 +56,20 @@ def main():
     )
     
     if result.stdout.strip():
-        print(f"⚠️  警告: 發現被追蹤的 .env 文件:\n{result.stdout}")
-        print("   請執行: git rm --cached backend/.env")
-        checks.append(False)
+        # 過濾掉 .env.example 文件（這些應該保留在倉庫中）
+        env_files = [f for f in result.stdout.strip().split('\n') if f.strip()]
+        sensitive_files = [f for f in env_files if '.example' not in f.lower()]
+        
+        if sensitive_files:
+            print(f"⚠️  警告: 發現被追蹤的敏感 .env 文件:")
+            for f in sensitive_files:
+                print(f"   - {f}")
+            print("\n   請執行: git rm --cached <file_path>")
+            checks.append(False)
+        else:
+            print("✅ 敏感 .env 文件已正確忽略")
+            print("   (.env.example 文件保留在倉庫中作為範本)")
+            checks.append(True)
     else:
         print("✅ .env 文件已正確忽略")
         checks.append(True)
