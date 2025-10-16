@@ -11388,3 +11388,26 @@ FROM documents
 2025-10-15 14:52:23 - main - INFO - Uploads watcher task stopped
 2025-10-15 14:52:23 - main - INFO - Index rebuilder task stopped
 2025-10-15 14:52:23 - main - INFO - ChatBot application shutdown complete
+2025-10-15 16:42:24 - main - INFO - Rate limiting enabled: 100 requests per minute
+2025-10-15 16:42:24 - main - INFO - 🔒 CORS: Using fixed allowed origins: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:8001', 'http://127.0.0.1:8001']
+2025-10-15 16:42:24 - main - INFO - Starting ChatBot application...
+2025-10-15 16:42:24 - main - INFO - Initializing global RAG system...
+2025-10-15 16:42:24 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-10-15 16:42:24 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce RTX 4090 (23.99GB 顯存)
+2025-10-15 16:42:24 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-10-15 16:42:25 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-10-15 16:42:27 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2 (精度: FP32)
+2025-10-15 16:42:27 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-10-15 16:42:27 - jieba - DEBUG - Loading model from cache C:\Users\MITAC\AppData\Local\Temp\jieba.cache
+2025-10-15 16:42:27 - jieba - DEBUG - Loading model cost 0.291 seconds.
+2025-10-15 16:42:27 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-10-15 16:42:27 - app.rag.contextual_rag - INFO - ✅ Jieba 自定義詞典已載入: data\jieba_dict.txt
+2025-10-15 16:42:27 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-10-15 16:42:27 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-10-15 16:42:27 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-10-15 16:42:27 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-14T16:53:31.476469', 'auto_reindex_hours': 48}
+2025-10-15 16:42:27 - main - INFO - Uploads watcher task started
+2025-10-15 16:42:27 - main - INFO - Index rebuilder task started
+2025-10-15 16:42:27 - main - INFO - ChatBot application startup complete
+2025-10-15 16:42:27 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-10-15 16:42:38 - security - INFO - {"timestamp": "2025-10-15T08:42:38.722225", "event_type": "USER_LOGIN", "severity": "INFO", "user_id": 1, "client_ip": null, "method": "POST", "path": "/api/auth/login", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36", "details": {"username": "yalkyao"}}

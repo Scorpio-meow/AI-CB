@@ -39,26 +39,43 @@ logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # Get configuration from environment
-DEFAULT_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "https://localhost:3000",
-    "http://127.0.0.1:3000",
-    "https://127.0.0.1:3000",
-]
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+
+# 根據環境配置 CORS
+if ENVIRONMENT == "production":
+    # 生產環境：嚴格的白名單
+    DEFAULT_ALLOWED_ORIGINS = [
+        "https://yourdomain.com",
+        "https://www.yourdomain.com"
+    ]
+    # 生產環境禁用 regex
+    DEFAULT_ALLOWED_ORIGIN_REGEX = None
+    logger.info("🔒 生產環境模式：使用嚴格的 CORS 白名單")
+else:
+    # 開發環境：允許 localhost
+    DEFAULT_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "https://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://127.0.0.1:3000",
+    ]
+    # 開發環境允許 DevTunnels (可選)
+    DEFAULT_ALLOWED_ORIGIN_REGEX = os.getenv("ALLOWED_ORIGIN_REGEX")
+    logger.info("🔓 開發環境模式：允許 localhost 和 DevTunnels")
 
 _raw_allowed_origins = os.getenv("ALLOWED_ORIGINS")
 if _raw_allowed_origins:
     ALLOWED_ORIGINS = [origin.strip() for origin in _raw_allowed_origins.split(",") if origin.strip()]
 else:
-    # 修正：提供合理的預設值
     ALLOWED_ORIGINS = DEFAULT_ALLOWED_ORIGINS
 
 _raw_allowed_origin_regex = os.getenv("ALLOWED_ORIGIN_REGEX")
 if _raw_allowed_origin_regex is not None and _raw_allowed_origin_regex.strip():
+    if ENVIRONMENT == "production":
+        logger.warning("⚠️  生產環境不建議使用 ALLOWED_ORIGIN_REGEX")
     ALLOWED_ORIGIN_REGEX = _raw_allowed_origin_regex
 else:
-    # 本地開發環境預設不使用 regex，使用固定 origins 列表
-    ALLOWED_ORIGIN_REGEX = None
+    ALLOWED_ORIGIN_REGEX = DEFAULT_ALLOWED_ORIGIN_REGEX
 
 UPLOADS_WATCHER_INTERVAL = int(os.getenv("UPLOADS_WATCHER_INTERVAL", "30"))
 
@@ -133,7 +150,7 @@ if rate_limit_enabled:
     app.add_middleware(RateLimitMiddleware, calls=rate_limit_per_minute, period=60)
     logger.info(f"Rate limiting enabled: {rate_limit_per_minute} requests per minute")
 
-# CORS middleware - 修正：確保在所有路由之前添加
+# CORS middleware - 安全配置
 # 構建 CORS 配置
 cors_kwargs = {
     "allow_credentials": True,
@@ -141,18 +158,19 @@ cors_kwargs = {
     "allow_headers": ["*"],
 }
 
-# 在開發環境使用 regex 支援 DevTunnels
-if os.getenv("ENVIRONMENT") != "production" and ALLOWED_ORIGIN_REGEX:
-    # 使用 regex 而不是固定列表（DevTunnels 的 URL 會變化）
-    cors_kwargs["allow_origin_regex"] = ALLOWED_ORIGIN_REGEX
-    logger.warning(f"🔓 CORS: Using ALLOWED_ORIGIN_REGEX: {ALLOWED_ORIGIN_REGEX}")
-    logger.info(f"🔓 CORS: Also allowing fixed origins: {ALLOWED_ORIGINS}")
-    # 添加固定的 localhost origins
+# 根據環境使用不同的 CORS 策略
+if ENVIRONMENT == "production":
+    # 生產環境：僅使用白名單
     cors_kwargs["allow_origins"] = ALLOWED_ORIGINS
+    logger.info(f"CORS 生產模式: {ALLOWED_ORIGINS}")
 else:
-    # 生產環境只使用固定列表
+    # 開發環境：可選擇性使用 regex
+    if ALLOWED_ORIGIN_REGEX:
+        cors_kwargs["allow_origin_regex"] = ALLOWED_ORIGIN_REGEX
+        logger.warning(f"🔓 CORS 開發模式（regex）: {ALLOWED_ORIGIN_REGEX}")
+    
     cors_kwargs["allow_origins"] = ALLOWED_ORIGINS
-    logger.info(f"🔒 CORS: Using fixed allowed origins: {ALLOWED_ORIGINS}")
+    logger.info(f"CORS 開發模式: {ALLOWED_ORIGINS}")
 
 app.add_middleware(
     CORSMiddleware,

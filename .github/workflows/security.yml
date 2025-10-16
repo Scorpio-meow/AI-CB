@@ -1,0 +1,135 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main, rollback/*, security/* ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # 每天 UTC 00:00 (台北時間 08:00) 執行
+    - cron: '0 0 * * *'
+
+jobs:
+  security-scan:
+    name: 安全掃描
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout 代碼
+        uses: actions/checkout@v3
+      
+      - name: 設置 Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: 安裝依賴
+        run: |
+          cd backend
+          pip install -r requirements.txt
+      
+      - name: 運行安全掃描工具
+        run: |
+          cd backend
+          python scripts/security_scanner.py
+        continue-on-error: true
+      
+      - name: 檢查敏感文件洩露
+        run: |
+          echo "檢查 .env 文件..."
+          if git ls-files | grep -E "\.env$" | grep -v "\.env\.example"; then
+            echo "錯誤: 發現 .env 文件被追蹤！"
+            exit 1
+          fi
+          
+          echo "檢查私鑰文件..."
+          if git ls-files | grep -E "\.(pem|key)$"; then
+            echo "錯誤: 發現私鑰文件被追蹤！"
+            exit 1
+          fi
+          
+          echo "✅ 沒有發現敏感文件洩露"
+      
+      - name: Python 依賴安全掃描
+        run: |
+          pip install safety
+          safety check --json || true
+      
+      - name: 運行安全測試
+        run: |
+          cd backend
+          pytest tests/test_security.py -v --tb=short
+        continue-on-error: true
+      
+      - name: 上傳安全報告
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: security-scan-report
+          path: |
+            security_scan_report.txt
+            security_scan_report.json
+          retention-days: 30
+  
+  dependency-scan:
+    name: 依賴掃描
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout 代碼
+        uses: actions/checkout@v3
+      
+      - name: 設置 Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+      
+      - name: 安裝前端依賴
+        run: |
+          cd frontend
+          npm ci
+      
+      - name: NPM 安全審計
+        run: |
+          cd frontend
+          npm audit --json > npm-audit-report.json || true
+          npm audit
+        continue-on-error: true
+      
+      - name: 上傳 NPM 審計報告
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: npm-audit-report
+          path: frontend/npm-audit-report.json
+          retention-days: 30
+  
+  code-quality:
+    name: 代碼質量檢查
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout 代碼
+        uses: actions/checkout@v3
+      
+      - name: 設置 Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: 安裝 Bandit (安全漏洞掃描)
+        run: pip install bandit
+      
+      - name: 運行 Bandit
+        run: |
+          bandit -r backend/ -f json -o bandit-report.json || true
+          bandit -r backend/ || true
+        continue-on-error: true
+      
+      - name: 上傳 Bandit 報告
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: bandit-report
+          path: bandit-report.json
+          retention-days: 30

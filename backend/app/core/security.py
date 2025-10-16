@@ -86,7 +86,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """
-    簡單的速率限制中間件
+    增強的速率限制中間件（帶入侵檢測）
     """
     def __init__(self, app, calls: int = 60, period: int = 60):
         super().__init__(app)
@@ -97,6 +97,22 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # 獲取客戶端 IP
         client_ip = request.client.host
+        
+        # 導入入侵檢測系統
+        try:
+            from app.core.intrusion_detection import get_intrusion_detector
+            detector = get_intrusion_detector()
+            
+            # 檢查黑名單
+            if detector.is_blacklisted(client_ip):
+                logger.error(f"🚫 拒絕黑名單 IP 訪問: {client_ip}")
+                return Response(
+                    content="Access Denied. Your IP has been blacklisted due to suspicious activity.",
+                    status_code=403
+                )
+        except Exception as e:
+            logger.debug(f"入侵檢測系統不可用: {e}")
+            detector = None
         
         # 檢查速率限制
         import time
@@ -113,7 +129,16 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         
         # 檢查是否超過限制
         if len(self.clients[client_ip]) >= self.calls:
-            logger.warning(f"Rate limit exceeded for {client_ip}")
+            logger.warning(f"⚠️ 速率限制: {client_ip} 超過限制 ({len(self.clients[client_ip])} requests)")
+            
+            # 記錄到入侵檢測系統
+            if detector:
+                detector.record_event(
+                    'api_request',
+                    client_ip,
+                    details={'rate_limit_exceeded': True}
+                )
+            
             return Response(
                 content="Rate limit exceeded. Please try again later.",
                 status_code=429,
@@ -122,6 +147,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         
         # 記錄此次請求
         self.clients[client_ip].append(current_time)
+        
+        # 記錄正常的 API 請求（用於監控）
+        if detector and len(self.clients[client_ip]) % 10 == 0:  # 每 10 個請求記錄一次
+            detector.record_event('api_request', client_ip)
         
         response = await call_next(request)
         return response

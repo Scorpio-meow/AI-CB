@@ -1,0 +1,197 @@
+#!/usr/bin/env python3
+"""
+Pre-commit hook for security checks
+在每次 git commit 前自動執行安全檢查
+"""
+
+import os
+import sys
+import re
+import json
+from pathlib import Path
+
+# ANSI 顏色碼
+RED = '\033[91m'
+GREEN = '\033[92m'
+YELLOW = '\033[93m'
+RESET = '\033[0m'
+
+def check_sensitive_files():
+    """檢查是否有敏感文件被提交"""
+    print(f"{YELLOW}🔍 檢查敏感文件...{RESET}")
+    
+    sensitive_patterns = [
+        r'\.env$',
+        r'\.(pem|key)$',
+        r'\.secret$',
+        r'jwt_private\.pem',
+        r'jwt_public\.pem',
+        r'password.*\.txt',
+    ]
+    
+    # 取得即將提交的文件
+    staged_files = os.popen('git diff --cached --name-only').read().strip().split('\n')
+    
+    violations = []
+    for file in staged_files:
+        if not file:
+            continue
+        for pattern in sensitive_patterns:
+            if re.search(pattern, file):
+                violations.append(file)
+                break
+    
+    if violations:
+        print(f"{RED}❌ 錯誤: 發現敏感文件被提交！{RESET}")
+        for v in violations:
+            print(f"   - {v}")
+        return False
+    
+    print(f"{GREEN}✅ 沒有敏感文件{RESET}")
+    return True
+
+def check_hardcoded_secrets():
+    """檢查是否有硬編碼的密鑰"""
+    print(f"{YELLOW}🔍 檢查硬編碼密鑰...{RESET}")
+    
+    secret_patterns = [
+        (r'API_KEY\s*=\s*["\'][^"\']{20,}["\']', 'API Key'),
+        (r'SECRET_KEY\s*=\s*["\'][^"\']{20,}["\']', 'Secret Key'),
+        (r'PASSWORD\s*=\s*["\'][^"\']+["\']', 'Password'),
+        (r'AWS_SECRET_ACCESS_KEY\s*=\s*["\'][^"\']+["\']', 'AWS Secret'),
+        (r'GITHUB_TOKEN\s*=\s*["\'][^"\']+["\']', 'GitHub Token'),
+    ]
+    
+    staged_files = os.popen('git diff --cached --name-only').read().strip().split('\n')
+    violations = []
+    
+    for file in staged_files:
+        if not file or not file.endswith(('.py', '.js', '.ts', '.jsx', '.tsx')):
+            continue
+        
+        try:
+            with open(file, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            for pattern, name in secret_patterns:
+                if re.search(pattern, content, re.IGNORECASE):
+                    violations.append(f"{file}: 發現 {name}")
+        except Exception:
+            continue
+    
+    if violations:
+        print(f"{YELLOW}⚠️  警告: 發現可能的硬編碼密鑰{RESET}")
+        for v in violations:
+            print(f"   - {v}")
+        print(f"{YELLOW}   請使用環境變數或 SecretManager{RESET}")
+        # 不阻止提交，僅警告
+    else:
+        print(f"{GREEN}✅ 沒有發現硬編碼密鑰{RESET}")
+    
+    return True
+
+def check_console_log():
+    """檢查前端是否有 console.log"""
+    print(f"{YELLOW}🔍 檢查 console.log...{RESET}")
+    
+    staged_files = os.popen('git diff --cached --name-only').read().strip().split('\n')
+    violations = []
+    
+    for file in staged_files:
+        if not file.endswith(('.js', '.jsx', '.ts', '.tsx')):
+            continue
+        # 跳過 logger.js 本身 (它需要使用 console API)
+        if 'logger.js' in file or 'logger.ts' in file:
+            continue
+        
+        try:
+            with open(file, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            for i, line in enumerate(lines, 1):
+                if re.search(r'console\.(log|error|warn|debug)\(', line):
+                    violations.append(f"{file}:{i}")
+        except Exception:
+            continue
+    
+    if violations:
+        print(f"{YELLOW}⚠️  警告: 發現 console.log 語句{RESET}")
+        for v in violations[:10]:  # 只顯示前 10 個
+            print(f"   - {v}")
+        if len(violations) > 10:
+            print(f"   ... 及 {len(violations) - 10} 個其他")
+        print(f"{YELLOW}   建議使用 logger.js 工具{RESET}")
+    else:
+        print(f"{GREEN}✅ 沒有 console.log{RESET}")
+    
+    return True
+
+def check_sql_injection():
+    """檢查可能的 SQL 注入風險"""
+    print(f"{YELLOW}🔍 檢查 SQL 注入風險...{RESET}")
+    
+    dangerous_patterns = [
+        r'execute\s*\(\s*f["\']',  # f-string in SQL
+        r'execute\s*\(\s*["\'].*\+',  # String concatenation in SQL
+        r'\.format\s*\(.*\)',  # .format() in SQL
+    ]
+    
+    staged_files = os.popen('git diff --cached --name-only').read().strip().split('\n')
+    violations = []
+    
+    for file in staged_files:
+        if not file.endswith('.py'):
+            continue
+        
+        try:
+            with open(file, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            for pattern in dangerous_patterns:
+                if re.search(pattern, content):
+                    violations.append(file)
+                    break
+        except Exception:
+            continue
+    
+    if violations:
+        print(f"{YELLOW}⚠️  警告: 發現可能的 SQL 注入風險{RESET}")
+        for v in violations:
+            print(f"   - {v}")
+        print(f"{YELLOW}   請使用參數化查詢{RESET}")
+    else:
+        print(f"{GREEN}✅ 沒有 SQL 注入風險{RESET}")
+    
+    return True
+
+def main():
+    print(f"\n{YELLOW}{'='*50}{RESET}")
+    print(f"{YELLOW}🛡️  Pre-Commit 安全檢查{RESET}")
+    print(f"{YELLOW}{'='*50}{RESET}\n")
+    
+    checks = [
+        check_sensitive_files,
+        check_hardcoded_secrets,
+        check_console_log,
+        check_sql_injection,
+    ]
+    
+    all_passed = True
+    for check in checks:
+        if not check():
+            all_passed = False
+        print()
+    
+    if all_passed:
+        print(f"{GREEN}{'='*50}{RESET}")
+        print(f"{GREEN}✅ 所有安全檢查通過！{RESET}")
+        print(f"{GREEN}{'='*50}{RESET}\n")
+        return 0
+    else:
+        print(f"{RED}{'='*50}{RESET}")
+        print(f"{RED}❌ 安全檢查失敗！請修復問題後再提交{RESET}")
+        print(f"{RED}{'='*50}{RESET}\n")
+        return 1
+
+if __name__ == '__main__':
+    sys.exit(main())
