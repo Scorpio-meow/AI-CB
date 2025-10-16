@@ -31,11 +31,20 @@ try:
     RSA_PUBLIC_KEY = rsa_manager.get_public_key_pem()
     print("✅ 使用 RSA 非對稱加密進行 JWT 簽名")
 except Exception as e:
-    USE_RSA = False
-    RSA_PRIVATE_KEY = None
-    RSA_PUBLIC_KEY = None
-    ALGORITHM = "HS256"  # 降級到 HS256
-    print(f"⚠️  RSA 金鑰載入失敗，使用 HS256: {e}")
+    # 🔒 安全加固：拒絕降級到不安全的算法
+    import os
+    if os.getenv("ENVIRONMENT") == "production":
+        # 生產環境必須使用 RSA
+        print(f"❌ 生產環境 RSA 金鑰載入失敗: {e}")
+        raise RuntimeError("生產環境必須使用 RSA 金鑰進行 JWT 簽名") from e
+    else:
+        # 開發環境允許降級，但發出警告
+        USE_RSA = False
+        RSA_PRIVATE_KEY = None
+        RSA_PUBLIC_KEY = None
+        ALGORITHM = "HS256"
+        print(f"⚠️  開發環境 RSA 金鑰載入失敗，暫時使用 HS256: {e}")
+        print(f"⚠️  警告：請盡快修復 RSA 金鑰配置！")
 
 try:
     from app.core.redis_client import TokenBlacklist

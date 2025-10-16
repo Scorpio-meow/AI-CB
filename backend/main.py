@@ -48,7 +48,7 @@ if ENVIRONMENT == "production":
         "https://yourdomain.com",
         "https://www.yourdomain.com"
     ]
-    # 生產環境禁用 regex
+    # 🔒 安全加固：生產環境禁用 regex
     DEFAULT_ALLOWED_ORIGIN_REGEX = None
     logger.info("🔒 生產環境模式：使用嚴格的 CORS 白名單")
 else:
@@ -59,9 +59,15 @@ else:
         "http://127.0.0.1:3000",
         "https://127.0.0.1:3000",
     ]
-    # 開發環境允許 DevTunnels (可選)
-    DEFAULT_ALLOWED_ORIGIN_REGEX = os.getenv("ALLOWED_ORIGIN_REGEX")
-    logger.info("🔓 開發環境模式：允許 localhost 和 DevTunnels")
+    # 🔒 安全加固：開發環境也移除 regex，改用精確白名單
+    # 如需使用 DevTunnels，請在 .env 中明確指定完整 URL
+    devtunnel_url = os.getenv("DEVTUNNEL_URL", "").strip()
+    if devtunnel_url:
+        DEFAULT_ALLOWED_ORIGINS.append(devtunnel_url)
+        logger.warning(f"⚠️  開發環境添加 DevTunnel: {devtunnel_url}")
+    
+    DEFAULT_ALLOWED_ORIGIN_REGEX = None  # 移除不安全的 regex
+    logger.info("🔓 開發環境模式：使用精確的 localhost 白名單")
 
 _raw_allowed_origins = os.getenv("ALLOWED_ORIGINS")
 if _raw_allowed_origins:
@@ -69,13 +75,13 @@ if _raw_allowed_origins:
 else:
     ALLOWED_ORIGINS = DEFAULT_ALLOWED_ORIGINS
 
-_raw_allowed_origin_regex = os.getenv("ALLOWED_ORIGIN_REGEX")
-if _raw_allowed_origin_regex is not None and _raw_allowed_origin_regex.strip():
+# 🔒 安全加固：完全移除 CORS regex 支援
+# 所有環境都使用精確的白名單
+ALLOWED_ORIGIN_REGEX = None
+if os.getenv("ALLOWED_ORIGIN_REGEX"):
+    logger.error("❌ ALLOWED_ORIGIN_REGEX 已被禁用，請改用精確的 ALLOWED_ORIGINS 或 DEVTUNNEL_URL")
     if ENVIRONMENT == "production":
-        logger.warning("⚠️  生產環境不建議使用 ALLOWED_ORIGIN_REGEX")
-    ALLOWED_ORIGIN_REGEX = _raw_allowed_origin_regex
-else:
-    ALLOWED_ORIGIN_REGEX = DEFAULT_ALLOWED_ORIGIN_REGEX
+        raise RuntimeError("生產環境禁止使用 CORS regex 配置")
 
 UPLOADS_WATCHER_INTERVAL = int(os.getenv("UPLOADS_WATCHER_INTERVAL", "30"))
 
@@ -158,19 +164,15 @@ cors_kwargs = {
     "allow_headers": ["*"],
 }
 
-# 根據環境使用不同的 CORS 策略
+# 🔒 安全加固：所有環境統一使用白名單策略
+cors_kwargs["allow_origins"] = ALLOWED_ORIGINS
+logger.info(f"CORS 白名單: {ALLOWED_ORIGINS}")
+
+# 記錄安全配置
 if ENVIRONMENT == "production":
-    # 生產環境：僅使用白名單
-    cors_kwargs["allow_origins"] = ALLOWED_ORIGINS
-    logger.info(f"CORS 生產模式: {ALLOWED_ORIGINS}")
+    logger.info("� CORS 生產模式：嚴格白名單")
 else:
-    # 開發環境：可選擇性使用 regex
-    if ALLOWED_ORIGIN_REGEX:
-        cors_kwargs["allow_origin_regex"] = ALLOWED_ORIGIN_REGEX
-        logger.warning(f"🔓 CORS 開發模式（regex）: {ALLOWED_ORIGIN_REGEX}")
-    
-    cors_kwargs["allow_origins"] = ALLOWED_ORIGINS
-    logger.info(f"CORS 開發模式: {ALLOWED_ORIGINS}")
+    logger.info("🔓 CORS 開發模式：精確白名單（無 regex）")
 
 app.add_middleware(
     CORSMiddleware,

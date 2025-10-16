@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { shouldRefreshToken, hasValidAuth, clearAuth } from '../utils/tokenUtils';
+import { devLog, devWarn } from '../utils/secureLogger';
 
 // Normalize API URL from REACT_APP_API_BASE (preferred) or REACT_APP_API_URL (fallback)
 // Prefer explicit REACT_APP_API_BASE or REACT_APP_API_URL, otherwise use same-origin relative path '/api'
@@ -16,7 +17,7 @@ const normalizeAbsoluteUrl = (rawUrl) => {
 
     // Drop explicit DevTunnels port – the subdomain already encodes the port, adding ":xxxx" breaks TLS routing
     if (parsed.hostname.includes('devtunnels.ms') && parsed.port) {
-      console.warn('[api] Dropping explicit port from DevTunnels URL to avoid double port issues.', parsed.href);
+      devWarn('[api] Dropping explicit port from DevTunnels URL to avoid double port issues.', parsed.href);
       parsed.port = '';
     }
 
@@ -24,7 +25,7 @@ const normalizeAbsoluteUrl = (rawUrl) => {
     parsed.pathname = normalizedPath;
     return parsed.toString().replace(/\/+$/, '');
   } catch (error) {
-    console.warn('[api] Failed to parse API base URL, falling back to string normalization.', error);
+    devWarn('[api] Failed to parse API base URL, falling back to string normalization.', error);
     return ensureTrailingApi(rawUrl);
   }
 };
@@ -65,7 +66,7 @@ api.interceptors.request.use(
     if (token) {
       // 檢查是否需要刷新 Token（提前 5 分鐘刷新）
       if (shouldRefreshToken(token, 300) && !isRefreshing) {
-        console.log('[Token] Token 即將過期，觸發靜默刷新...');
+        devLog('[Token] Token 即將過期，觸發靜默刷新...');
         
         try {
           isRefreshing = true;
@@ -88,9 +89,9 @@ api.interceptors.request.use(
           // 更新當前請求的 token
           config.headers.Authorization = `Bearer ${access_token}`;
           
-          console.log('[Token] 靜默刷新成功');
+          devLog('[Token] 靜默刷新成功');
         } catch (error) {
-          console.warn('[Token] 靜默刷新失敗，清除無效 Token:', error.response?.status);
+          devWarn('[Token] 靜默刷新失敗，清除無效 Token:', error.response?.status);
           // 刷新失敗，清除無效的 token 避免無限循環
           if (error.response?.status === 401) {
             clearAuth();
