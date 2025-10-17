@@ -54,3 +54,7 @@ cryptography>=41.0.0  # RSA 非對稱加密
 redis>=5.0.0  # Token 黑名單快取 & RAG 查詢快取
 aioredis>=2.0.1  # 異步 Redis 客戶端
 
+# Testing
+pytest-asyncio>=0.23.0
+PyJWT>=2.9.0
+
