@@ -5,6 +5,9 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-61DAFB?style=flat&logo=react&logoColor=black)](https://reactjs.org/)
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
+[![Security](https://img.shields.io/badge/Security-Updated-green?style=flat&logo=security)](./SECURITY_FIXES.md)
+
+> **🔒 安全更新 (2025-10-17)**: 已修復 25 個安全漏洞 (2 Critical, 4 High, 18 Moderate, 1 Low)。詳見 [安全修復報告](./SECURITY_FIXES.md)
 
 ## 📋 目錄
 

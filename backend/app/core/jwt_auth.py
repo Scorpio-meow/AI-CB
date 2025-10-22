@@ -195,11 +195,23 @@ class TokenManager:
         
         try:
             # 使用 RSA 公鑰或 HS256 密鑰
+            # 🔒 安全加固：明確指定允許的算法，防止算法混淆攻擊
             if USE_RSA:
-                # 對於 RSA，需要確保使用正確的算法列表
-                payload = jwt.decode(token, RSA_PUBLIC_KEY, algorithms=["RS256"])
+                # 對於 RSA，嚴格只允許 RS256
+                payload = jwt.decode(
+                    token, 
+                    RSA_PUBLIC_KEY, 
+                    algorithms=["RS256"],
+                    options={"verify_signature": True, "verify_exp": True}
+                )
             else:
-                payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+                # 對於對稱加密，嚴格只允許 HS256
+                payload = jwt.decode(
+                    token, 
+                    SECRET_KEY, 
+                    algorithms=["HS256"],
+                    options={"verify_signature": True, "verify_exp": True}
+                )
             return payload
         except JWTError as e:
             raise HTTPException(
