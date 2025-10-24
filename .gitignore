@@ -107,3 +107,5 @@ docs/.doctrees/
 # Backup files
 *.backup
 *_backup.*
+
+package-lock.json
