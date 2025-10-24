@@ -1,41 +1,181 @@
 <!-- ChatBot 應用程式開發指引 -->
 
-# ChatBot 專案概述
+# ChatBot 專案架構指南
 
-此專案是一個具備使用者介面和後台管理介面的 ChatBot 應用程式，使用增強型混合 RAG（檢索增強生成）技術。
+此專案是一個企業級 RAG 驅動的 ChatBot 應用程式，採用前後端分離架構，具備完整的安全機制和性能優化。
 
-## 專案架構
-- **後端**: FastAPI + SQLAlchemy + LangChain + Ollama/GitHub Models
-- **前端**: React + Material-UI
-- **數據庫**: SQLite (開發) / PostgreSQL (生產)
-- **向量數據庫**: FAISS IndexFlatIP + Whoosh BM25 混合檢索
-- **文檔處理**: PyPDF2 + python-docx + 多編碼支援
+## 🏗️ 核心架構決策
 
-## 核心功能
-- [x] 智能對話（混合 RAG + Cross-Encoder 重新排序）
-- [x] 對話歷史管理
-- [x] 多格式文件上傳 (TXT, PDF, DOCX)
-- [x] 混合檢索系統 (FAISS + BM25)
-- [x] 繁體中文優化處理
-- [x] 管理員後台
-- [x] WebSocket 即時通訊
-- [x] 向量庫管理 (重置/清理)
-- [x] 文件管理改進: 流式寫入、多檔上傳、前端 per-file progress/cancel 與批次刪除
-- [x] 自動重建索引 (24小時周期)
-- [x] 評估指標系統 (Recall@k, Precision@k, MRR)
+### 後端架構 (FastAPI)
+- **單例模式**: `RAGManager` 使用雙重檢查鎖定確保全局唯一 RAG 實例 (見 `app/core/rag_manager.py`)
+- **非同步設計**: 所有 I/O 操作使用 async/await，路由函數定義為 `async def`
+- **分層架構**: API → Service → CRUD → Models (嚴格分層，避免跨層調用)
+- **依賴注入**: 使用 FastAPI `Depends()` 管理資料庫會話、認證狀態等
 
-## 開發設置已完成
-- [x] 後端 API 架構 (FastAPI)
-- [x] 前端 React 應用程式 (Material-UI)
-- [x] 混合 RAG 實現 (HybridContextualRAG)
-- [x] 數據庫模型 (SQLAlchemy)
-- [x] 文檔處理系統 (DocumentProcessor: TXT/PDF/DOCX)
-- [x] 混合向量儲存與持久化 (FAISS + Whoosh)
-- [x] 多編碼支援 (UTF-8, GBK, Big5)
-- [x] Docker 配置
-- [x] VS Code 任務配置
-- [x] 啟動腳本 (PowerShell)
-- [x] Cross-Encoder 重新排序系統
+### 前端架構 (React)
+- **路由保護**: 使用 `PrivateRoute` 和 `AdminRoute` 包裹受保護頁面 (見 `frontend/src/App.js`)
+- **Layout 模式**: 所有頁面包裹在統一的 `Layout` 組件中，處理導航和認證狀態
+- **API 代理**: 開發時通過 `package.json` proxy 轉發至後端 8001 端口
+
+## 🔐 安全機制 (關鍵實現)
+
+### JWT 雙 Token 系統
+**實現位置**: `app/core/jwt_auth.py`
+- **Access Token**: 15 分鐘有效期，存儲在 localStorage
+- **Refresh Token**: 7 天有效期，存儲在 HttpOnly Cookie (防 XSS)
+- **RSA 簽名**: 使用 RSA-2048 非對稱加密，公私鑰存放於 `backend/keys/`
+- **降級策略**: 生產環境強制使用 RSA，開發環境允許降級至 HS256 並發出警告
+
+### Token 黑名單機制
+**實現位置**: `app/core/redis_client.py` - `TokenBlacklist` 類
+- Redis 快取已撤銷的 Token，防止重放攻擊
+- Token key 格式: `blacklist:token:{jti}` (使用 JWT ID)
+- 自動過期時間與 Token TTL 同步
+
+### 環境隔離的 CORS 策略
+**實現位置**: `backend/main.py`
+```python
+# 生產環境: 嚴格白名單，禁用 regex
+ALLOWED_ORIGINS = ["https://yourdomain.com"]
+ALLOWED_ORIGIN_REGEX = None
+
+# 開發環境: localhost 精確匹配
+ALLOWED_ORIGINS = ["http://localhost:3000", ...]
+# 移除不安全的 regex，改用 .env 中的 DEVTUNNEL_URL
+```
+
+### API Key 保護
+管理員路由使用 `X-API-Key` header 認證 (見 `app/core/security.py` - `verify_admin_api_key`)
+
+## 🤖 混合 RAG 系統核心
+
+### 三層檢索架構
+**實現位置**: `app/rag/contextual_rag.py` - `HybridContextualRAG` 類
+1. **向量檢索**: FAISS IndexFlatIP (內積相似度)
+2. **BM25 全文檢索**: Whoosh + Jieba 中文分詞
+3. **Cross-Encoder 重排序**: `ms-marco-MiniLM-L-6-v2` 提升相關性
+
+### GPU 加速配置
+```python
+# 自動檢測 CUDA 並載入模型
+self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+self.local_embeddings = SentenceTransformer(model, device=self.device)
+# 支援 FP16 量化 (USE_FP16_QUANTIZATION=true)
+```
+
+### 持久化策略
+- **FAISS 索引**: `data/faiss_index.bin` (二進位格式)
+- **文檔元數據**: `data/documents.pkl` (Pickle 序列化，包含 last_reindex 時間戳)
+- **BM25 索引**: `data/bm25_index/` (Whoosh 文件目錄)
+
+### 自動重建機制
+**實現位置**: `app/tasks/index_rebuilder.py`
+- 24 小時周期背景任務，檢查 `metadata.last_reindex` 決定是否重建
+- 環境變數控制: `ENABLE_AUTO_REINDEX_TASK=1`, `REINDEX_INTERVAL_HOURS=24`
+
+## 📂 文檔處理流程
+
+### 上傳處理 (流式寫入)
+**實現位置**: `app/api/documents.py`
+```python
+# 分塊讀取避免記憶體問題
+contents = await file.read(CHUNK_SIZE)
+f.write(contents)
+```
+- 檔案大小限制: 10MB (環境變數 `MAX_FILE_SIZE_MB`)
+- 支援格式: TXT, PDF, DOCX
+
+### 安全驗證
+**實現位置**: `app/services/document_processor.py`
+```python
+# 魔數驗證檔案類型真實性
+FILE_SIGNATURES = {
+    'application/pdf': [b'%PDF'],
+    'application/vnd...docx': [b'PK\x03\x04'],
+}
+```
+
+### 批次刪除
+**API**: `POST /api/documents/bulk_delete`
+- 並行處理 RAG/檔案刪除，使用 batch SQL 刪除 `DocumentChunk` 和 `Document`
+- 回傳每個 ID 的狀態: `deleted` / `deleted_with_warnings` / `failed` / `not_found`
+
+## 🛠️ 開發工作流程
+
+### 環境啟動順序
+1. 激活虛擬環境: `.\CBvenv\Scripts\Activate.ps1`
+2. 啟動後端: 運行 VS Code 任務 "啟動後端開發服務器" (端口 8001)
+3. 啟動前端: 運行任務 "啟動前端開發服務器" (端口 3000)
+4. 訪問: `http://localhost:3000` (API 通過 proxy 轉發)
+
+### 數據庫遷移
+- SQLAlchemy 自動建表: `Base.metadata.create_all(bind=engine)`
+- 初始化資料庫: `python backend/init_db.py`
+
+### 測試命令
+- RAG 評估: `python scripts/test_rag_improvements.py`
+- GPU 測試: 運行 VS Code 任務 "🧪 測試 GPU 加速"
+
+## 🎯 專案特定慣例
+
+### 模型繼承規則
+- 所有 SQLAlchemy 模型繼承自 `Base` (定義於 `app/models/database.py`)
+- Pydantic Schema 放在 `app/schemas/`，與 API 路由對應
+
+### 錯誤處理模式
+```python
+# 統一使用 HTTPException
+raise HTTPException(status_code=500, detail=f"錯誤訊息: {str(e)}")
+```
+
+### 日誌配置
+- 應用日誌: `logs/app.log`
+- 安全日誌: `logs/security.log` (記錄認證失敗、API Key 驗證等)
+- 使用 `logger = logging.getLogger(__name__)` 獲取模組級 logger
+
+### 環境變數必需項
+**關鍵變數** (必須在 `.env` 中設定):
+```bash
+MODEL_NAME=gpt-oss:20b  # LLM 模型名稱
+LLM_API_BASE=http://localhost:11434  # Ollama API 端點
+DATABASE_URL=sqlite:///./chatbot.db
+ADMIN_API_KEY=<隨機生成的安全金鑰>
+```
+
+## 🔧 關鍵整合點
+
+### WebSocket 連接管理
+**實現位置**: `app/api/chat.py` - `ConnectionManager` 類
+- 維護 `user_connections` 字典映射 user_id 到 WebSocket
+- 使用 `await websocket.accept()` 建立連接
+
+### Custom Agent 系統
+**實現位置**: `app/api/custom_agent.py`
+- 用戶僅能訪問自己創建的或公開的 Agent (基於 `is_public` 和 `created_by` 過濾)
+- CRUD 操作需 JWT 認證: `current_user: dict = Depends(get_current_active_user)`
+
+### 生產部署選項
+- **Gunicorn + Uvicorn**: `start_production.ps1` (支援 24-32 workers)
+- **Waitress**: `start_waitress.ps1` (Windows 穩定版)
+- 兩者皆支援參數化配置 worker/thread 數量
+
+## 📋 常見任務檢查清單
+
+### 新增 API 端點
+1. 在 `app/api/` 建立路由檔案，定義 `router = APIRouter()`
+2. 在 `backend/main.py` 中 `app.include_router(router, prefix="/api/xxx")`
+3. 新增對應 Schema 至 `app/schemas/`
+4. 需要認證的端點加上 `Depends(get_current_active_user)` 或 `Depends(verify_admin_api_key)`
+
+### 修改 RAG 檢索邏輯
+1. 編輯 `app/rag/contextual_rag.py` 的 `retrieve_context` 或 `generate_response` 方法
+2. 修改後運行 `rag_system.force_reindex()` 重建索引
+3. 使用 `scripts/test_rag_improvements.py` 驗證變更
+
+### 前端新增頁面
+1. 在 `frontend/src/pages/` 建立組件
+2. 在 `frontend/src/App.js` 的 `createBrowserRouter` 添加路由
+3. 使用 `PrivateRoute` 或 `AdminRoute` 包裹需要認證的頁面
 
 ## 技術細節
 ### 混合 RAG 系統
