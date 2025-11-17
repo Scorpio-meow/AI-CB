@@ -1,6 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from dotenv import load_dotenv
+import os as _os
+_env_path = _os.path.join(_os.path.dirname(__file__), '.env')
+load_dotenv(_env_path)
 from app.api import chat, admin, documents, workflow, custom_agent
 from app.models.database import create_tables
 from app.tasks.uploads_watcher import scan_and_cleanup_uploads
@@ -13,7 +17,6 @@ from app.core.security import (
 )
 import asyncio
 import os
-from dotenv import load_dotenv
 import logging
 
 # Load environment variables

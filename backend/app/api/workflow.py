@@ -29,15 +29,14 @@ from app.crud import crud_custom_agent
 from app.core.jwt_auth import get_current_active_user  # JWT 認證
 
 # --- Constants and System Prompts ---
-try:
-    OLLAMA_HOST = os.environ["LLM_API_BASE"]
-except KeyError:
-    raise RuntimeError("Environment variable LLM_API_BASE is required. Please set it in .env or environment.")
+OLLAMA_HOST = os.getenv("LLM_API_BASE", "").strip()
+if not OLLAMA_HOST:
+    # Avoid import-time failure; warn and let callers handle missing host at runtime.
+    print("⚠️ Environment variable LLM_API_BASE is not set. Workflow endpoints that call external LLM API will fail unless set.")
 
-try:
-    MODEL_NAME = os.environ["MODEL_NAME"]
-except KeyError:
-    raise RuntimeError("Environment variable MODEL_NAME is required. Please set it in .env or environment.")
+MODEL_NAME = os.getenv("MODEL_NAME", "gpt-oss:20b").strip()
+if not MODEL_NAME:
+    print("⚠️ Environment variable MODEL_NAME is not set; defaulting to 'gpt-oss:20b'.")
 
 
 WORKFLOW_TIMEOUT = float(os.getenv("WORKFLOW_TIMEOUT", "180"))

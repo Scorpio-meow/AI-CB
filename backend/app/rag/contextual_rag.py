@@ -8,7 +8,8 @@ from datetime import datetime, timedelta
 import numpy as np
 import faiss
 import pickle
-from sentence_transformers import SentenceTransformer, CrossEncoder
+SentenceTransformer = None
+CrossEncoder = None
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document
 from sklearn.metrics.pairwise import cosine_similarity
@@ -78,15 +79,11 @@ class HybridContextualRAG:
     def __init__(self):
         try:
             # Fail-fast: require MODEL_NAME and LLM_API_BASE to be provided via environment
-            try:
-                self.model_name = os.environ["MODEL_NAME"]
-            except KeyError:
-                raise RuntimeError("Environment variable MODEL_NAME is required but not set. Please set it in .env or the environment.")
-
-            try:
-                self.api_base = os.environ["LLM_API_BASE"]
-            except KeyError:
-                raise RuntimeError("Environment variable LLM_API_BASE is required but not set. Please set it in .env or the environment.")
+            # Read env vars with defaults; avoid failing at import.
+            self.model_name = os.getenv("MODEL_NAME", "gpt-oss:20b")
+            self.api_base = os.getenv("LLM_API_BASE", "").strip()
+            if not self.api_base:
+                logger.warning("⚠️ Environment variable LLM_API_BASE is not set. Calls to external LLM API will fail.")
             
             # Import requests for API calls
             import requests
@@ -107,7 +104,18 @@ class HybridContextualRAG:
             
             # Embedding models with GPU acceleration
             embedding_model = os.getenv("EMBEDDING_MODEL", "paraphrase-multilingual-MiniLM-L12-v2")
-            self.local_embeddings = SentenceTransformer(embedding_model, device=self.device)
+            # Lazy import to avoid module-level import-time errors if torch/transformers
+            # versions are incompatible. This still raises only when we try to use the
+            # embeddings, but lets the API start for other routes.
+            try:
+                global SentenceTransformer
+                if SentenceTransformer is None:
+                    from sentence_transformers import SentenceTransformer as _ST
+                    SentenceTransformer = _ST
+                self.local_embeddings = SentenceTransformer(embedding_model, device=self.device)
+            except Exception as e:
+                logger.warning(f"Failed to load SentenceTransformer ({embedding_model}): {e}")
+                self.local_embeddings = None
             
             # 模型量化配置 (FP16)
             self.use_fp16 = os.getenv("USE_FP16_QUANTIZATION", "false").lower() == "true"
@@ -126,6 +134,10 @@ class HybridContextualRAG:
             # Cross-encoder for reranking with GPU and FP16
             reranker_model = os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
             try:
+                global CrossEncoder
+                if CrossEncoder is None:
+                    from sentence_transformers import CrossEncoder as _CE
+                    CrossEncoder = _CE
                 self.cross_encoder = CrossEncoder(reranker_model, device=self.device)
                 
                 # 對 Cross-Encoder 應用 FP16
