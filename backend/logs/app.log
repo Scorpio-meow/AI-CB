@@ -11970,3 +11970,8 @@ FROM documents
 2025-11-20 18:11:00 - main - INFO - Index rebuilder task started
 2025-11-20 18:11:00 - main - INFO - ChatBot application startup complete
 2025-11-20 18:11:01 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-11-20 19:05:59 - security - INFO - {"timestamp": "2025-11-20T11:05:59.052613", "event_type": "USER_LOGIN", "severity": "INFO", "user_id": 1, "client_ip": "127.0.0.1", "method": "POST", "path": "/api/auth/login", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36", "details": {"username": "yalkyao"}}
+2025-11-20 19:08:04 - main - INFO - Shutting down ChatBot application...
+2025-11-20 19:08:04 - main - INFO - Uploads watcher task stopped
+2025-11-20 19:08:04 - main - INFO - Index rebuilder task stopped
+2025-11-20 19:08:04 - main - INFO - ChatBot application shutdown complete

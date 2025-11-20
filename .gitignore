@@ -4,7 +4,3 @@ frontend/package-lock.json
 __pycache__/*
 *.pyc
 backend/keys
-# Environment and runtime artifacts
-backend/.env
-backend/logs/
-backend/*.db
