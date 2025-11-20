@@ -11,7 +11,7 @@ sentence-transformers>=2.3.0
 transformers>=4.46.0
 torch
 numpy==1.24.3
-faiss-cpu==1.7.4
+faiss-cpu
 scikit-learn>=1.5.0
 websockets==12.0
 requests>=2.32.0
@@ -32,4 +32,3 @@ redis>=5.0.0
 aioredis>=2.0.1
 pytest-asyncio>=0.23.0
 PyJWT>=2.9.0
-

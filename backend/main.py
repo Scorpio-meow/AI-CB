@@ -18,6 +18,7 @@ from app.core.security import (
 import asyncio
 import os
 import logging
+import torch
 
 # Load environment variables
 load_dotenv()
@@ -206,6 +207,25 @@ async def health_check():
 @app.get("/socket.io/")
 async def socket_io_fallback():
     return {"error": "Socket.IO not supported. Use WebSocket at /api/workflow/ws"}
+
+def create_app():
+	# 啟動時列印 GPU/FAISS 可用性資訊
+	try:
+		cuda_available = torch.cuda.is_available()
+	except Exception:
+		cuda_available = False
+
+	logging.info(f"Startup status: torch.cuda.is_available() = {cuda_available}")
+
+	try:
+		import faiss
+		faiss_gpu_available = hasattr(faiss, 'StandardGpuResources') and faiss.get_num_gpus() > 0
+		logging.info(f"FAISS gpu available: {faiss_gpu_available}; num_gpus = {faiss.get_num_gpus() if faiss_gpu_available else 0}")
+	except Exception as e:
+		logging.warning("FAISS not importable or CPU-only. If you intended to use GPU FAISS, ensure faiss-gpu is installed and CUDA is configured. Error: %s", e)
+		faiss_gpu_available = False
+
+	return app
 
 if __name__ == "__main__":
     import uvicorn
