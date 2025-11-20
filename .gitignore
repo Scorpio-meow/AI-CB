@@ -1,6 +1,6 @@
 CBvenv
 frontend/node_modules
 frontend/package-lock.json
-__pycache__/*
+*/__pycache__/*
 *.pyc
 backend/keys

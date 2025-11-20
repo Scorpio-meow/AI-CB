@@ -49,7 +49,6 @@ except Exception as e:
 try:
     from app.core.redis_client import TokenBlacklist
     USE_BLACKLIST = True
-    print("✅ Token 黑名單功能已啟用")
 except Exception as e:
     USE_BLACKLIST = False
     print(f"⚠️  Token 黑名單功能不可用: {e}")
