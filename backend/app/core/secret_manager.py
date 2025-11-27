@@ -6,6 +6,7 @@
 import os
 import secrets
 import logging
+import hashlib
 from pathlib import Path
 from typing import Optional
 from cryptography.fernet import Fernet
@@ -51,10 +52,13 @@ class SecretManager:
         
         # 生成新的加密密鑰
         new_key = Fernet.generate_key()
+        # 不要在日誌中記錄密鑰本身，改為記錄不可逆摘要以便排查
+        digest = hashlib.sha256(new_key).hexdigest()[:8]
         logger.warning(
-            f"⚠️  未找到 SECRETS_ENCRYPTION_KEY 環境變數\n"
-            f"⚠️  已生成新的加密密鑰: {new_key.decode('utf-8')}\n"
-            f"⚠️  請將此密鑰添加到環境變數中以保證數據持久性"
+            "⚠️  未找到 SECRETS_ENCRYPTION_KEY 環境變數\n"
+            "⚠️  已生成新的加密密鑰（摘要）: %s\n"
+            "⚠️  請將此密鑰添加到環境變數中以保證數據持久性",
+            digest
         )
         return new_key
     
@@ -93,10 +97,15 @@ class SecretManager:
         new_secret = secrets.token_urlsafe(length)
         self._save_to_encrypted_file(key_name, new_secret)
         
+        # 不要在日誌中記錄密鑰內容。用不可逆摘要來幫助運維跟踪。
+        try:
+            secret_digest = hashlib.sha256(new_secret.encode('utf-8')).hexdigest()[:8]
+        except Exception:
+            secret_digest = 'unknown'
         logger.warning(
-            f"🔑 生成新的 {key_name}\n"
-            f"   前10字符: {new_secret[:10]}...\n"
-            f"   建議將此密鑰添加到 .env 文件中"
+            "🔑 生成新的 %s，並已加密保存（摘要: %s）。請將此密鑰添加到 .env 文件中以便持久化",
+            key_name,
+            secret_digest
         )
         
         return new_secret

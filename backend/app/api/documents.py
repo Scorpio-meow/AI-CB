@@ -222,11 +222,12 @@ async def upload_document(
                 # 其他處理錯誤
                 if os.path.exists(file_path):
                     os.remove(file_path)
-                logger.error(f"File processing error for {up.filename}: {e}")
+                # Log the full stacktrace on the server for troubleshooting
+                logger.exception("File processing error for %s", up.filename)
                 results.append({
                     "filename": safe_filename,
                     "status": "failed",
-                    "detail": f"檔案處理錯誤: {str(e)}",
+                    "detail": "檔案處理錯誤: 內部錯誤，請聯繫系統管理員",
                     "http_status": 500
                 })
                 continue
@@ -311,7 +312,8 @@ async def upload_document(
             })
 
         except Exception as e:
-            logger.error(f"處理文件 {up.filename} 失敗: {e}")
+            # Log full stack trace on the server, but do not expose exception details to the client.
+            logger.exception("處理文件 %s 失敗", up.filename)
             try:
                 if 'file_path' in locals() and os.path.exists(file_path):
                     os.remove(file_path)
@@ -320,7 +322,7 @@ async def upload_document(
             results.append({
                 "filename": up.filename,
                 "status": "failed",
-                "detail": str(e),
+                "detail": "内部錯誤，處理失敗。請聯繫系統管理員。",
                 "http_status": 500
             })
 
@@ -332,9 +334,14 @@ async def get_documents(
     current_user: dict = Depends(get_current_admin_user)
 ):
     """獲取文件列表（需要管理員權限）"""
-    # 返回所有文件
-    documents = db.query(Document).all()
-    return documents
+    try:
+        # 返回所有文件
+        documents = db.query(Document).all()
+        return documents
+    except Exception:
+        # 不暴露堆棧追蹤到客戶端，僅記錄服務端日誌
+        logger.exception("獲取文件列表失敗")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.delete("/{document_id}")
 async def delete_document(
@@ -353,7 +360,7 @@ async def delete_document(
         rag_system = get_rag_system()
         rag_system.remove_document_by_id(document_id, rebuild_bm25=False)
     except Exception as e:
-        print(f"Warning: Failed to remove document from RAG system: {e}")
+        logger.warning("Failed to remove document from RAG system: %s", str(e))
     
     # 刪除文件塊
     db.query(DocumentChunk).filter(DocumentChunk.document_id == document_id).delete()
@@ -365,7 +372,7 @@ async def delete_document(
         if os.path.exists(file_path):
             os.remove(file_path)
     except Exception as e:
-        print(f"Warning: Failed to remove physical file: {e}")
+        logger.warning("Failed to remove physical file: %s", str(e))
     
     # 刪除文件記錄
     db.delete(document)

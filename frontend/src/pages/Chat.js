@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import DOMPurify from 'dompurify';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -518,11 +519,20 @@ function Chat() {
     }
   }, [conversations, currentConversation]);
 
-  // Simple preprocessing: convert HTML <br> tags to Markdown newlines
+  // Simple preprocessing: sanitize content and convert HTML <br> tags to Markdown newlines
   const preprocessContent = (content) => {
     if (!content || typeof content !== 'string') return '';
-    // replace common <br> variants with double newlines for markdown, then strip other tags
-    return content.replace(/<br\s*\/?>/gi, '\n\n').replace(/<[^>]+>/g, '');
+    // replace common <br> variants with double newlines for markdown
+    const withBreaks = content.replace(/<br\s*\/?/gi, '\n\n');
+    // Use DOMPurify to sanitize and strip any remaining tags. We set ALLOWED_TAGS to [] to remove all HTML tags
+    try {
+      const sanitized = DOMPurify.sanitize(withBreaks, { ALLOWED_TAGS: [], ALLOWED_ATTR: {} });
+      return sanitized;
+    } catch (err) {
+      // Fallback: if DOMPurify fails for any reason, fall back to a conservative regex strip
+      console.warn('DOMPurify failed to sanitize content', err);
+      return withBreaks.replace(/<[^>]+>/g, '');
+    }
   };
 
   const handleStartWorkflow = () => {

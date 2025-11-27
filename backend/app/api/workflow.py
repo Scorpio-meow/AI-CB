@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 workflow.py (Refactored v6: Dynamic Agent Loading)
 
@@ -8,43 +7,32 @@ This version refactors agent prompt loading to be dynamic.
     dynamically upon initialization.
 3.  The /professions endpoint also fetches dynamically to ensure the list is always up-to-date.
 """
-
 import asyncio
 import json
 import os
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Any, Optional
-
 import httpx
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-
 from app.api.chat import manager
 from app.models.database import get_db, SessionLocal
 from app.services.chat_service import ChatService
 from app.crud import crud_custom_agent
-from app.core.jwt_auth import get_current_active_user  # JWT 認證
-
-# --- Constants and System Prompts ---
+from app.core.jwt_auth import get_current_active_user
 OLLAMA_HOST = os.getenv("LLM_API_BASE", "").strip()
 if not OLLAMA_HOST:
-    # Avoid import-time failure; warn and let callers handle missing host at runtime.
     print("⚠️ Environment variable LLM_API_BASE is not set. Workflow endpoints that call external LLM API will fail unless set.")
-
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-oss:20b").strip()
 if not MODEL_NAME:
     print("⚠️ Environment variable MODEL_NAME is not set; defaulting to 'gpt-oss:20b'.")
-
-
 WORKFLOW_TIMEOUT = float(os.getenv("WORKFLOW_TIMEOUT", "180"))
-CYCLE_LIMIT = int(os.getenv("WORKFLOW_CYCLE_LIMIT", "2"))  # 可配置的循環限制
-MAX_HISTORY_SIZE = int(os.getenv("WORKFLOW_MAX_HISTORY", "20"))  # 防止記憶體洩漏
-MAX_CONTEXT_MESSAGES = int(os.getenv("WORKFLOW_MAX_CONTEXT", "5"))  # LLM 上下文限制
-
-# 全局 HTTP 客戶端 (連接池) - 提升效能
+CYCLE_LIMIT = int(os.getenv("WORKFLOW_CYCLE_LIMIT", "2"))
+MAX_HISTORY_SIZE = int(os.getenv("WORKFLOW_MAX_HISTORY", "20"))
+MAX_CONTEXT_MESSAGES = int(os.getenv("WORKFLOW_MAX_CONTEXT", "5"))
 _http_client: Optional[httpx.AsyncClient] = None
 _client_lock = asyncio.Lock()
 

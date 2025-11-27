@@ -12120,3 +12120,489 @@ FROM documents
 2025-11-20 19:46:32 - main - INFO - Uploads watcher task stopped
 2025-11-20 19:46:32 - main - INFO - Index rebuilder task stopped
 2025-11-20 19:46:32 - main - INFO - ChatBot application shutdown complete
+2025-11-24 10:34:19 - main - INFO - 🔓 開發環境模式：使用精確的 localhost 白名單
+2025-11-24 10:34:19 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-11-24 10:34:19 - main - INFO - CORS 白名單: ['http://localhost:3000', 'https://localhost:3000', 'http://127.0.0.1:3000', 'https://127.0.0.1:3000']
+2025-11-24 10:34:19 - main - INFO - 🔓 CORS 開發模式：精確白名單（無 regex）
+2025-11-24 10:34:20 - main - INFO - Starting ChatBot application...
+2025-11-24 10:34:20 - main - INFO - Initializing global RAG system...
+2025-11-24 10:34:20 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-11-24 10:34:21 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce MX250 (2.0GB 顯存)
+2025-11-24 10:34:34 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-11-24 10:34:42 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-11-24 10:34:46 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2 (精度: FP32)
+2025-11-24 10:34:47 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-11-24 10:34:47 - jieba - DEBUG - Loading model from cache C:\Users\yalkyao\AppData\Local\Temp\jieba.cache
+2025-11-24 10:34:47 - jieba - DEBUG - Loading model cost 0.678 seconds.
+2025-11-24 10:34:47 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-11-24 10:34:47 - app.rag.contextual_rag - INFO - ✅ Jieba 自定義詞典已載入: data\jieba_dict.txt
+2025-11-24 10:34:48 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-11-24 10:34:48 - app.rag.contextual_rag - ERROR - Failed to load BM25 index: Index 'MAIN' does not exist in FileStorage('data/bm25_index')
+2025-11-24 10:34:48 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-11-24 10:34:48 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-11-24 10:34:48 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-11-24 10:34:48 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-16T15:26:29.297671', 'auto_reindex_hours': 24}
+2025-11-24 10:34:48 - main - INFO - Uploads watcher task started
+2025-11-24 10:34:48 - main - INFO - Index rebuilder task started
+2025-11-24 10:34:48 - main - INFO - ChatBot application startup complete
+2025-11-24 10:34:49 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-11-24 10:42:55 - main - INFO - Shutting down ChatBot application...
+2025-11-24 10:42:55 - main - INFO - Uploads watcher task stopped
+2025-11-24 10:42:55 - main - INFO - Index rebuilder task stopped
+2025-11-24 10:42:55 - main - INFO - ChatBot application shutdown complete
+2025-11-24 10:44:37 - main - INFO - 🔓 開發環境模式：使用精確的 localhost 白名單
+2025-11-24 10:44:37 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-11-24 10:44:37 - main - INFO - CORS 白名單: ['http://localhost:3000', 'https://localhost:3000', 'http://127.0.0.1:3000', 'https://127.0.0.1:3000']
+2025-11-24 10:44:37 - main - INFO - 🔓 CORS 開發模式：精確白名單（無 regex）
+2025-11-24 10:44:37 - main - INFO - Starting ChatBot application...
+2025-11-24 10:44:37 - main - INFO - Initializing global RAG system...
+2025-11-24 10:44:37 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-11-24 10:44:38 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce MX250 (2.0GB 顯存)
+2025-11-24 10:44:48 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-11-24 10:44:56 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-11-24 10:44:59 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2 (精度: FP32)
+2025-11-24 10:44:59 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-11-24 10:44:59 - jieba - DEBUG - Loading model from cache C:\Users\yalkyao\AppData\Local\Temp\jieba.cache
+2025-11-24 10:45:00 - jieba - DEBUG - Loading model cost 1.220 seconds.
+2025-11-24 10:45:00 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-11-24 10:45:00 - app.rag.contextual_rag - INFO - ✅ Jieba 自定義詞典已載入: data\jieba_dict.txt
+2025-11-24 10:45:00 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-11-24 10:45:00 - app.rag.contextual_rag - ERROR - Failed to load BM25 index: Index 'MAIN' does not exist in FileStorage('data/bm25_index')
+2025-11-24 10:45:00 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-11-24 10:45:00 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-11-24 10:45:00 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-11-24 10:45:00 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-16T15:26:29.297671', 'auto_reindex_hours': 24}
+2025-11-24 10:45:00 - main - INFO - Uploads watcher task started
+2025-11-24 10:45:00 - main - INFO - Index rebuilder task started
+2025-11-24 10:45:00 - main - INFO - ChatBot application startup complete
+2025-11-24 10:45:00 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-11-24 10:45:57 - main - INFO - 🔓 開發環境模式：使用精確的 localhost 白名單
+2025-11-24 10:45:57 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-11-24 10:45:57 - main - INFO - CORS 白名單: ['http://localhost:3000', 'https://localhost:3000', 'http://127.0.0.1:3000', 'https://127.0.0.1:3000']
+2025-11-24 10:45:57 - main - INFO - 🔓 CORS 開發模式：精確白名單（無 regex）
+2025-11-24 10:45:57 - main - INFO - Starting ChatBot application...
+2025-11-24 10:45:57 - main - INFO - Initializing global RAG system...
+2025-11-24 10:45:57 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-11-24 10:45:58 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce MX250 (2.0GB 顯存)
+2025-11-24 10:46:09 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-11-24 10:46:19 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-11-24 10:46:22 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2 (精度: FP32)
+2025-11-24 10:46:22 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-11-24 10:46:22 - jieba - DEBUG - Loading model from cache C:\Users\yalkyao\AppData\Local\Temp\jieba.cache
+2025-11-24 10:46:23 - jieba - DEBUG - Loading model cost 1.166 seconds.
+2025-11-24 10:46:23 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-11-24 10:46:23 - app.rag.contextual_rag - INFO - ✅ Jieba 自定義詞典已載入: data\jieba_dict.txt
+2025-11-24 10:46:23 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-11-24 10:46:23 - app.rag.contextual_rag - ERROR - Failed to load BM25 index: Index 'MAIN' does not exist in FileStorage('data/bm25_index')
+2025-11-24 10:46:23 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-11-24 10:46:23 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-11-24 10:46:23 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-11-24 10:46:23 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-16T15:26:29.297671', 'auto_reindex_hours': 24}
+2025-11-24 10:46:23 - main - INFO - Uploads watcher task started
+2025-11-24 10:46:23 - main - INFO - Index rebuilder task started
+2025-11-24 10:46:23 - main - INFO - ChatBot application startup complete
+2025-11-24 10:46:23 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-11-24 10:53:24 - main - INFO - Shutting down ChatBot application...
+2025-11-24 10:53:24 - main - INFO - Uploads watcher task stopped
+2025-11-24 10:53:24 - main - INFO - Index rebuilder task stopped
+2025-11-24 10:53:24 - main - INFO - ChatBot application shutdown complete
+2025-11-24 10:56:55 - main - INFO - 🔓 開發環境模式：使用精確的 localhost 白名單
+2025-11-24 10:56:55 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-11-24 10:56:55 - main - INFO - CORS 白名單: ['http://localhost:3000', 'https://localhost:3000', 'http://127.0.0.1:3000', 'https://127.0.0.1:3000']
+2025-11-24 10:56:55 - main - INFO - 🔓 CORS 開發模式：精確白名單（無 regex）
+2025-11-24 10:56:55 - main - INFO - Starting ChatBot application...
+2025-11-24 10:56:55 - main - INFO - Initializing global RAG system...
+2025-11-24 10:56:55 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-11-24 10:56:56 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce MX250 (2.0GB 顯存)
+2025-11-24 10:57:09 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-11-24 10:57:19 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-11-24 10:57:22 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2 (精度: FP32)
+2025-11-24 10:57:22 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-11-24 10:57:22 - jieba - DEBUG - Loading model from cache C:\Users\yalkyao\AppData\Local\Temp\jieba.cache
+2025-11-24 10:57:23 - jieba - DEBUG - Loading model cost 0.991 seconds.
+2025-11-24 10:57:23 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-11-24 10:57:23 - app.rag.contextual_rag - INFO - ✅ Jieba 自定義詞典已載入: data\jieba_dict.txt
+2025-11-24 10:57:23 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-11-24 10:57:23 - app.rag.contextual_rag - ERROR - Failed to load BM25 index: Index 'MAIN' does not exist in FileStorage('data/bm25_index')
+2025-11-24 10:57:23 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-11-24 10:57:23 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-11-24 10:57:23 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-11-24 10:57:23 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-16T15:26:29.297671', 'auto_reindex_hours': 24}
+2025-11-24 10:57:23 - main - INFO - Uploads watcher task started
+2025-11-24 10:57:23 - main - INFO - Index rebuilder task started
+2025-11-24 10:57:23 - main - INFO - ChatBot application startup complete
+2025-11-24 10:57:23 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-11-24 10:57:56 - main - INFO - Shutting down ChatBot application...
+2025-11-24 10:57:56 - main - INFO - Uploads watcher task stopped
+2025-11-24 10:57:56 - main - INFO - Index rebuilder task stopped
+2025-11-24 10:57:56 - main - INFO - ChatBot application shutdown complete
+2025-11-24 11:02:27 - main - INFO - 🔓 開發環境模式：使用精確的 localhost 白名單
+2025-11-24 11:02:27 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-11-24 11:02:27 - main - INFO - CORS 白名單: ['http://localhost:3000', 'https://localhost:3000', 'http://127.0.0.1:3000', 'https://127.0.0.1:3000']
+2025-11-24 11:02:27 - main - INFO - 🔓 CORS 開發模式：精確白名單（無 regex）
+2025-11-24 11:02:27 - main - INFO - Starting ChatBot application...
+2025-11-24 11:02:27 - main - INFO - Initializing global RAG system...
+2025-11-24 11:02:27 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-11-24 11:02:29 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce MX250 (2.0GB 顯存)
+2025-11-24 11:02:37 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-11-24 11:02:46 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-11-24 11:02:48 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2 (精度: FP32)
+2025-11-24 11:02:48 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-11-24 11:02:48 - jieba - DEBUG - Loading model from cache C:\Users\yalkyao\AppData\Local\Temp\jieba.cache
+2025-11-24 11:02:49 - jieba - DEBUG - Loading model cost 0.696 seconds.
+2025-11-24 11:02:49 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-11-24 11:02:49 - app.rag.contextual_rag - INFO - ✅ Jieba 自定義詞典已載入: data\jieba_dict.txt
+2025-11-24 11:02:50 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-11-24 11:02:50 - app.rag.contextual_rag - ERROR - Failed to load BM25 index: Index 'MAIN' does not exist in FileStorage('data/bm25_index')
+2025-11-24 11:02:50 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-11-24 11:02:50 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-11-24 11:02:50 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-11-24 11:02:50 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-16T15:26:29.297671', 'auto_reindex_hours': 24}
+2025-11-24 11:02:50 - main - INFO - Uploads watcher task started
+2025-11-24 11:02:50 - main - INFO - Index rebuilder task started
+2025-11-24 11:02:50 - main - INFO - ChatBot application startup complete
+2025-11-24 11:02:50 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-11-24 11:17:45 - main - INFO - Shutting down ChatBot application...
+2025-11-24 11:17:45 - main - INFO - Uploads watcher task stopped
+2025-11-24 11:17:45 - main - INFO - Index rebuilder task stopped
+2025-11-24 11:17:45 - main - INFO - ChatBot application shutdown complete
+2025-11-24 11:19:12 - main - INFO - 🔓 開發環境模式：使用精確的 localhost 白名單
+2025-11-24 11:19:12 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-11-24 11:19:12 - main - INFO - CORS 白名單: ['http://localhost:3000', 'https://localhost:3000', 'http://127.0.0.1:3000', 'https://127.0.0.1:3000']
+2025-11-24 11:19:12 - main - INFO - 🔓 CORS 開發模式：精確白名單（無 regex）
+2025-11-24 11:19:12 - main - INFO - Starting ChatBot application...
+2025-11-24 11:19:12 - main - INFO - Initializing global RAG system...
+2025-11-24 11:19:12 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-11-24 11:19:13 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce MX250 (2.0GB 顯存)
+2025-11-24 11:19:36 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-11-24 11:19:47 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-11-24 11:19:50 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2 (精度: FP32)
+2025-11-24 11:19:50 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-11-24 11:19:50 - jieba - DEBUG - Loading model from cache C:\Users\yalkyao\AppData\Local\Temp\jieba.cache
+2025-11-24 11:19:51 - jieba - DEBUG - Loading model cost 1.446 seconds.
+2025-11-24 11:19:51 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-11-24 11:19:51 - app.rag.contextual_rag - INFO - ✅ Jieba 自定義詞典已載入: data\jieba_dict.txt
+2025-11-24 11:19:52 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-11-24 11:19:52 - app.rag.contextual_rag - ERROR - Failed to load BM25 index: Index 'MAIN' does not exist in FileStorage('data/bm25_index')
+2025-11-24 11:19:52 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-11-24 11:19:52 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-11-24 11:19:52 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-11-24 11:19:52 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-16T15:26:29.297671', 'auto_reindex_hours': 24}
+2025-11-24 11:19:52 - main - INFO - Uploads watcher task started
+2025-11-24 11:19:52 - main - INFO - Index rebuilder task started
+2025-11-24 11:19:52 - main - INFO - ChatBot application startup complete
+2025-11-24 11:19:52 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-11-24 11:21:52 - main - INFO - Shutting down ChatBot application...
+2025-11-24 11:21:52 - main - INFO - Uploads watcher task stopped
+2025-11-24 11:21:52 - main - INFO - Index rebuilder task stopped
+2025-11-24 11:21:52 - main - INFO - ChatBot application shutdown complete
+2025-11-24 11:23:34 - main - INFO - 🔓 開發環境模式：使用精確的 localhost 白名單
+2025-11-24 11:23:34 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-11-24 11:23:34 - main - INFO - CORS 白名單: ['http://localhost:3000', 'https://localhost:3000', 'http://127.0.0.1:3000', 'https://127.0.0.1:3000']
+2025-11-24 11:23:34 - main - INFO - 🔓 CORS 開發模式：精確白名單（無 regex）
+2025-11-24 11:23:34 - main - INFO - Starting ChatBot application...
+2025-11-24 11:23:34 - main - INFO - Initializing global RAG system...
+2025-11-24 11:23:34 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-11-24 11:23:35 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce MX250 (2.0GB 顯存)
+2025-11-24 11:23:47 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-11-24 11:23:55 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-11-24 11:23:58 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2 (精度: FP32)
+2025-11-24 11:23:58 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-11-24 11:23:58 - jieba - DEBUG - Loading model from cache C:\Users\yalkyao\AppData\Local\Temp\jieba.cache
+2025-11-24 11:23:58 - jieba - DEBUG - Loading model cost 0.860 seconds.
+2025-11-24 11:23:58 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-11-24 11:23:59 - app.rag.contextual_rag - INFO - ✅ Jieba 自定義詞典已載入: data\jieba_dict.txt
+2025-11-24 11:23:59 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-11-24 11:23:59 - app.rag.contextual_rag - ERROR - Failed to load BM25 index: Index 'MAIN' does not exist in FileStorage('data/bm25_index')
+2025-11-24 11:23:59 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-11-24 11:23:59 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-11-24 11:23:59 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-11-24 11:23:59 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-16T15:26:29.297671', 'auto_reindex_hours': 24}
+2025-11-24 11:23:59 - main - INFO - Uploads watcher task started
+2025-11-24 11:23:59 - main - INFO - Index rebuilder task started
+2025-11-24 11:23:59 - main - INFO - ChatBot application startup complete
+2025-11-24 11:23:59 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-11-24 11:52:00 - main - INFO - Shutting down ChatBot application...
+2025-11-24 11:52:00 - main - INFO - Uploads watcher task stopped
+2025-11-24 11:52:00 - main - INFO - Index rebuilder task stopped
+2025-11-24 11:52:00 - main - INFO - ChatBot application shutdown complete
+2025-11-24 11:53:06 - main - INFO - 🔓 開發環境模式：使用精確的 localhost 白名單
+2025-11-24 11:53:06 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-11-24 11:53:06 - main - INFO - CORS 白名單: ['http://localhost:3000', 'https://localhost:3000', 'http://127.0.0.1:3000', 'https://127.0.0.1:3000']
+2025-11-24 11:53:06 - main - INFO - 🔓 CORS 開發模式：精確白名單（無 regex）
+2025-11-24 11:53:06 - main - INFO - Starting ChatBot application...
+2025-11-24 11:53:06 - main - INFO - Initializing global RAG system...
+2025-11-24 11:53:06 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-11-24 11:53:07 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce MX250 (2.0GB 顯存)
+2025-11-24 11:53:19 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-11-24 11:53:29 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-11-24 11:53:33 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2 (精度: FP32)
+2025-11-24 11:53:33 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-11-24 11:53:33 - jieba - DEBUG - Loading model from cache C:\Users\yalkyao\AppData\Local\Temp\jieba.cache
+2025-11-24 11:53:34 - jieba - DEBUG - Loading model cost 0.904 seconds.
+2025-11-24 11:53:34 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-11-24 11:53:34 - app.rag.contextual_rag - INFO - ✅ Jieba 自定義詞典已載入: data\jieba_dict.txt
+2025-11-24 11:53:34 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-11-24 11:53:34 - app.rag.contextual_rag - ERROR - Failed to load BM25 index: Index 'MAIN' does not exist in FileStorage('data/bm25_index')
+2025-11-24 11:53:34 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-11-24 11:53:34 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-11-24 11:53:34 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-11-24 11:53:34 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-16T15:26:29.297671', 'auto_reindex_hours': 24}
+2025-11-24 11:53:34 - main - INFO - Uploads watcher task started
+2025-11-24 11:53:34 - main - INFO - Index rebuilder task started
+2025-11-24 11:53:34 - main - INFO - ChatBot application startup complete
+2025-11-24 11:53:34 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-11-25 08:55:23 - main - INFO - Shutting down ChatBot application...
+2025-11-25 08:55:23 - main - INFO - Uploads watcher task stopped
+2025-11-25 08:55:23 - main - INFO - Index rebuilder task stopped
+2025-11-25 08:55:23 - main - INFO - ChatBot application shutdown complete
+2025-11-25 08:58:12 - main - INFO - 🔓 開發環境模式：使用精確的 localhost 白名單
+2025-11-25 08:58:12 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-11-25 08:58:12 - main - INFO - CORS 白名單: ['http://localhost:3000', 'https://localhost:3000', 'http://127.0.0.1:3000', 'https://127.0.0.1:3000']
+2025-11-25 08:58:12 - main - INFO - 🔓 CORS 開發模式：精確白名單（無 regex）
+2025-11-25 08:58:12 - main - INFO - Starting ChatBot application...
+2025-11-25 08:58:12 - main - INFO - Initializing global RAG system...
+2025-11-25 08:58:12 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-11-25 08:58:14 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce MX250 (2.0GB 顯存)
+2025-11-25 08:58:43 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-11-25 08:59:02 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-11-25 08:59:07 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2 (精度: FP32)
+2025-11-25 08:59:07 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-11-25 08:59:07 - jieba - DEBUG - Loading model from cache C:\Users\yalkyao\AppData\Local\Temp\jieba.cache
+2025-11-25 08:59:09 - jieba - DEBUG - Loading model cost 2.314 seconds.
+2025-11-25 08:59:09 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-11-25 08:59:09 - app.rag.contextual_rag - INFO - ✅ Jieba 自定義詞典已載入: data\jieba_dict.txt
+2025-11-25 08:59:09 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-11-25 08:59:09 - app.rag.contextual_rag - ERROR - Failed to load BM25 index: Index 'MAIN' does not exist in FileStorage('data/bm25_index')
+2025-11-25 08:59:09 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-11-25 08:59:09 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-11-25 08:59:09 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-11-25 08:59:09 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-16T15:26:29.297671', 'auto_reindex_hours': 24}
+2025-11-25 08:59:09 - main - INFO - Uploads watcher task started
+2025-11-25 08:59:09 - main - INFO - Index rebuilder task started
+2025-11-25 08:59:09 - main - INFO - ChatBot application startup complete
+2025-11-25 08:59:10 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-11-25 09:01:31 - main - INFO - 🔓 開發環境模式：使用精確的 localhost 白名單
+2025-11-25 09:01:31 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-11-25 09:01:31 - main - INFO - CORS 白名單: ['http://localhost:3000', 'https://localhost:3000', 'http://127.0.0.1:3000', 'https://127.0.0.1:3000']
+2025-11-25 09:01:31 - main - INFO - 🔓 CORS 開發模式：精確白名單（無 regex）
+2025-11-25 09:01:31 - main - INFO - Starting ChatBot application...
+2025-11-25 09:01:31 - main - INFO - Initializing global RAG system...
+2025-11-25 09:01:31 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-11-25 09:01:33 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce MX250 (2.0GB 顯存)
+2025-11-25 09:01:53 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-11-25 09:02:02 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-11-25 09:02:05 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2 (精度: FP32)
+2025-11-25 09:02:05 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-11-25 09:02:05 - jieba - DEBUG - Loading model from cache C:\Users\yalkyao\AppData\Local\Temp\jieba.cache
+2025-11-25 09:02:06 - jieba - DEBUG - Loading model cost 0.846 seconds.
+2025-11-25 09:02:06 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-11-25 09:02:06 - app.rag.contextual_rag - INFO - ✅ Jieba 自定義詞典已載入: data\jieba_dict.txt
+2025-11-25 09:02:06 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-11-25 09:02:06 - app.rag.contextual_rag - ERROR - Failed to load BM25 index: Index 'MAIN' does not exist in FileStorage('data/bm25_index')
+2025-11-25 09:02:06 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-11-25 09:02:06 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-11-25 09:02:06 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-11-25 09:02:06 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-16T15:26:29.297671', 'auto_reindex_hours': 24}
+2025-11-25 09:02:06 - main - INFO - Uploads watcher task started
+2025-11-25 09:02:06 - main - INFO - Index rebuilder task started
+2025-11-25 09:02:06 - main - INFO - ChatBot application startup complete
+2025-11-25 09:02:06 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-11-25 09:06:40 - main - INFO - Shutting down ChatBot application...
+2025-11-25 09:06:40 - main - INFO - Uploads watcher task stopped
+2025-11-25 09:06:40 - main - INFO - Index rebuilder task stopped
+2025-11-25 09:06:40 - main - INFO - ChatBot application shutdown complete
+2025-11-25 09:08:21 - main - INFO - 🔓 開發環境模式：使用精確的 localhost 白名單
+2025-11-25 09:08:21 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-11-25 09:08:21 - main - INFO - CORS 白名單: ['http://localhost:3000', 'https://localhost:3000', 'http://127.0.0.1:3000', 'https://127.0.0.1:3000']
+2025-11-25 09:08:21 - main - INFO - 🔓 CORS 開發模式：精確白名單（無 regex）
+2025-11-25 09:08:22 - main - INFO - Starting ChatBot application...
+2025-11-25 09:08:22 - main - INFO - Initializing global RAG system...
+2025-11-25 09:08:22 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-11-25 09:08:22 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce MX250 (2.0GB 顯存)
+2025-11-25 09:08:34 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-11-25 09:08:41 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-11-25 09:08:43 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: cross-encoder/ms-marco-MiniLM-L-6-v2 (精度: FP32)
+2025-11-25 09:08:43 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-11-25 09:08:43 - jieba - DEBUG - Loading model from cache C:\Users\yalkyao\AppData\Local\Temp\jieba.cache
+2025-11-25 09:08:44 - jieba - DEBUG - Loading model cost 0.702 seconds.
+2025-11-25 09:08:44 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-11-25 09:08:44 - app.rag.contextual_rag - INFO - ✅ Jieba 自定義詞典已載入: data\jieba_dict.txt
+2025-11-25 09:08:44 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-11-25 09:08:44 - app.rag.contextual_rag - ERROR - Failed to load BM25 index: Index 'MAIN' does not exist in FileStorage('data/bm25_index')
+2025-11-25 09:08:44 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-11-25 09:08:44 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-11-25 09:08:44 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-11-25 09:08:44 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-10-16T15:26:29.297671', 'auto_reindex_hours': 24}
+2025-11-25 09:08:44 - main - INFO - Uploads watcher task started
+2025-11-25 09:08:44 - main - INFO - Index rebuilder task started
+2025-11-25 09:08:44 - main - INFO - ChatBot application startup complete
+2025-11-25 09:08:45 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-11-25 09:10:22 - security - INFO - {"timestamp": "2025-11-25T01:10:22.247873", "event_type": "USER_LOGIN", "severity": "INFO", "user_id": 1, "client_ip": "127.0.0.1", "method": "POST", "path": "/api/auth/login", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36", "details": {"username": "yalkyao"}}
+2025-11-25 09:11:37 - security - INFO - {"timestamp": "2025-11-25T01:11:37.066371", "event_type": "PASSWORD_CHANGED", "severity": "INFO", "user_id": 1, "client_ip": "127.0.0.1", "method": "POST", "path": "/api/auth/change-password", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"}
+2025-11-25 09:11:49 - app.api.documents - INFO - 管理員 yalkyao 觸發完整索引重建（含重新分塊）
+2025-11-25 09:11:49 - app.api.documents - INFO - 清空現有索引...
+2025-11-25 09:11:49 - app.api.documents - INFO - 從數據庫重新載入文檔...
+2025-11-25 09:11:49 - app.api.documents - INFO - 用新配置重新處理 51 個文檔（chunk_size=300, chunk_overlap=100）...
+2025-11-25 09:11:54 - app.rag.contextual_rag - INFO - Saved indices with 43 vectors
+2025-11-25 09:11:54 - app.rag.contextual_rag - INFO - Added 43 chunks. Total: 43 vectors
+2025-11-25 09:11:54 - app.api.documents - INFO - 處理文檔 1 (國外出差作業程序(GEP-CW-2-18)V2.0_神資.docx): 43 個分塊
+2025-11-25 09:11:55 - app.rag.contextual_rag - INFO - Saved indices with 92 vectors
+2025-11-25 09:11:55 - app.rag.contextual_rag - INFO - Added 49 chunks. Total: 92 vectors
+2025-11-25 09:11:55 - app.api.documents - INFO - 處理文檔 2 (執行職務遭受不法侵害預防辦法(GEP-99-3-08)V3.0_神資.docx): 49 個分塊
+2025-11-25 09:11:55 - app.rag.contextual_rag - INFO - Saved indices with 107 vectors
+2025-11-25 09:11:55 - app.rag.contextual_rag - INFO - Added 15 chunks. Total: 107 vectors
+2025-11-25 09:11:55 - app.api.documents - INFO - 處理文檔 3 (升遷作業程序(GEP-CW-2-14)V2.0_神資.docx): 15 個分塊
+2025-11-25 09:11:56 - app.rag.contextual_rag - INFO - Saved indices with 146 vectors
+2025-11-25 09:11:56 - app.rag.contextual_rag - INFO - Added 39 chunks. Total: 146 vectors
+2025-11-25 09:11:56 - app.api.documents - INFO - 處理文檔 4 (出勤管理辦法(GEP-CW-3-02)V4.4_神資.docx): 39 個分塊
+2025-11-25 09:11:57 - app.rag.contextual_rag - INFO - Saved indices with 167 vectors
+2025-11-25 09:11:57 - app.rag.contextual_rag - INFO - Added 21 chunks. Total: 167 vectors
+2025-11-25 09:11:57 - app.api.documents - INFO - 處理文檔 5 (部門訓練作業程序(GEP-18-2-01)V2.0_神資.docx): 21 個分塊
+2025-11-25 09:11:57 - app.rag.contextual_rag - INFO - Saved indices with 191 vectors
+2025-11-25 09:11:57 - app.rag.contextual_rag - INFO - Added 24 chunks. Total: 191 vectors
+2025-11-25 09:11:57 - app.api.documents - INFO - 處理文檔 6 (工作場所性騷擾防治措施、申訴及懲戒辦法(GEP-CW-3-01)V4.0_神資.docx): 24 個分塊
+2025-11-25 09:11:58 - app.rag.contextual_rag - INFO - Saved indices with 213 vectors
+2025-11-25 09:11:58 - app.rag.contextual_rag - INFO - Added 22 chunks. Total: 213 vectors
+2025-11-25 09:11:58 - app.api.documents - INFO - 處理文檔 7 (內部轉調作業辦法(GEP-CW-3-14)V2.3_神資.docx): 22 個分塊
+2025-11-25 09:11:58 - app.rag.contextual_rag - INFO - Saved indices with 245 vectors
+2025-11-25 09:11:58 - app.rag.contextual_rag - INFO - Added 32 chunks. Total: 245 vectors
+2025-11-25 09:11:58 - app.api.documents - INFO - 處理文檔 8 (組織訓練程序(CMMI-03-2-01)V2.0_神資.docx): 32 個分塊
+2025-11-25 09:11:58 - app.api.documents - INFO - 檢測到 86 個 Q&A 對，將作為完整塊處理
+2025-11-25 09:12:00 - app.rag.contextual_rag - INFO - Saved indices with 331 vectors
+2025-11-25 09:12:00 - app.rag.contextual_rag - INFO - Added 86 chunks. Total: 331 vectors
+2025-11-25 09:12:00 - app.api.documents - INFO - 處理文檔 9 (人資作業FAQ.docx): 86 個 Q&A 對
+2025-11-25 09:12:02 - app.rag.contextual_rag - INFO - Saved indices with 347 vectors
+2025-11-25 09:12:02 - app.rag.contextual_rag - INFO - Added 16 chunks. Total: 347 vectors
+2025-11-25 09:12:02 - app.api.documents - INFO - 處理文檔 10 (差勤卡鐘暨門禁權限管理辦法(GEP-CW-3-18)V1.4_神資.docx): 16 個分塊
+2025-11-25 09:12:03 - app.rag.contextual_rag - INFO - Saved indices with 364 vectors
+2025-11-25 09:12:03 - app.rag.contextual_rag - INFO - Added 17 chunks. Total: 364 vectors
+2025-11-25 09:12:03 - app.api.documents - INFO - 處理文檔 11 (誠信經營守則(GEP-CW-2-29)V1.0_神資.docx): 17 個分塊
+2025-11-25 09:12:03 - app.rag.contextual_rag - INFO - Saved indices with 374 vectors
+2025-11-25 09:12:03 - app.rag.contextual_rag - INFO - Added 10 chunks. Total: 374 vectors
+2025-11-25 09:12:03 - app.api.documents - INFO - 處理文檔 12 (人事資料調閱管理辦法(GEP-CW-3-04)V2.3_神資.docx): 10 個分塊
+2025-11-25 09:12:04 - app.rag.contextual_rag - INFO - Saved indices with 393 vectors
+2025-11-25 09:12:04 - app.rag.contextual_rag - INFO - Added 19 chunks. Total: 393 vectors
+2025-11-25 09:12:04 - app.api.documents - INFO - 處理文檔 13 (半導體專案人員管理作業辦法(GEP-CW-3-17)V1.0_神資.docx): 19 個分塊
+2025-11-25 09:12:04 - app.rag.contextual_rag - INFO - Saved indices with 399 vectors
+2025-11-25 09:12:04 - app.rag.contextual_rag - INFO - Added 6 chunks. Total: 399 vectors
+2025-11-25 09:12:04 - app.api.documents - INFO - 處理文檔 14 (扣繳憑單作業程序(GEP-CW-2-13)V1.0_神資.docx): 6 個分塊
+2025-11-25 09:12:04 - app.rag.contextual_rag - INFO - Saved indices with 408 vectors
+2025-11-25 09:12:04 - app.rag.contextual_rag - INFO - Added 9 chunks. Total: 408 vectors
+2025-11-25 09:12:04 - app.api.documents - INFO - 處理文檔 15 (委任經理人退休辦法(GEP-CW-3-08)V1.0_神資.docx): 9 個分塊
+2025-11-25 09:12:05 - app.rag.contextual_rag - INFO - Saved indices with 446 vectors
+2025-11-25 09:12:05 - app.rag.contextual_rag - INFO - Added 38 chunks. Total: 446 vectors
+2025-11-25 09:12:05 - app.api.documents - INFO - 處理文檔 16 (海外派駐與轉任管理辦法GEP-CW-3-21)V1.0_神資.docx): 38 個分塊
+2025-11-25 09:12:05 - app.rag.contextual_rag - INFO - Saved indices with 466 vectors
+2025-11-25 09:12:05 - app.rag.contextual_rag - INFO - Added 20 chunks. Total: 466 vectors
+2025-11-25 09:12:05 - app.api.documents - INFO - 處理文檔 17 (專案內部支援及產品研發補貼計價作業準則(GEP-03-3-05)V2.1_神資.docx): 20 個分塊
+2025-11-25 09:12:06 - app.rag.contextual_rag - INFO - Saved indices with 479 vectors
+2025-11-25 09:12:06 - app.rag.contextual_rag - INFO - Added 13 chunks. Total: 479 vectors
+2025-11-25 09:12:06 - app.api.documents - INFO - 處理文檔 18 (內部講師管理作業程序(GEP-18-2-03)V1.0_神資.docx): 13 個分塊
+2025-11-25 09:12:06 - app.rag.contextual_rag - INFO - Saved indices with 495 vectors
+2025-11-25 09:12:06 - app.rag.contextual_rag - INFO - Added 16 chunks. Total: 495 vectors
+2025-11-25 09:12:06 - app.api.documents - INFO - 處理文檔 19 (新進人員輔導暨試用考核辦法(GEP-CW-3-11)V1.3_神資.docx): 16 個分塊
+2025-11-25 09:12:08 - app.rag.contextual_rag - INFO - Saved indices with 569 vectors
+2025-11-25 09:12:08 - app.rag.contextual_rag - INFO - Added 74 chunks. Total: 569 vectors
+2025-11-25 09:12:08 - app.api.documents - INFO - 處理文檔 20 (關於神通資訊科技股份有限公司.docx): 74 個分塊
+2025-11-25 09:12:08 - app.rag.contextual_rag - INFO - Saved indices with 594 vectors
+2025-11-25 09:12:08 - app.rag.contextual_rag - INFO - Added 25 chunks. Total: 594 vectors
+2025-11-25 09:12:08 - app.api.documents - INFO - 處理文檔 21 (工時填寫管理辦法(GEP-03-3-08)V3.0_神資.docx): 25 個分塊
+2025-11-25 09:12:08 - app.rag.contextual_rag - INFO - Saved indices with 600 vectors
+2025-11-25 09:12:08 - app.rag.contextual_rag - INFO - Added 6 chunks. Total: 600 vectors
+2025-11-25 09:12:08 - app.api.documents - INFO - 處理文檔 22 (組織異動作業程序(GEP-CW-2-02)V1.1_神資.docx): 6 個分塊
+2025-11-25 09:12:09 - app.rag.contextual_rag - INFO - Saved indices with 615 vectors
+2025-11-25 09:12:09 - app.rag.contextual_rag - INFO - Added 15 chunks. Total: 615 vectors
+2025-11-25 09:12:09 - app.api.documents - INFO - 處理文檔 23 (新進同仁入職指南_20250507.docx): 15 個分塊
+2025-11-25 09:12:09 - app.rag.contextual_rag - INFO - Saved indices with 634 vectors
+2025-11-25 09:12:09 - app.rag.contextual_rag - INFO - Added 19 chunks. Total: 634 vectors
+2025-11-25 09:12:09 - app.api.documents - INFO - 處理文檔 24 (派駐大陸人員管理辦法(GEP-CW-3-13)V2.0.docx): 19 個分塊
+2025-11-25 09:12:10 - app.rag.contextual_rag - INFO - Saved indices with 650 vectors
+2025-11-25 09:12:10 - app.rag.contextual_rag - INFO - Added 16 chunks. Total: 650 vectors
+2025-11-25 09:12:10 - app.api.documents - INFO - 處理文檔 25 (員工工作倫理與紀律規範(GEP-CW-2-28)V1.2_神資.docx): 16 個分塊
+2025-11-25 09:12:11 - app.rag.contextual_rag - INFO - Saved indices with 656 vectors
+2025-11-25 09:12:11 - app.rag.contextual_rag - INFO - Added 6 chunks. Total: 656 vectors
+2025-11-25 09:12:11 - app.api.documents - INFO - 處理文檔 26 (神通之星選拔作業程序(GEP-CW-2-09)V1.0_神資.docx): 6 個分塊
+2025-11-25 09:12:11 - app.rag.contextual_rag - INFO - Saved indices with 696 vectors
+2025-11-25 09:12:11 - app.rag.contextual_rag - INFO - Added 40 chunks. Total: 696 vectors
+2025-11-25 09:12:11 - app.api.documents - INFO - 處理文檔 27 (個人資料保護與管理作業程序(GEP-05-2-07)v1.0_神資.docx): 40 個分塊
+2025-11-25 09:12:12 - app.rag.contextual_rag - INFO - Saved indices with 713 vectors
+2025-11-25 09:12:12 - app.rag.contextual_rag - INFO - Added 17 chunks. Total: 713 vectors
+2025-11-25 09:12:12 - app.api.documents - INFO - 處理文檔 28 (專業人員資格審查程序(GEP-18-2-02)V1.2_神資.docx): 17 個分塊
+2025-11-25 09:12:12 - app.rag.contextual_rag - INFO - Saved indices with 729 vectors
+2025-11-25 09:12:12 - app.rag.contextual_rag - INFO - Added 16 chunks. Total: 729 vectors
+2025-11-25 09:12:12 - app.api.documents - INFO - 處理文檔 29 (組織與職位設置辦法+(GEP-CW-3-20)V1.0_神資.docx): 16 個分塊
+2025-11-25 09:12:12 - app.rag.contextual_rag - INFO - Saved indices with 737 vectors
+2025-11-25 09:12:12 - app.rag.contextual_rag - INFO - Added 8 chunks. Total: 737 vectors
+2025-11-25 09:12:12 - app.api.documents - INFO - 處理文檔 30 (外部講師管理作業程序(GEP-18-2-04)V1.0_神資.docx): 8 個分塊
+2025-11-25 09:12:13 - app.rag.contextual_rag - INFO - Saved indices with 742 vectors
+2025-11-25 09:12:13 - app.rag.contextual_rag - INFO - Added 5 chunks. Total: 742 vectors
+2025-11-25 09:12:13 - app.api.documents - INFO - 處理文檔 31 (休假排休管理辦法(GEP-CW-3-10)V1.0_神資.docx): 5 個分塊
+2025-11-25 09:12:13 - app.rag.contextual_rag - INFO - Saved indices with 749 vectors
+2025-11-25 09:12:13 - app.rag.contextual_rag - INFO - Added 7 chunks. Total: 749 vectors
+2025-11-25 09:12:13 - app.api.documents - INFO - 處理文檔 32 (神通資科員工紅利發放辦法(GEP-CW-3-07)V1.0_神資.docx): 7 個分塊
+2025-11-25 09:12:14 - app.rag.contextual_rag - INFO - Saved indices with 777 vectors
+2025-11-25 09:12:14 - app.rag.contextual_rag - INFO - Added 28 chunks. Total: 777 vectors
+2025-11-25 09:12:14 - app.api.documents - INFO - 處理文檔 33 (神通資科勞工退休金提撥表.docx): 28 個分塊
+2025-11-25 09:12:14 - app.rag.contextual_rag - INFO - Saved indices with 786 vectors
+2025-11-25 09:12:14 - app.rag.contextual_rag - INFO - Added 9 chunks. Total: 786 vectors
+2025-11-25 09:12:14 - app.api.documents - INFO - 處理文檔 34 (退休金發放作業程序(GEP-CW-2-20)V1.1_神資.docx): 9 個分塊
+2025-11-25 09:12:15 - app.rag.contextual_rag - INFO - Saved indices with 799 vectors
+2025-11-25 09:12:15 - app.rag.contextual_rag - INFO - Added 13 chunks. Total: 799 vectors
+2025-11-25 09:12:15 - app.api.documents - INFO - 處理文檔 35 (離職作業程序(GEP-CW-2-21)V2.2_神資.docx): 13 個分塊
+2025-11-25 09:12:15 - app.rag.contextual_rag - INFO - Saved indices with 824 vectors
+2025-11-25 09:12:15 - app.rag.contextual_rag - INFO - Added 25 chunks. Total: 824 vectors
+2025-11-25 09:12:15 - app.api.documents - INFO - 處理文檔 36 (人員招募甄選暨任用辦法(GEP-CW-3-15)V3.3_神資.docx): 25 個分塊
+2025-11-25 09:12:16 - app.rag.contextual_rag - INFO - Saved indices with 840 vectors
+2025-11-25 09:12:16 - app.rag.contextual_rag - INFO - Added 16 chunks. Total: 840 vectors
+2025-11-25 09:12:16 - app.api.documents - INFO - 處理文檔 37 (企業實習生與工讀生招募暨任用辦法(GEP-CW-3-22)V1.0_神資.docx): 16 個分塊
+2025-11-25 09:12:16 - app.rag.contextual_rag - INFO - Saved indices with 845 vectors
+2025-11-25 09:12:16 - app.rag.contextual_rag - INFO - Added 5 chunks. Total: 845 vectors
+2025-11-25 09:12:16 - app.api.documents - INFO - 處理文檔 38 (資深員工獎勵作業程序(GEP-CW-2-08)V1.0_神資.docx): 5 個分塊
+2025-11-25 09:12:17 - app.rag.contextual_rag - INFO - Saved indices with 857 vectors
+2025-11-25 09:12:17 - app.rag.contextual_rag - INFO - Added 12 chunks. Total: 857 vectors
+2025-11-25 09:12:17 - app.api.documents - INFO - 處理文檔 39 (員工保險作業程序(GEP-CW-2-19)V2.0_神資.docx): 12 個分塊
+2025-11-25 09:12:19 - app.rag.contextual_rag - INFO - Saved indices with 906 vectors
+2025-11-25 09:12:19 - app.rag.contextual_rag - INFO - Added 49 chunks. Total: 906 vectors
+2025-11-25 09:12:19 - app.api.documents - INFO - 處理文檔 40 (員工請假管理程序(GEP-CW-2-07)V4.4_神資.docx): 49 個分塊
+2025-11-25 09:12:19 - app.rag.contextual_rag - INFO - Saved indices with 922 vectors
+2025-11-25 09:12:19 - app.rag.contextual_rag - INFO - Added 16 chunks. Total: 922 vectors
+2025-11-25 09:12:19 - app.api.documents - INFO - 處理文檔 41 (專案人員安全評估作業辦法(GEP-31-3-02)V1.0_神資.docx): 16 個分塊
+2025-11-25 09:12:19 - app.rag.contextual_rag - INFO - Saved indices with 928 vectors
+2025-11-25 09:12:19 - app.rag.contextual_rag - INFO - Added 6 chunks. Total: 928 vectors
+2025-11-25 09:12:19 - app.api.documents - INFO - 處理文檔 42 (年度調薪作業程序(GEP-CW-2-12)V1.0_神資.docx): 6 個分塊
+2025-11-25 09:12:20 - app.rag.contextual_rag - INFO - Saved indices with 944 vectors
+2025-11-25 09:12:20 - app.rag.contextual_rag - INFO - Added 16 chunks. Total: 944 vectors
+2025-11-25 09:12:20 - app.api.documents - INFO - 處理文檔 43 (留職停薪作業辦法(GEP-CW-3-05)V2.4_神資.docx): 16 個分塊
+2025-11-25 09:12:20 - app.rag.contextual_rag - INFO - Saved indices with 970 vectors
+2025-11-25 09:12:20 - app.rag.contextual_rag - INFO - Added 26 chunks. Total: 970 vectors
+2025-11-25 09:12:20 - app.api.documents - INFO - 處理文檔 44 (異常工作負荷促發疾病預防計畫辦法(GEP-CW-3-19)V2.0_神資.docx): 26 個分塊
+2025-11-25 09:12:21 - app.rag.contextual_rag - INFO - Saved indices with 978 vectors
+2025-11-25 09:12:21 - app.rag.contextual_rag - INFO - Added 8 chunks. Total: 978 vectors
+2025-11-25 09:12:21 - app.api.documents - INFO - 處理文檔 45 (人力預算編列與控制作業程序(GEP-CW-2-01)V2.0_神資.docx): 8 個分塊
+2025-11-25 09:12:21 - app.rag.contextual_rag - INFO - Saved indices with 1011 vectors
+2025-11-25 09:12:21 - app.rag.contextual_rag - INFO - Added 33 chunks. Total: 1011 vectors
+2025-11-25 09:12:21 - app.api.documents - INFO - 處理文檔 46 (員工獎懲作業程序(GEP-CW-2-25)V2.3_神資.docx): 33 個分塊
+2025-11-25 09:12:22 - app.rag.contextual_rag - INFO - Saved indices with 1038 vectors
+2025-11-25 09:12:22 - app.rag.contextual_rag - INFO - Added 27 chunks. Total: 1038 vectors
+2025-11-25 09:12:22 - app.api.documents - INFO - 處理文檔 47 (績效管理與發展辦法(GEP-CW-3-12))V2.0_神資.docx): 27 個分塊
+2025-11-25 09:12:23 - app.rag.contextual_rag - INFO - Saved indices with 1043 vectors
+2025-11-25 09:12:23 - app.rag.contextual_rag - INFO - Added 5 chunks. Total: 1043 vectors
+2025-11-25 09:12:23 - app.api.documents - INFO - 處理文檔 48 (神通資訊科技(股)公司113_年度員工自費參加團體保險計劃說明.docx): 5 個分塊
+2025-11-25 09:12:23 - app.rag.contextual_rag - INFO - Saved indices with 1051 vectors
+2025-11-25 09:12:23 - app.rag.contextual_rag - INFO - Added 8 chunks. Total: 1051 vectors
+2025-11-25 09:12:23 - app.api.documents - INFO - 處理文檔 49 (專業資格認證獎勵準則(GEP-CW-3-06)V1.1_神資.docx): 8 個分塊
+2025-11-25 09:12:23 - app.rag.contextual_rag - INFO - Saved indices with 1059 vectors
+2025-11-25 09:12:23 - app.rag.contextual_rag - INFO - Added 8 chunks. Total: 1059 vectors
+2025-11-25 09:12:23 - app.api.documents - INFO - 處理文檔 50 (職務代理人公告作業程序(GEP-CW-2-23)V2.0_神資.docx): 8 個分塊
+2025-11-25 09:12:24 - app.rag.contextual_rag - INFO - Saved indices with 1080 vectors
+2025-11-25 09:12:24 - app.rag.contextual_rag - INFO - Added 21 chunks. Total: 1080 vectors
+2025-11-25 09:12:24 - app.api.documents - INFO - 處理文檔 51 (專利提案、申請、獎勵及維護作業管理辦法(GEP-03-3-09)V2.0_神資.docx): 21 個分塊
+2025-11-25 09:12:24 - app.api.documents - INFO - 索引重建完成: 51 個文檔 -> 1080 個向量塊 (含 86 個 Q&A 對)
+2025-11-25 09:13:20 - app.services.cache_service - INFO - Redis 快取已禁用 (設定 ENABLE_REDIS_CACHE=true 啟用)
+2025-11-25 09:13:20 - app.rag.contextual_rag - INFO - Retrieval strategy=HYBRID(FAQ-like) query='你好' candidates=80
+2025-11-25 09:13:20 - app.rag.contextual_rag - INFO - Retrieval pre-rerank top5: [{'source': '年度調薪作業程序(GEP-CW-2-12)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}, {'source': '資深員工獎勵作業程序(GEP-CW-2-08)V1.0_神資.docx', 'chunk': 4, 'score': 0.7}, {'source': '神通資科員工紅利發放辦法(GEP-CW-3-07)V1.0_神資.docx', 'chunk': 6, 'score': 0.7}, {'source': '神通之星選拔作業程序(GEP-CW-2-09)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}, {'source': '扣繳憑單作業程序(GEP-CW-2-13)V1.0_神資.docx', 'chunk': 5, 'score': 0.7}]
+2025-11-25 09:13:22 - app.rag.contextual_rag - INFO - Retrieval post-rerank top5: [{'source': '關於神通資訊科技股份有限公司.docx', 'chunk': 21, 'score': 0.8116}, {'source': '關於神通資訊科技股份有限公司.docx', 'chunk': 23, 'score': 0.8102}, {'source': '職務代理人公告作業程序(GEP-CW-2-23)V2.0_神資.docx', 'chunk': 5, 'score': 0.8045}, {'source': '委任經理人退休辦法(GEP-CW-3-08)V1.0_神資.docx', 'chunk': 8, 'score': 0.7971}, {'source': '關於神通資訊科技股份有限公司.docx', 'chunk': 22, 'score': 0.7945}]
+2025-11-25 09:13:22 - app.rag.contextual_rag - INFO - Calling LLM API: model=gemma3:27b, messages=2, url=http://127.0.0.1:5000/api/chat, timeout=120s
+2025-11-25 09:13:24 - app.rag.contextual_rag - ERROR - LLM API connection error: HTTPConnectionPool(host='127.0.0.1', port=5000): Max retries exceeded with url: /api/chat (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000227A3866DA0>: Failed to establish a new connection: [WinError 10061] 無法連線，因為目標電腦拒絕連線。'))
+2025-11-25 09:38:10 - security - INFO - {"timestamp": "2025-11-25T01:38:10.049768", "event_type": "TOKEN_REFRESH_ERROR", "severity": "INFO", "user_id": null, "client_ip": "127.0.0.1", "method": "POST", "path": "/api/auth/refresh", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36", "details": {"error": "verify_refresh_token() takes 1 positional argument but 2 were given"}}

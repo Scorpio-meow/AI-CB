@@ -2,11 +2,13 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from fastapi import status
 import os
+import logging
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Optional
 
 import requests
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -28,8 +30,8 @@ async def get_tags():
         else:
             models = []
     except Exception as exc:
-        # Keep track of the failure for troubleshooting while still providing fallbacks.
-        print(f"[tags] Failed to load models from LLM_API_BASE: {exc}")
+        # Log the full exception on the server but do not expose details to the client.
+        logger.exception("Failed to load models from LLM_API_BASE")
 
     if not models:
         models = fallback_models
@@ -212,9 +214,10 @@ def get_external_tags():
         # Return upstream JSON as-is
         return JSONResponse(content=resp.json())
     except Exception as exc:
-        # Upstream failed — return 502 with fallback models to keep UI usable
+        # Upstream failed — log the exception and return 502 with fallback models to keep UI usable.
+        logger.exception("Failed to fetch external tags from %s", url)
         fallback = _load_fallback_models()
         return JSONResponse(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            content={"error": "Failed to fetch external tags", "details": str(exc), "models": fallback},
+            content={"error": "Failed to fetch external tags", "models": fallback},
         )
