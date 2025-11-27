@@ -213,11 +213,12 @@ class TokenManager:
                 )
             return payload
         except JWTError as e:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"無效的認證令牌: {str(e)}",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+                logger.exception("無效的認證令牌: 驗證失敗")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="無效的認證令牌: 驗證失敗",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
     
     @staticmethod
     def verify_token_type(payload: Dict[str, Any], expected_type: str) -> bool:

@@ -15,6 +15,9 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 import httpx
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException
+import logging
+
+logger = logging.getLogger(__name__)
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -581,10 +584,10 @@ async def workflow_websocket_endpoint(websocket: WebSocket, db: Session = Depend
             try:
                 await websocket.send_json({
                     "status": "error", 
-                    "response": f"伺服器內部錯誤: {type(e).__name__}"
+                    "response": "伺服器內部錯誤: 請稍後重試"
                 })
             except Exception as send_e:
-                print(f"傳送錯誤訊息時失敗: {send_e}")
+                logger.warning("傳送錯誤訊息時失敗: %s", str(send_e))
                 
     finally:
         # 確保清理資源
@@ -624,8 +627,8 @@ async def download_generated_file(file_name: str):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"下載檔案時發生錯誤: {e}")
-        raise HTTPException(status_code=500, detail=f"下載失敗: {type(e).__name__}")
+        logger.exception("下載檔案時發生錯誤")
+        raise HTTPException(status_code=500, detail="下載失敗: 內部錯誤，請聯繫系統管理員")
 
 # =================================================================
 # 應用生命週期管理
@@ -634,6 +637,6 @@ async def download_generated_file(file_name: str):
 @router.on_event("shutdown")
 async def shutdown_event():
     """應用關閉時清理資源"""
-    print("正在關閉 Workflow 模組...")
+    logger.info("正在關閉 Workflow 模組...")
     await close_http_client()
-    print("HTTP 客戶端已關閉")
+    logger.info("HTTP 客戶端已關閉")

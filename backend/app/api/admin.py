@@ -337,4 +337,8 @@ async def force_reindex(
         ok = rag_system.force_reindex()
         return {"message": "索引重建已觸發", "ok": bool(ok), "info": rag_system.get_vector_store_info()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"重建失敗: {e}")
+        # Log full stack trace and return generic error message
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.exception("強制索引重建失敗")
+        raise HTTPException(status_code=500, detail="重建失敗: 內部錯誤，請聯繫系統管理員")

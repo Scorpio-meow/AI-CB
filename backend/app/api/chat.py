@@ -6,6 +6,9 @@ from app.services.chat_service import ChatService
 from app.core.rag_manager import get_rag_system
 from app.core.user_context import get_current_user_id, get_default_user_id
 from typing import List
+import logging
+
+logger = logging.getLogger(__name__)
 import json
 import os
 
@@ -86,7 +89,8 @@ async def send_message(
         )
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"處理消息時發生錯誤: {str(e)}")
+        logger.exception("處理消息時發生錯誤")
+        raise HTTPException(status_code=500, detail="處理消息時發生錯誤: 內部錯誤，請聯繫系統管理員")
 
 @router.get("/conversations", response_model=List[ConversationResponse])
 async def get_conversations(

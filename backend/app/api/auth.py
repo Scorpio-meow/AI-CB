@@ -8,6 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
 from typing import List
+import logging
+
+logger = logging.getLogger(__name__)
 
 from app.models.database import get_db
 from app.schemas.auth import (
@@ -124,10 +127,13 @@ async def register(
         )
         
     except Exception as e:
-        log_security_event("REGISTER_ERROR", request=request, details={"error": str(e)})
+        # Log the exception and avoid returning sensitive details to the client
+        logger = logging.getLogger(__name__)
+        logger.exception("用戶註冊失敗")
+        log_security_event("REGISTER_ERROR", request=request, details={"error": "internal_error"})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"註冊失敗: {str(e)}"
+            detail="註冊失敗: 內部錯誤，請聯繫系統管理員"
         )
 
 
