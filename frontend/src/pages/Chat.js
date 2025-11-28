@@ -529,9 +529,15 @@ function Chat() {
       const sanitized = DOMPurify.sanitize(withBreaks, { ALLOWED_TAGS: [], ALLOWED_ATTR: {} });
       return sanitized;
     } catch (err) {
-      // Fallback: if DOMPurify fails for any reason, fall back to a conservative regex strip
+      // Fallback: if DOMPurify fails for any reason, fall back to a conservative regex strip (repeat until clean)
       console.warn('DOMPurify failed to sanitize content', err);
-      return withBreaks.replace(/<[^>]+>/g, '');
+      let stripped = withBreaks;
+      let previous;
+      do {
+        previous = stripped;
+        stripped = stripped.replace(/<[^>]+>/g, '');
+      } while (stripped !== previous);
+      return stripped;
     }
   };
 
