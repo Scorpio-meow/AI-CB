@@ -103,9 +103,8 @@ class SecretManager:
         except Exception:
             secret_digest = 'unknown'
         logger.warning(
-            "🔑 生成新的 %s，並已加密保存（摘要: %s）。請將此密鑰添加到 .env 文件中以便持久化",
-            key_name,
-            secret_digest
+            "🔑 生成新的 %s，並已加密保存。請將此密鑰添加到 .env 文件中以便持久化",
+            key_name
         )
         
         return new_secret

@@ -1,6 +1,7 @@
 import os
 import secrets
 import hashlib
+import hmac
 from typing import Optional
 from fastapi import Header, HTTPException, Request, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -10,13 +11,17 @@ from app.core.security_logging import log_unauthorized_access, log_security_even
 logger = logging.getLogger(__name__)
 security = HTTPBearer()
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
+_digest_salt = b"cb_api_key_salt"
 if not ADMIN_API_KEY or ADMIN_API_KEY == "CHANGE_THIS_TO_A_SECURE_RANDOM_STRING":
     # Generate a temporary secure key for development
     ADMIN_API_KEY = secrets.token_urlsafe(32)
     logger.warning("=" * 80)
     logger.warning("⚠️  WARNING: ADMIN_API_KEY not set in environment!")
-    logger.warning("⚠️  Using temporary API key (digest): %s",
-                   hashlib.sha256(ADMIN_API_KEY.encode('utf-8')).hexdigest()[:8])
+    try:
+        digest = hmac.new(_digest_salt, ADMIN_API_KEY.encode('utf-8'), hashlib.sha256).hexdigest()[:8]
+    except Exception:
+        digest = 'unknown'
+    logger.warning("⚠️  Using temporary API key (digest): %s", digest)
     logger.warning("⚠️  Please set ADMIN_API_KEY in your .env file!")
     logger.warning("=" * 80)
 async def verify_admin_api_key(x_api_key: Optional[str] = Header(None, description="Admin API Key")) -> bool:
@@ -31,7 +36,7 @@ async def verify_admin_api_key(x_api_key: Optional[str] = Header(None, descripti
     if x_api_key != ADMIN_API_KEY:
         # Do not log the raw key value. Log a non-reversible digest to help operators identify attempts.
         try:
-            digest = hashlib.sha256(x_api_key.encode('utf-8')).hexdigest()[:8]
+            digest = hmac.new(_digest_salt, x_api_key.encode('utf-8'), hashlib.sha256).hexdigest()[:8]
         except Exception:
             digest = 'unknown'
         logger.warning("Admin API access attempt with invalid API key (digest): %s", digest)
