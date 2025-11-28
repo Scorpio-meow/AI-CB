@@ -84,17 +84,19 @@ class DocumentProcessor:
     
     @staticmethod
     def extract_text_from_file(file_path: str, content_type: str) -> Optional[str]:
-        """從文件中提取文本內容，增強安全性"""
+        """從文件中提取文本內容，增強安全性，docx 副檔名自動容錯"""
         try:
+            # docx 副檔名自動容錯
+            ext = os.path.splitext(file_path)[1].lower()
+            if ext == ".docx" and content_type != "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             # 安全檢查：驗證檔案頭部
             DocumentProcessor.validate_file_header(file_path, content_type)
-            
             # 安全檢查：檔案大小（在這裡再次確認）
             file_size = os.path.getsize(file_path)
             max_size = int(os.getenv("MAX_FILE_SIZE_MB", "10")) * 1024 * 1024
             if file_size > max_size:
                 raise ValueError(f"檔案大小 ({file_size} bytes) 超過限制")
-            
             if content_type == "text/plain":
                 return DocumentProcessor._extract_from_txt(file_path)
             elif content_type == "application/pdf":
@@ -206,14 +208,21 @@ class DocumentProcessor:
             raise
     
     @staticmethod
-    def validate_file_type(content_type: str) -> bool:
-        """驗證文件類型是否支援"""
+    def validate_file_type(content_type: str, file_path: str = None) -> bool:
+        """驗證文件類型是否支援，docx 副檔名自動容錯"""
         supported_types = [
             "text/plain",
-            "application/pdf", 
+            "application/pdf",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         ]
-        return content_type in supported_types
+        if content_type in supported_types:
+            return True
+        # docx 副檔名自動容錯
+        if file_path:
+            ext = os.path.splitext(file_path)[1].lower()
+            if ext == ".docx":
+                return True
+        return False
     
     @staticmethod
     def get_file_info(file_path: str, content_type: str) -> dict:

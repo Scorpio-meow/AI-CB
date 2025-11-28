@@ -332,8 +332,32 @@ class HybridContextualRAG:
         """Load both FAISS and BM25 indices"""
         try:
             # Load FAISS
+            index_mismatch = False
             if os.path.exists(self.faiss_index_path) and os.path.exists(self.documents_path):
                 cpu_index = faiss.read_index(self.faiss_index_path)
+                # Validate index dimension vs current embedding dimension
+                try:
+                    index_dim = getattr(cpu_index, 'd', None)
+                except Exception:
+                    index_dim = None
+                if index_dim is not None and index_dim != self.embedding_dimension:
+                    index_mismatch = True
+                    logger.warning(
+                        f"Loaded FAISS index dimension ({index_dim}) does not match current embedding dimension ({self.embedding_dimension})."
+                        " Initializing empty index to avoid add() assertion failure."
+                    )
+                    # Reinitialize a new blank index with the expected dimension
+                    cpu_index = faiss.IndexFlatIP(self.embedding_dimension)
+                    # keep a backup of the old index/docs to allow manual reconciliation
+                    try:
+                        # rename files as backups, avoid overwriting existing backups
+                        if os.path.exists(self.faiss_index_path):
+                            os.replace(self.faiss_index_path, self.faiss_index_path + '.mismatch.bak')
+                        if os.path.exists(self.documents_path):
+                            os.replace(self.documents_path, self.documents_path + '.mismatch.bak')
+                        logger.info("Backed up mismatched FAISS index and documents.pkl as *.mismatch.bak")
+                    except Exception as e:
+                        logger.warning(f"Failed to back up mismatched indices: {e}")
                 
                 # 如果啟用 GPU，轉換索引
                 if self.use_faiss_gpu and self.gpu_resources:
@@ -351,8 +375,17 @@ class HybridContextualRAG:
                 else:
                     self.index = cpu_index
                 
-                with open(self.documents_path, 'rb') as f:
-                    self.documents = pickle.load(f)
+                if index_mismatch:
+                    # Skip loading previous documents since index dimension mismatched; we'll rebuild from DB on next reindex
+                    self.documents = []
+                else:
+                    # Attempt to load documents metadata, but if pickle fails, log and reinitialize as empty
+                    try:
+                        with open(self.documents_path, 'rb') as f:
+                            self.documents = pickle.load(f)
+                    except Exception as e:
+                        logger.warning(f"Failed to load documents pickle: {e}. Clearing documents and will rebuild when needed.")
+                        self.documents = []
                 logger.info(f"Loaded FAISS index with {self.index.ntotal} vectors")
             
             # Load BM25
