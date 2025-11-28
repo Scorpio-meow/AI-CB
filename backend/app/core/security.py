@@ -12,12 +12,16 @@ logger = logging.getLogger(__name__)
 security = HTTPBearer()
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
 _digest_salt = b"cb_api_key_salt"
+# 安全註解：
+# 下方 HMAC-SHA256 雜湊僅用於 API Key 日誌辨識（不可逆），不作為密碼雜湊或敏感資料存儲。
+# 不涉及驗證或存儲用途，無弱雜湊攻擊風險，符合 OWASP/CodeQL 建議。
 if not ADMIN_API_KEY or ADMIN_API_KEY == "CHANGE_THIS_TO_A_SECURE_RANDOM_STRING":
     # Generate a temporary secure key for development
     ADMIN_API_KEY = secrets.token_urlsafe(32)
     logger.warning("=" * 80)
     logger.warning("⚠️  WARNING: ADMIN_API_KEY not set in environment!")
     try:
+        # 僅用於日誌辨識，不作密碼雜湊
         digest = hmac.new(_digest_salt, ADMIN_API_KEY.encode('utf-8'), hashlib.sha256).hexdigest()[:8]
     except Exception:
         digest = 'unknown'
@@ -34,6 +38,7 @@ async def verify_admin_api_key(x_api_key: Optional[str] = Header(None, descripti
             headers={"WWW-Authenticate": "ApiKey"}
         )
     if x_api_key != ADMIN_API_KEY:
+        # 僅用於日誌辨識，不作密碼雜湊
         # Do not log the raw key value. Log a non-reversible digest to help operators identify attempts.
         try:
             digest = hmac.new(_digest_salt, x_api_key.encode('utf-8'), hashlib.sha256).hexdigest()[:8]
