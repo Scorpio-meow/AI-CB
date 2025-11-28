@@ -22,8 +22,6 @@ try:
     _HAS_JIEBA = True
 except Exception:
     _HAS_JIEBA = False
-
-# Define Jieba-based analyzer at module level to ensure picklability in Whoosh schema
 if _HAS_JIEBA:
     class JiebaTokenizer(Tokenizer):
         def __call__(self, value, positions=False, chars=False, keeporiginal=False,
@@ -50,7 +48,6 @@ if _HAS_JIEBA:
                     t.pos = pos
                     pos += 1
                 if chars:
-                    # best-effort char positions
                     idx = value.find(w, char_pos)
                     if idx < 0:
                         idx = char_pos
@@ -58,16 +55,13 @@ if _HAS_JIEBA:
                     t.endchar = idx + len(w)
                     char_pos = t.endchar
                 yield t
-
     class JiebaAnalyzer(Analyzer):
         def __init__(self):
             self._tokenizer = JiebaTokenizer()
 
         def __call__(self, value, **kwargs):
             return self._tokenizer(value, **kwargs)
-
 logger = logging.getLogger(__name__)
-
 class HybridContextualRAG:
     """
     Enhanced RAG system with:
@@ -78,35 +72,23 @@ class HybridContextualRAG:
     """
     def __init__(self):
         try:
-            # Fail-fast: require MODEL_NAME and LLM_API_BASE to be provided via environment
-            # Read env vars with defaults; avoid failing at import.
-            self.model_name = os.getenv("MODEL_NAME", "gpt-oss:20b")
+            self.model_name = os.getenv("MODEL_NAME", "")
             self.api_base = os.getenv("LLM_API_BASE", "").strip()
             if not self.api_base:
                 logger.warning("⚠️ Environment variable LLM_API_BASE is not set. Calls to external LLM API will fail.")
-            
-            # Import requests for API calls
             import requests
             self.requests = requests
-            
-            # GPU Configuration - RTX 4090 Optimization
             import torch
             self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
             if self.device == 'cuda':
                 gpu_name = torch.cuda.get_device_name(0)
                 gpu_memory = round(torch.cuda.get_device_properties(0).total_memory / 1024**3, 2)
                 logger.info(f"🚀 GPU加速已啟用: {gpu_name} ({gpu_memory}GB 顯存)")
-                # RTX 4090 optimized batch size (24GB VRAM)
                 self.batch_size = int(os.getenv("GPU_BATCH_SIZE", "128"))
             else:
                 logger.warning("⚠️ 未檢測到 CUDA，使用 CPU 模式")
                 self.batch_size = int(os.getenv("CPU_BATCH_SIZE", "32"))
-            
-            # Embedding models with GPU acceleration
             embedding_model = os.getenv("EMBEDDING_MODEL", "paraphrase-multilingual-MiniLM-L12-v2")
-            # Lazy import to avoid module-level import-time errors if torch/transformers
-            # versions are incompatible. This still raises only when we try to use the
-            # embeddings, but lets the API start for other routes.
             try:
                 global SentenceTransformer
                 if SentenceTransformer is None:
@@ -116,22 +98,16 @@ class HybridContextualRAG:
             except Exception as e:
                 logger.warning(f"Failed to load SentenceTransformer ({embedding_model}): {e}")
                 self.local_embeddings = None
-            
-            # 模型量化配置 (FP16)
             self.use_fp16 = os.getenv("USE_FP16_QUANTIZATION", "false").lower() == "true"
             if self.use_fp16 and self.device == 'cuda':
                 try:
-                    # 將模型轉換為 FP16
                     self.local_embeddings = self.local_embeddings.half()
                     logger.info("✅ 嵌入模型已量化為 FP16 (顯存減少 50%)")
                 except Exception as e:
                     logger.warning(f"FP16 量化失敗，使用 FP32: {e}")
                     self.use_fp16 = False
-            
             self.embedding_dimension = self.local_embeddings.get_sentence_embedding_dimension()
             logger.info(f"嵌入模型已載入至 {self.device.upper()}: {embedding_model} (維度: {self.embedding_dimension}, 精度: {'FP16' if self.use_fp16 else 'FP32'})")
-            
-            # Cross-encoder for reranking with GPU and FP16
             reranker_model = os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
             try:
                 global CrossEncoder
