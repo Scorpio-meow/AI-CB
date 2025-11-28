@@ -13634,3 +13634,32 @@ requests.exceptions.HTTPError: 502 Server Error: Bad Gateway for url: https://bl
 2025-11-28 16:37:40 - main - INFO - Uploads watcher task stopped
 2025-11-28 16:37:40 - main - INFO - Index rebuilder task stopped
 2025-11-28 16:37:40 - main - INFO - ChatBot application shutdown complete
+2025-11-28 16:43:48 - main - INFO - 🔓 開發環境模式：使用精確的 localhost 白名單
+2025-11-28 16:43:48 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-11-28 16:43:48 - main - INFO - CORS 白名單: ['http://localhost:3000', 'https://localhost:3000', 'http://127.0.0.1:3000', 'https://127.0.0.1:3000']
+2025-11-28 16:43:48 - main - INFO - 🔓 CORS 開發模式：精確白名單（無 regex）
+2025-11-28 16:43:48 - main - INFO - Starting ChatBot application...
+2025-11-28 16:43:48 - main - INFO - Initializing global RAG system...
+2025-11-28 16:43:48 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-11-28 16:43:48 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce RTX 5090 Laptop GPU (23.89GB 顯存)
+2025-11-28 16:43:49 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-m3
+2025-11-28 16:43:54 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: BAAI/bge-m3 (維度: 1024, 精度: FP32)
+2025-11-28 16:43:56 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: BAAI/bge-reranker-v2-m3 (精度: FP32)
+2025-11-28 16:43:56 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-11-28 16:43:56 - jieba - DEBUG - Loading model from cache C:\Users\weblink\AppData\Local\Temp\jieba.cache
+2025-11-28 16:43:56 - jieba - DEBUG - Loading model cost 0.233 seconds.
+2025-11-28 16:43:56 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-11-28 16:43:56 - app.rag.contextual_rag - INFO - ✅ Jieba 自定義詞典已載入: data\jieba_dict.txt
+2025-11-28 16:43:56 - app.rag.contextual_rag - INFO - Loaded FAISS index with 1080 vectors
+2025-11-28 16:43:56 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-11-28 16:43:56 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-11-28 16:43:56 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-11-28 16:43:56 - main - INFO - RAG system initialized: {'total_vectors': 1080, 'total_documents': 1080, 'embedding_dimension': 1024, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': True, 'bm25_index_exists': True, 'documents_file_exists': True, 'reranker_available': True, 'last_reindex': '2025-11-28T16:30:47.189565', 'auto_reindex_hours': 24}
+2025-11-28 16:43:56 - main - INFO - Uploads watcher task started
+2025-11-28 16:43:56 - main - INFO - Index rebuilder task started
+2025-11-28 16:43:56 - main - INFO - ChatBot application startup complete
+2025-11-28 16:43:56 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-11-28 16:45:19 - main - INFO - Shutting down ChatBot application...
+2025-11-28 16:45:19 - main - INFO - Uploads watcher task stopped
+2025-11-28 16:45:19 - main - INFO - Index rebuilder task stopped
+2025-11-28 16:45:19 - main - INFO - ChatBot application shutdown complete

@@ -4,3 +4,4 @@ frontend/package-lock.json
 */__pycache__/*
 *.pyc
 backend/keys
+__pycache__
