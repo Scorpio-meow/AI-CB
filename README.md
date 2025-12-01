@@ -21,7 +21,7 @@
 - [技術架構](#️-技術架構)
 - [快速開始](#-快速開始)
 - [環境配置](#-環境配置)
-- [ API 文檔](#-api-文檔)
+- [API 文檔](#-api-文檔)
 - [開發指南](#-開發指南)
 - [部署](#-部署)
 - [常見問題](#-常見問題)
@@ -33,7 +33,7 @@
 
 ### 🤖 智能對話系統
 
-- **混合 RAG 檢索**：結合向量搜尋（FAISS）和 BM25 關鍵詞匹配
+- **混合 RAG 檢索**：結合向量搜尋（FAISS）和 BM25關鍵詞匹配
 - **智能重排序**：使用 Cross-Encoder 提升檢索結果相關性
 - **多模型支援**：動態切換不同 LLM 模型
 - **對話管理**：支援多對話並行，保留歷史記錄
@@ -41,7 +41,7 @@
 
 ### 🔒 安全與認證
 
-- **JWT 雙 Token 機制**：Access Token (15分鐘) + Refresh Token (7天)
+- **JWT 雙 Token 機制**：Access Token (30分鐘) + Refresh Token (7天)
 - **RSA 非對稱加密**：使用 RSA-2048 簽名，適用於微服務架構
 - **Token 黑名單**：Redis 實現的撤銷機制
 - **靜默刷新**：自動更新 Token，無感體驗
@@ -53,7 +53,7 @@
 - **多格式支援**：PDF、TXT、DOCX 文件處理
 - **流式上傳**：支援大文件（最大 10MB）
 - **批次操作**：批次上傳最多 10 個文件
-- **智能分塊**：RecursiveCharacterTextSplitter（600字符，150重疊）
+- **智能分塊**：RecursiveCharacterTextSplitter（300字符，100重疊）
 - **混合索引**：FAISS + Whoosh 雙重索引
 - **多編碼支援**：自動檢測 UTF-8、GBK、Big5 等編碼
 
@@ -100,48 +100,13 @@
 
 ### RAG 系統架構
 
-**ASCII 版本：**
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                        用戶查詢                          │
-└─────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────┐
-│                    智能檢索策略選擇                       │
-│              (向量搜尋 / BM25 / 混合搜尋)                 │
-└─────────────────────────────────────────────────────────┘
-                            │
-          ┌─────────────────┼─────────────────┐
-          ▼                 ▼                 ▼
-    ┌──────────┐      ┌──────────┐      ┌──────────┐
-    │ 向量搜尋  │      │  BM25    │      │ 混合搜尋  │
-    │ (FAISS)  │      │ (Whoosh) │      │ (融合)    │
-    └──────────┘      └──────────┘      └──────────┘
-          │                 │                 │
-          └─────────────────┼─────────────────┘
-                            ▼
-┌─────────────────────────────────────────────────────────┐
-│         Cross-Encoder 重新排序                           │
-│   (ms-marco-MiniLM-L-6-v2)                              │
-└─────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────┐
-│                  LLM 生成回答                            │
-└─────────────────────────────────────────────────────────┘
-```
-
-**Mermaid 版本（在 GitHub 上自動渲染）：**
-
 ```mermaid
 flowchart TD
     A["用戶查詢"] --> B["智能檢索策略選擇<br/>(向量搜尋 / BM25 / 混合搜尋)"]
     B --> C["向量搜尋<br/>(FAISS)"]
     B --> D["BM25<br/>(Whoosh)"]
     B --> E["混合搜尋<br/>(融合)"]
-    C --> F["Cross-Encoder 重新排序<br/>(ms-marco-MiniLM-L-6-v2)"]
+    C --> F["Cross-Encoder 重新排序<br/>(BAAI/bge-reranker-v2-m3)"]
     D --> F
     E --> F
     F --> G["LLM 生成回答"]
@@ -157,8 +122,8 @@ flowchart TD
 
 ### 核心模型
 
-- **嵌入模型**：`paraphrase-multilingual-MiniLM-L12-v2`（384維，支援50+語言）
-- **重排序模型**：`cross-encoder/ms-marco-MiniLM-L-6-v2`（提升檢索精度）
+- **嵌入模型**：`BAAI/bge-m3`（1024維，支援100+語言）
+- **重排序模型**：`BAAI/bge-reranker-v2-m3`（提升檢索精度）
 - **向量索引**：FAISS IndexFlatIP（內積相似度）
 - **BM25 索引**：Whoosh StandardAnalyzer + jieba 中文分詞
 
@@ -250,56 +215,82 @@ curl http://localhost:8001/health
 ### 後端環境變數（`backend/.env`）
 
 ```env
-# LLM API 配置
-MODEL_NAME=gpt-oss:20b
+# === 核心 LLM 配置 ===
 LLM_API_BASE=https://your-llm-endpoint.com
-LLM_TEMPERATURE=0.7
-LLM_MAX_TOKENS=1000
+LLM_TIMEOUT=120
 
-# 數據庫配置
+# === 安全配置 ===
+ADMIN_API_KEY=your_secure_admin_api_key_here
+JWT_SECRET_KEY=your_jwt_secret_key_here
+JWT_ALGORITHM=RS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# === 環境設定 ===
+ENVIRONMENT=development
+HOST=0.0.0.0
+PORT=8001
+LOG_LEVEL=INFO
+
+# === 資料庫配置 ===
 DATABASE_URL=sqlite:///./chatbot.db  # 開發環境
 # DATABASE_URL=postgresql://user:password@localhost/chatbot  # 生產環境
 
-# Redis 配置
+# === Redis 配置 (Token 黑名單) ===
 REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_DB=0
 # REDIS_PASSWORD=your_password  # 可選
+ENABLE_REDIS_CACHE=false
 
-# JWT 配置
-ACCESS_TOKEN_EXPIRE_MINUTES=15
-REFRESH_TOKEN_EXPIRE_DAYS=7
-JWT_ALGORITHM=RS256
-
-# 安全配置
-ADMIN_API_KEY=your_secure_admin_api_key_here
-SECRET_KEY=your_secret_key_here
-
-# CORS 配置
+# === CORS 配置 ===
 ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 
-# RAG 系統配置
-EMBEDDING_MODEL=paraphrase-multilingual-MiniLM-L12-v2
-RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2
-SIMILARITY_THRESHOLD=0.25
-CHUNK_SIZE=600
-CHUNK_OVERLAP=150
-TOP_K=50
-FINAL_K=10
+# === RAG 系統 - 模型配置 ===
+EMBEDDING_MODEL=BAAI/bge-m3
+RERANKER_MODEL=BAAI/bge-reranker-v2-m3
 
-# 文件上傳限制
+# === RAG 系統 - 檢索參數 ===
+SIMILARITY_THRESHOLD=0.30
+TOP_K=30
+RERANK_TOP_K=50
+FINAL_K=8
+RERANK_WEIGHT=0.85
+FINAL_THRESHOLD=0.15
+HYBRID_ALPHA=0.75
+NORMALIZATION=max
+
+# === RAG 系統 - 文檔處理 ===
+CHUNK_SIZE=300
+CHUNK_OVERLAP=100
 MAX_FILE_SIZE_MB=10
-MAX_FILES_PER_UPLOAD=10
+UPLOAD_DIR=data/uploads
+
+# === RAG 系統 - 索引管理 ===
+ENABLE_AUTO_REINDEX_TASK=1
+REINDEX_HOURS=24
+DATA_DIR=data
+
+# === 速率限制 ===
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_PER_MINUTE=60
 ```
 
 ### 前端環境變數（`frontend/.env`）
 
 ```env
-# 開發環境配置
-HOST=localhost
-PORT=3000
+# === API 連接 ===
+REACT_APP_API_URL=http://localhost:8001
+REACT_APP_API_BASE=http://localhost:8001
 
-# 功能開關
+# === WebSocket 連接 ===
+REACT_APP_WS_URL=ws://localhost:8001
+
+# === 開發服務器配置 ===
+PORT=3000
+HOST=localhost
+
+# === 功能開關 ===
 REACT_APP_ENABLE_ANALYTICS=false
 REACT_APP_ENABLE_DEBUG=true
 ```
@@ -336,7 +327,7 @@ Content-Type: application/json
 {
   "access_token": "eyJhbGc...",
   "token_type": "bearer",
-  "expires_in": 900
+  "expires_in": 1800
 }
 ```
 
@@ -492,7 +483,7 @@ docker-compose down
 
 1. **設置環境變數**
    - 更改 `ENVIRONMENT=production`
-   - 設置安全的 `SECRET_KEY` 和 `ADMIN_API_KEY`
+   - 設置安全的 `JWT_SECRET_KEY` 和 `ADMIN_API_KEY`
    - 配置 PostgreSQL 數據庫
    - 啟用 Redis
 
@@ -523,7 +514,7 @@ python scripts/rebuild_index.py
 ```
 
 ### Q: 如何更換 LLM 模型？
-在 `backend/.env` 中修改 `MODEL_NAME`，然後重啟後端服務。
+在 `backend/.env` 中修改 `LLM_API_BASE`，然後重啟後端服務。
 
 ### Q: 前端無法連接後端？
 檢查 `frontend/package.json` 中的 `proxy` 設置是否正確：
