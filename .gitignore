@@ -5,3 +5,4 @@ frontend/package-lock.json
 *.pyc
 backend/keys
 __pycache__
+models
