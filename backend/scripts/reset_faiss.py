@@ -1,81 +1,75 @@
 """
 重置 FAISS 和 BM25 索引的腳本
-用於修復索引損壞或重建完整的 RAG 索引
+用於修復索引損壞或維度不匹配問題
 """
 import sys
 import os
+import shutil
 from pathlib import Path
 
 # 添加 backend 目錄到 Python 路徑
 backend_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_dir))
 
-from app.core.rag_manager import get_rag_instance
-from sqlalchemy.orm import Session
-from app.models.database import SessionLocal, Document
-
 
 def reset_indexes():
-    """重置所有索引"""
+    """重置所有索引 (直接刪除索引檔案)"""
     print("=" * 60)
     print("🔧 開始重置 RAG 索引...")
     print("=" * 60)
     
-    # 獲取 RAG 實例
-    rag = get_rag_instance()
+    data_dir = backend_dir / "data"
     
-    # 檢查現有索引狀態
-    print("\n📊 當前索引狀態:")
-    status = rag.get_index_status()
-    for key, value in status.items():
-        print(f"  {key}: {value}")
+    # 要刪除的索引檔案
+    index_files = [
+        data_dir / "faiss_index.bin",
+        data_dir / "documents.pkl",
+    ]
+    bm25_dir = data_dir / "bm25_index"
     
-    # 獲取資料庫中的文檔
-    db: Session = SessionLocal()
+    print("\n⚠️  這將刪除以下索引檔案:")
+    for f in index_files:
+        status = "存在" if f.exists() else "不存在"
+        print(f"   - {f.name}: {status}")
+    print(f"   - bm25_index/: {'存在' if bm25_dir.exists() else '不存在'}")
+    
+    response = input("\n是否繼續? (y/n): ")
+    if response.lower() != 'y':
+        print("❌ 操作已取消")
+        return
+    
+    # 刪除檔案
+    print("\n🗑️  刪除索引檔案...")
+    for f in index_files:
+        if f.exists():
+            f.unlink()
+            print(f"   ✓ 已刪除 {f.name}")
+    
+    if bm25_dir.exists():
+        shutil.rmtree(bm25_dir)
+        print("   ✓ 已刪除 bm25_index/")
+    
+    # 重新初始化 RAG 以建立新的空索引
+    print("\n🔄 重新初始化 RAG 系統...")
     try:
-        documents = db.query(Document).all()
-        doc_count = len(documents)
-        print(f"\n📚 資料庫中共有 {doc_count} 個文檔")
+        from app.core.rag_manager import get_rag_system
+        rag = get_rag_system()
         
-        if doc_count == 0:
-            print("\n⚠️  警告: 資料庫中沒有文檔,無需重建索引")
-            return
-        
-        # 確認重建
-        print("\n⚠️  這將刪除並重建所有索引 (FAISS + BM25)")
-        print("   包括:")
-        print("   - data/faiss_index.bin")
-        print("   - data/documents.pkl")
-        print("   - data/bm25_index/")
-        
-        response = input("\n是否繼續? (y/n): ")
-        if response.lower() != 'y':
-            print("❌ 操作已取消")
-            return
-        
-        # 執行重建
-        print("\n🔨 開始重建索引...")
-        print("   這可能需要幾分鐘時間,請耐心等待...")
-        
-        success = rag.force_reindex()
-        
-        if success:
-            print("\n✅ 索引重建成功!")
-            
-            # 顯示新的索引狀態
-            print("\n📊 新的索引狀態:")
-            new_status = rag.get_index_status()
-            for key, value in new_status.items():
+        print("\n📊 新的索引狀態:")
+        if hasattr(rag, 'get_index_status'):
+            status = rag.get_index_status()
+            for key, value in status.items():
                 print(f"  {key}: {value}")
         else:
-            print("\n❌ 索引重建失敗,請檢查日誌")
-            
+            print(f"  嵌入維度: {rag.embedding_dimension}")
+            print(f"  索引中的向量數: {rag.index.ntotal if hasattr(rag, 'index') else 0}")
+            print(f"  文檔數: {len(rag.documents) if hasattr(rag, 'documents') else 0}")
+        
+        print("\n✅ 索引重置成功!")
+        print("   下次上傳文檔時將自動建立新索引")
+        
     except Exception as e:
-        print(f"\n❌ 發生錯誤: {str(e)}")
-        import traceback
-        traceback.print_exc()
-    finally:
-        db.close()
+        print(f"\n⚠️  RAG 初始化警告 (索引已清空，重啟服務後將重建): {e}")
     
     print("\n" + "=" * 60)
     print("🏁 重置流程完成")

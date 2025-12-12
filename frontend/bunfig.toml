@@ -1,0 +1,21 @@
+# Bun 配置檔案
+# https://bun.sh/docs/runtime/bunfig
+
+[install]
+# 使用嚴格的套件鎖定
+frozenLockfile = false
+
+# 快取目錄
+cache = "~/.bun/install/cache"
+
+# 自動安裝 peer dependencies
+peer = true
+
+[run]
+# 靜默 bun 啟動訊息
+silent = false
+
+[test]
+# 測試覆蓋率配置
+coverage = false
+coverageDir = "coverage"

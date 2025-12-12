@@ -20,10 +20,13 @@
         {
             "label": "安裝前端依賴",
             "type": "shell",
-            "command": "npm",
+            "command": "bun",
             "args": ["install"],
             "options": {
-                "cwd": "${workspaceFolder}/frontend"
+                "cwd": "${workspaceFolder}/frontend",
+                "env": {
+                    "PATH": "${env:USERPROFILE}\\.bun\\bin;${env:PATH}"
+                }
             },
             "group": "build",
             "presentation": {
@@ -54,10 +57,53 @@
         {
             "label": "啟動前端開發服務器",
             "type": "shell",
-            "command": "npm",
-            "args": ["start"],
+            "command": "bun",
+            "args": ["run", "dev"],
             "options": {
-                "cwd": "${workspaceFolder}/frontend"
+                "cwd": "${workspaceFolder}/frontend",
+                "env": {
+                    "PATH": "${env:USERPROFILE}\\.bun\\bin;${env:PATH}"
+                }
+            },
+            "group": "build",
+            "isBackground": true,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "前端建構",
+            "type": "shell",
+            "command": "bun",
+            "args": ["run", "build"],
+            "options": {
+                "cwd": "${workspaceFolder}/frontend",
+                "env": {
+                    "PATH": "${env:USERPROFILE}\\.bun\\bin;${env:PATH}"
+                }
+            },
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "前端預覽",
+            "type": "shell",
+            "command": "bun",
+            "args": ["run", "preview"],
+            "options": {
+                "cwd": "${workspaceFolder}/frontend",
+                "env": {
+                    "PATH": "${env:USERPROFILE}\\.bun\\bin;${env:PATH}"
+                }
             },
             "group": "build",
             "isBackground": true,

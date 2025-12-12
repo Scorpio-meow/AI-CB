@@ -1,15 +1,21 @@
+import { Suspense, lazy } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import Chat from './pages/Chat';
-import AdminDashboard from './pages/AdminDashboard';
-import Documents from './pages/Documents';
-import CustomAgents from './pages/CustomAgents';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import ProfilePage from './pages/ProfilePage';
 import Layout from './components/Layout';
 import { PrivateRoute, AdminRoute, PublicRoute } from './components/PrivateRoute';
+
+const Chat = lazy(() => import('./pages/Chat'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const Documents = lazy(() => import('./pages/Documents'));
+const CustomAgents = lazy(() => import('./pages/CustomAgents'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+
+function withSuspense(element) {
+  return <Suspense fallback={null}>{element}</Suspense>;
+}
 
 const theme = createTheme({
   palette: {
@@ -28,11 +34,11 @@ const router = createBrowserRouter([
   // 公開路由 (未登入才能訪問)
   {
     path: '/login',
-    element: <PublicRoute element={<LoginPage />} />,
+    element: <PublicRoute element={withSuspense(<LoginPage />)} />,
   },
   {
     path: '/register',
-    element: <PublicRoute element={<RegisterPage />} />,
+    element: <PublicRoute element={withSuspense(<RegisterPage />)} />,
   },
   // 受保護路由 (需要登入)
   {
@@ -42,23 +48,23 @@ const router = createBrowserRouter([
       { index: true, element: <Navigate to="/chat" replace /> },
       { 
         path: 'chat', 
-        element: <PrivateRoute element={<Chat />} /> 
+        element: <PrivateRoute element={withSuspense(<Chat />)} /> 
       },
       { 
         path: 'documents', 
-        element: <AdminRoute element={<Documents />} /> 
+        element: <AdminRoute element={withSuspense(<Documents />)} /> 
       },
       { 
         path: 'custom-agents', 
-        element: <PrivateRoute element={<CustomAgents />} /> 
+        element: <PrivateRoute element={withSuspense(<CustomAgents />)} /> 
       },
       { 
         path: 'profile', 
-        element: <PrivateRoute element={<ProfilePage />} /> 
+        element: <PrivateRoute element={withSuspense(<ProfilePage />)} /> 
       },
       { 
         path: 'admin', 
-        element: <AdminRoute element={<AdminDashboard />} /> 
+        element: <AdminRoute element={withSuspense(<AdminDashboard />)} /> 
       },
     ],
   },

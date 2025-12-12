@@ -16,7 +16,7 @@ export const AgentProvider = ({ children }) => {
   const fetchAgents = useCallback(async () => {
     // 檢查是否有有效的認證 token
     if (!hasValidAuth()) {
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.debug('AgentContext: 沒有有效認證，跳過獲取 agents');
       }
       if (isMountedRef.current) {
@@ -37,13 +37,13 @@ export const AgentProvider = ({ children }) => {
     } catch (err) {
       // Ignore cancellation errors (Abort/Canceled)
       if (err?.name === 'AbortError' || err?.name === 'CanceledError' || err?.message === 'canceled') {
-        if (process.env.NODE_ENV === 'development') console.debug('fetchAgents was cancelled', err);
+        if (import.meta.env.DEV) console.debug('fetchAgents was cancelled', err);
         return;
       }
       
       // 403 錯誤表示未授權，可能是 token 過期或無效
       if (err?.response?.status === 403) {
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
           console.debug('AgentContext: 403 Forbidden - token 可能過期或無效');
         }
         // 清空 agents 列表，但不顯示錯誤給用戶（token 刷新會自動處理）

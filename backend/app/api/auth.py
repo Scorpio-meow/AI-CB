@@ -9,6 +9,7 @@ from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
 from typing import List
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,32 @@ from app.core.security_logging import log_security_event
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 security = HTTPBearer()
+
+
+def _get_cookie_secure() -> bool:
+    override = os.getenv("COOKIE_SECURE")
+    if override is not None and override != "":
+        return override.strip().lower() in {"1", "true", "yes", "y"}
+    return os.getenv("ENVIRONMENT", "development").strip().lower() == "production"
+
+
+def _get_cookie_samesite() -> str:
+    override = os.getenv("COOKIE_SAMESITE")
+    if override:
+        return override.strip().lower()
+    return "lax"
+
+
+def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=_get_cookie_secure(),
+        samesite=_get_cookie_samesite(),
+        max_age=7 * 24 * 60 * 60,
+        path="/api/auth",
+    )
 
 
 @router.post("/register", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
@@ -101,15 +128,7 @@ async def register(
         })
         
         # 7. 將 refresh_token 存儲在 HttpOnly Cookie 中
-        response.set_cookie(
-            key="refresh_token",
-            value=tokens["refresh_token"],
-            httponly=True,
-            secure=True,
-            samesite="lax",
-            max_age=7 * 24 * 60 * 60,
-            path="/api/auth"
-        )
+        _set_refresh_cookie(response, tokens["refresh_token"])
         
         # 8. 記錄成功註冊
         log_security_event("USER_REGISTERED", request=request, user_id=new_user.id, details={
@@ -179,15 +198,7 @@ async def login(
     })
     
     # 4. 將 refresh_token 存儲在 HttpOnly Cookie 中
-    response.set_cookie(
-        key="refresh_token",
-        value=tokens["refresh_token"],
-        httponly=True,  # 防止 JavaScript 訪問
-        secure=True,    # 僅在 HTTPS 下傳輸
-        samesite="lax", # CSRF 保護
-        max_age=7 * 24 * 60 * 60,  # 7 天
-        path="/api/auth"  # 僅在認證端點可用
-    )
+    _set_refresh_cookie(response, tokens["refresh_token"])
     
     # 5. 記錄成功登入
     log_security_event("USER_LOGIN", request=request, user_id=user.id, details={
@@ -246,15 +257,7 @@ async def refresh_token(
         })
         
         # 更新 Cookie 中的 refresh_token（刷新過期時間）
-        response.set_cookie(
-            key="refresh_token",
-            value=tokens["refresh_token"],
-            httponly=True,
-            secure=True,
-            samesite="lax",
-            max_age=7 * 24 * 60 * 60,
-            path="/api/auth"
-        )
+        _set_refresh_cookie(response, tokens["refresh_token"])
         
         log_security_event("TOKEN_REFRESHED", request=request, user_id=user.id)
         

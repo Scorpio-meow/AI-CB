@@ -2,9 +2,9 @@ import axios from 'axios';
 import { shouldRefreshToken, hasValidAuth, clearAuth } from '../utils/tokenUtils';
 import { devLog, devWarn } from '../utils/secureLogger';
 
-// Normalize API URL from REACT_APP_API_BASE (preferred) or REACT_APP_API_URL (fallback)
-// Prefer explicit REACT_APP_API_BASE or REACT_APP_API_URL, otherwise use same-origin relative path '/api'
-const RAW_API_URL = process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_URL || '/api';
+// Normalize API URL from VITE_API_BASE (preferred) or VITE_API_URL (fallback)
+// Prefer explicit VITE_API_BASE or VITE_API_URL, otherwise use same-origin relative path '/api'
+const RAW_API_URL = import.meta.env.VITE_API_BASE || import.meta.env.VITE_API_URL || '/api';
 
 const ensureTrailingApi = (urlString) => {
   const trimmed = urlString.replace(/\/+$/, '');

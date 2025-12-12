@@ -189,24 +189,24 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
       if (socketRef.current && 
           (socketRef.current.readyState === WebSocket.OPEN || 
            socketRef.current.readyState === WebSocket.CONNECTING)) {
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
           console.debug('WebSocket 已存在且正常，跳過重複連接');
         }
         return;
       }
 
       try {
-        const envWs = process.env.REACT_APP_WS_URL;
-        const envApi = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE;
+        const envWs = import.meta.env.VITE_WS_URL;
+        const envApi = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE;
         
         let websocketURL;
         
-        // 優先使用完整的 REACT_APP_WS_URL（包含完整路徑）
+        // 優先使用完整的 VITE_WS_URL（包含完整路徑）
         if (envWs) {
           // 直接使用完整的 WebSocket URL
           websocketURL = envWs;
-          if (process.env.NODE_ENV === 'development') {
-            console.log('使用環境變數 REACT_APP_WS_URL:', websocketURL);
+          if (import.meta.env.DEV) {
+            console.log('使用環境變數 VITE_WS_URL:', websocketURL);
           }
         } else {
           // Fallback: 根據當前環境構建 URL
@@ -245,7 +245,7 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
 
           host = stripDevTunnelPort(host);
           websocketURL = `${protocol}//${host}/api/workflow/ws`;
-          if (process.env.NODE_ENV === 'development') {
+          if (import.meta.env.DEV) {
             console.log('構建 WebSocket URL:', websocketURL);
           }
         }
@@ -266,7 +266,7 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
         socketRef.current = new WebSocket(websocketURL);
 
         socketRef.current.onopen = () => {
-          if (process.env.NODE_ENV === 'development') {
+          if (import.meta.env.DEV) {
             console.log('WebSocket 連線已建立');
           }
           hasConnected = true;
@@ -275,7 +275,7 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
         };
 
         socketRef.current.onclose = (ev) => {
-          if (process.env.NODE_ENV === 'development') {
+          if (import.meta.env.DEV) {
             console.log('WebSocket 連線已關閉', ev);
           }
           setWsStatus('disconnected');
@@ -286,7 +286,7 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
           if (reconnectAttempts < maxReconnectAttempts) {
             reconnectAttempts += 1;
             const backoff = 1000 * Math.min(5, reconnectAttempts); // linear backoff up to 5s
-            if (process.env.NODE_ENV === 'development') {
+            if (import.meta.env.DEV) {
               console.log(`嘗試重連 WebSocket (#${reconnectAttempts})，${backoff}ms 後重試`);
             }
             reconnectTimer = setTimeout(connect, backoff);

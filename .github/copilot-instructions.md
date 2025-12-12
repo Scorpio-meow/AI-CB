@@ -12,10 +12,11 @@
 - **分層架構**: API → Service → CRUD → Models (嚴格分層，避免跨層調用)
 - **依賴注入**: 使用 FastAPI `Depends()` 管理資料庫會話、認證狀態等
 
-### 前端架構 (React)
+### 前端架構 (React + Bun + Vite)
 - **路由保護**: 使用 `PrivateRoute` 和 `AdminRoute` 包裹受保護頁面 (見 `frontend/src/App.js`)
 - **Layout 模式**: 所有頁面包裹在統一的 `Layout` 組件中，處理導航和認證狀態
-- **API 代理**: 開發時通過 `package.json` proxy 轉發至後端 8001 端口
+- **建構工具**: 使用 Vite 作為建構工具，Bun 作為套件管理器和運行時
+- **API 代理**: 開發時通過 Vite 的 server.proxy 配置轉發至後端 8001 端口
 
 ## 🔐 安全機制 (關鍵實現)
 
@@ -255,21 +256,24 @@ chatbot/
 ```
 
 ## 開發環境說明
-### 本地開發配置 (已移除 DevTunnels)
-- **前端配置**: `frontend/.env` - 使用 localhost + proxy 轉發
+### 本地開發配置 (Bun + Vite)
+- **前端配置**: `frontend/.env` - 使用 `VITE_` 前綴的環境變數
 - **後端配置**: `backend/.env` - 本地 CORS 設定
-- **代理設定**: `frontend/package.json` - `"proxy": "http://localhost:8000"`
+- **代理設定**: `frontend/vite.config.js` - 配置 server.proxy 轉發 API 請求
 
 ### 常用命令
 - **重置 FAISS**: `python scripts/reset_faiss.py`
-- **啟動後端**: `python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000`
-- **啟動前端**: `npm start` (會自動代理 API 到後端)
-- **安裝套件**: `pip install -r requirements.txt`
+- **啟動後端**: `python -m uvicorn main:app --reload --host 0.0.0.0 --port 8001`
+- **啟動前端**: `bun run dev` (會自動代理 API 到後端)
+- **安裝前端套件**: `bun install`
+- **建構前端**: `bun run build`
+- **安裝後端套件**: `pip install -r requirements.txt`
 - **測試 RAG**: `python scripts/test_rag_improvements.py`
 - **測試 API**: `python scripts/test_ollama_api.py`
 
 ### 環境優化重點
 - **簡化配置**: 無需管理外部隧道或複雜網路設定
 - **本地開發**: 所有服務運行在 localhost，快速穩定
-- **代理轉發**: 前端通過 Create React App 內建 proxy 處理 API 請求
-- **CORS 最小化**: 後端僅允許本地開發環境訪問
+- **Vite 代理**: 前端通過 Vite 內建 proxy 處理 API 請求
+- **快速熱更新**: Vite 提供極快的 HMR (Hot Module Replacement)
+- **Bun 效能**: 套件安裝和腳本運行速度顯著提升

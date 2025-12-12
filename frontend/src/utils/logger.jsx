@@ -3,8 +3,8 @@
  * 在開發環境顯示日誌，生產環境自動過濾敏感日誌
  */
 
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
+const IS_PRODUCTION = import.meta.env.PROD;
+const IS_DEVELOPMENT = import.meta.env.DEV;
 
 class Logger {
   /**

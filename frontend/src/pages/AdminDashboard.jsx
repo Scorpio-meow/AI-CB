@@ -136,7 +136,7 @@ function AdminDashboard() {
         // 只有真正的超時才顯示超時錯誤
         if (err.name === 'AbortError' || err.name === 'CanceledError') {
           // 不顯示錯誤，讓使用者可以重試
-          if (process.env.NODE_ENV === 'development') console.debug('Admin data loading was cancelled', err);
+          if (import.meta.env.DEV) console.debug('Admin data loading was cancelled', err);
         } else {
           setError('載入數據失敗：' + (err.response?.data?.detail || err.message || '未知錯誤'));
         }

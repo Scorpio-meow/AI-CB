@@ -78,7 +78,7 @@ function Chat() {
   const loadAvailableModels = useCallback(async (force = false) => {
     // 防止並發請求：如果正在請求中且非強制刷新，直接返回
     if (!force && window.__tagsLoading) {
-      if (process.env.NODE_ENV === 'development') console.debug('Tags API 請求進行中，跳過重複請求');
+      if (import.meta.env.DEV) console.debug('Tags API 請求進行中，跳過重複請求');
       return;
     }
 
@@ -89,7 +89,7 @@ function Chat() {
       if (cached && cacheTime) {
         const age = Date.now() - parseInt(cacheTime, 10);
         if (age < 5 * 60 * 1000) { // 5 分鐘緩存
-          if (process.env.NODE_ENV === 'development') console.debug('使用緩存的 tags 數據');
+          if (import.meta.env.DEV) console.debug('使用緩存的 tags 數據');
           try {
             const cachedData = JSON.parse(cached);
             const cachedModels = cachedData.models || [];
@@ -118,7 +118,7 @@ function Chat() {
     window.__tagsLoading = true;
     setModelsLoading(true); // 開始載入
     try {
-      const externalTagsUrl = process.env.REACT_APP_TAGS_URL;
+      const externalTagsUrl = import.meta.env.VITE_TAGS_URL;
       // If an external tags URL is configured, prefer querying our backend proxy to avoid
       // browser CORS issues. The backend exposes `/api/external-tags` which will fetch
       // the external URL server-side.
@@ -304,7 +304,7 @@ function Chat() {
     } catch (error) {
       if (error.name === 'CanceledError' || error.name === 'AbortError') {
         // 在開發環境顯示更詳細的取消日誌，生產環境避免噪音
-        if (process.env.NODE_ENV === 'development') console.debug('loadConversation request cancelled', error);
+        if (import.meta.env.DEV) console.debug('loadConversation request cancelled', error);
       } else {
         console.error('載入對話失敗:', error);
         setError('載入對話詳情失敗，請稍後重試');
@@ -336,7 +336,7 @@ function Chat() {
       return response.data;
     } catch (error) {
       if (error.name === 'CanceledError' || error.name === 'AbortError') {
-        if (process.env.NODE_ENV === 'development') console.debug('loadConversations request cancelled', error);
+        if (import.meta.env.DEV) console.debug('loadConversations request cancelled', error);
       } else {
         console.error('載入對話失敗:', error);
         setError('載入對話失敗，請稍後重試');
@@ -379,7 +379,7 @@ function Chat() {
       clearTimeout(timeoutId);
     } catch (error) {
       if (error.name === 'CanceledError' || error.name === 'AbortError') {
-        if (process.env.NODE_ENV === 'development') console.debug('loadMoreMessages request cancelled', error);
+        if (import.meta.env.DEV) console.debug('loadMoreMessages request cancelled', error);
       } else {
         console.error('載入更多消息失敗:', error);
         setError('載入更多消息失敗');
@@ -397,15 +397,15 @@ function Chat() {
 
   // Poll for available models every 5 minutes to keep list up-to-date
   // 在 DevTunnels 環境下減少請求頻率以避免超時
-  // 可通過 REACT_APP_MODEL_POLL_INTERVAL_MS 環境變數配置（單位：毫秒）
+  // 可通過 VITE_MODEL_POLL_INTERVAL_MS 環境變數配置（單位：毫秒）
   useEffect(() => {
     const defaultInterval = 5 * 60 * 1000; // 5 分鐘預設值
-    const configuredInterval = process.env.REACT_APP_MODEL_POLL_INTERVAL_MS
-      ? parseInt(process.env.REACT_APP_MODEL_POLL_INTERVAL_MS, 10)
+    const configuredInterval = import.meta.env.VITE_MODEL_POLL_INTERVAL_MS
+      ? parseInt(import.meta.env.VITE_MODEL_POLL_INTERVAL_MS, 10)
       : defaultInterval;
     const intervalMs = isNaN(configuredInterval) ? defaultInterval : configuredInterval;
 
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.debug(`模型列表輪詢間隔: ${intervalMs / 1000} 秒`);
     }
 

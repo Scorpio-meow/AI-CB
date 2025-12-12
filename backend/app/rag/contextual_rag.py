@@ -71,6 +71,18 @@ class HybridContextualRAG:
     4. Evaluation metrics
     """
     def __init__(self):
+        # Set basic configuration early to ensure they're available in exception handler
+        self.chunk_size = int(os.getenv("CHUNK_SIZE", "300"))
+        self.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "100"))
+        self.embedding_dimension = 384  # default, will be overwritten if model loads
+        self.local_embeddings = None
+        self.cross_encoder = None
+        self.has_reranker = False
+        self.documents = []
+        self.context_memory = {}
+        self.bm25_index = None
+        self.bm25_searcher = None
+        
         try:
             self.model_name = os.getenv("MODEL_NAME", "")
             self.api_base = os.getenv("LLM_API_BASE", "").strip()
@@ -88,7 +100,10 @@ class HybridContextualRAG:
             else:
                 logger.warning("⚠️ 未檢測到 CUDA，使用 CPU 模式")
                 self.batch_size = int(os.getenv("CPU_BATCH_SIZE", "32"))
+            
+            # Embedding model loading with fallback
             embedding_model = os.getenv("EMBEDDING_MODEL", "paraphrase-multilingual-MiniLM-L12-v2")
+            fallback_model = "paraphrase-multilingual-MiniLM-L12-v2"
             try:
                 global SentenceTransformer
                 if SentenceTransformer is None:
@@ -97,7 +112,21 @@ class HybridContextualRAG:
                 self.local_embeddings = SentenceTransformer(embedding_model, device=self.device)
             except Exception as e:
                 logger.warning(f"Failed to load SentenceTransformer ({embedding_model}): {e}")
-                self.local_embeddings = None
+                # Try fallback model if primary fails
+                if embedding_model != fallback_model:
+                    logger.info(f"嘗試載入備用模型: {fallback_model}")
+                    try:
+                        self.local_embeddings = SentenceTransformer(fallback_model, device=self.device)
+                        embedding_model = fallback_model
+                    except Exception as e2:
+                        logger.error(f"Fallback model also failed: {e2}")
+                        self.local_embeddings = None
+                else:
+                    self.local_embeddings = None
+            
+            # If embeddings still None, raise to trigger minimal initialization
+            if self.local_embeddings is None:
+                raise RuntimeError("No embedding model available. Please check EMBEDDING_MODEL environment variable or install sentence-transformers.")
             self.use_fp16 = os.getenv("USE_FP16_QUANTIZATION", "false").lower() == "true"
             if self.use_fp16 and self.device == 'cuda':
                 try:
@@ -314,18 +343,15 @@ class HybridContextualRAG:
             
         except Exception as e:
             logger.error(f"Failed to initialize HybridContextualRAG: {e}")
-            # Set minimal defaults to prevent AttributeError
-            self.has_reranker = False
-            self.cross_encoder = None
-            # Use configured chunk size from environment variables
-            self.text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=self.chunk_size, 
-                chunk_overlap=self.chunk_overlap
-            )
-            self.embedding_dimension = 384
-            self.index = faiss.IndexFlatIP(384)
-            self.documents = []
-            self.context_memory = {}
+            # Basic attributes already set at the beginning of __init__
+            # Just ensure we have minimal working state
+            if not hasattr(self, 'text_splitter') or self.text_splitter is None:
+                self.text_splitter = RecursiveCharacterTextSplitter(
+                    chunk_size=self.chunk_size, 
+                    chunk_overlap=self.chunk_overlap
+                )
+            if not hasattr(self, 'index') or self.index is None:
+                self.index = faiss.IndexFlatIP(self.embedding_dimension)
             raise
         
     def _load_indices(self):

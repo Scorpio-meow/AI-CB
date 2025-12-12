@@ -13663,3 +13663,164 @@ requests.exceptions.HTTPError: 502 Server Error: Bad Gateway for url: https://bl
 2025-11-28 16:45:19 - main - INFO - Uploads watcher task stopped
 2025-11-28 16:45:19 - main - INFO - Index rebuilder task stopped
 2025-11-28 16:45:19 - main - INFO - ChatBot application shutdown complete
+2025-12-12 15:21:45 - main - INFO - 🔓 開發環境模式：使用精確的 localhost 白名單
+2025-12-12 15:21:45 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-12-12 15:21:45 - main - INFO - CORS 白名單: ['http://localhost:3000', 'https://localhost:3000', 'http://127.0.0.1:3000', 'https://127.0.0.1:3000']
+2025-12-12 15:21:45 - main - INFO - 🔓 CORS 開發模式：精確白名單（無 regex）
+2025-12-12 15:21:46 - main - INFO - Starting ChatBot application...
+2025-12-12 15:21:47 - main - INFO - Initializing global RAG system...
+2025-12-12 15:21:47 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-12-12 15:21:48 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce MX250 (2.0GB 顯存)
+2025-12-12 15:22:31 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: ../models/bge-m3
+2025-12-12 15:22:32 - app.rag.contextual_rag - WARNING - Failed to load SentenceTransformer (../models/bge-m3): Error while deserializing header: incomplete metadata, file not fully covered
+2025-12-12 15:22:32 - app.rag.contextual_rag - ERROR - Failed to initialize HybridContextualRAG: 'NoneType' object has no attribute 'get_sentence_embedding_dimension'
+2025-12-12 16:03:14 - main - INFO - 🔓 開發環境模式：使用精確的 localhost 白名單
+2025-12-12 16:03:14 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-12-12 16:03:14 - main - INFO - CORS 白名單: ['http://localhost:3000', 'https://localhost:3000', 'http://127.0.0.1:3000', 'https://127.0.0.1:3000']
+2025-12-12 16:03:14 - main - INFO - 🔓 CORS 開發模式：精確白名單（無 regex）
+2025-12-12 16:03:14 - main - INFO - Starting ChatBot application...
+2025-12-12 16:03:14 - main - INFO - Initializing global RAG system...
+2025-12-12 16:03:14 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-12-12 16:03:16 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce MX250 (2.0GB 顯存)
+2025-12-12 16:03:28 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: ../models/bge-m3
+2025-12-12 16:03:29 - app.rag.contextual_rag - WARNING - Failed to load SentenceTransformer (../models/bge-m3): Error while deserializing header: incomplete metadata, file not fully covered
+2025-12-12 16:03:29 - app.rag.contextual_rag - ERROR - Failed to initialize HybridContextualRAG: 'NoneType' object has no attribute 'get_sentence_embedding_dimension'
+2025-12-12 16:06:29 - main - INFO - 🔓 開發環境模式：使用精確的 localhost 白名單
+2025-12-12 16:06:29 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-12-12 16:06:29 - main - INFO - CORS 白名單: ['http://localhost:3000', 'https://localhost:3000', 'http://127.0.0.1:3000', 'https://127.0.0.1:3000']
+2025-12-12 16:06:29 - main - INFO - 🔓 CORS 開發模式：精確白名單（無 regex）
+2025-12-12 16:06:29 - main - INFO - Starting ChatBot application...
+2025-12-12 16:06:29 - main - INFO - Initializing global RAG system...
+2025-12-12 16:06:29 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-12-12 16:06:30 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce MX250 (2.0GB 顯存)
+2025-12-12 16:06:45 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: ../models/bge-m3
+2025-12-12 16:06:46 - app.rag.contextual_rag - WARNING - Failed to load SentenceTransformer (../models/bge-m3): Error while deserializing header: incomplete metadata, file not fully covered
+2025-12-12 16:06:46 - app.rag.contextual_rag - INFO - 嘗試載入備用模型: paraphrase-multilingual-MiniLM-L12-v2
+2025-12-12 16:06:46 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-12-12 16:08:21 - main - INFO - 🔓 開發環境模式：使用精確的 localhost 白名單
+2025-12-12 16:08:21 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-12-12 16:08:21 - main - INFO - CORS 白名單: ['http://localhost:3000', 'https://localhost:3000', 'http://127.0.0.1:3000', 'https://127.0.0.1:3000']
+2025-12-12 16:08:21 - main - INFO - 🔓 CORS 開發模式：精確白名單（無 regex）
+2025-12-12 16:08:21 - main - INFO - Starting ChatBot application...
+2025-12-12 16:08:21 - main - INFO - Initializing global RAG system...
+2025-12-12 16:08:21 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-12-12 16:08:21 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce MX250 (2.0GB 顯存)
+2025-12-12 16:08:31 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: D:/AI-CB/models/bge-m3
+2025-12-12 16:08:32 - app.rag.contextual_rag - WARNING - Failed to load SentenceTransformer (D:/AI-CB/models/bge-m3): Error while deserializing header: incomplete metadata, file not fully covered
+2025-12-12 16:08:32 - app.rag.contextual_rag - INFO - 嘗試載入備用模型: paraphrase-multilingual-MiniLM-L12-v2
+2025-12-12 16:08:32 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-12-12 16:09:37 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-12-12 16:10:24 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: D:/AI-CB/models/bge-reranker-v2-m3 (精度: FP32)
+2025-12-12 16:10:24 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-12-12 16:10:24 - jieba - DEBUG - Loading model from cache C:\Users\yalkyao\AppData\Local\Temp\jieba.cache
+2025-12-12 16:10:26 - jieba - DEBUG - Loading model cost 2.574 seconds.
+2025-12-12 16:10:26 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-12-12 16:10:26 - app.rag.contextual_rag - INFO - ✅ Jieba 自定義詞典已載入: data\jieba_dict.txt
+2025-12-12 16:10:28 - app.rag.contextual_rag - INFO - Loaded BM25 index
+2025-12-12 16:10:28 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-12-12 16:10:28 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-12-12 16:10:28 - main - INFO - RAG system initialized: {'total_vectors': 0, 'total_documents': 0, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': False, 'bm25_index_exists': True, 'documents_file_exists': False, 'reranker_available': True, 'last_reindex': '2025-11-28T16:30:47.189565', 'auto_reindex_hours': 24}
+2025-12-12 16:10:28 - main - INFO - Uploads watcher task started
+2025-12-12 16:10:28 - main - INFO - Index rebuilder task started
+2025-12-12 16:10:28 - main - INFO - ChatBot application startup complete
+2025-12-12 16:10:28 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-12-12 16:16:33 - main - INFO - 🔓 開發環境模式：使用精確的 localhost 白名單
+2025-12-12 16:16:33 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-12-12 16:16:33 - main - INFO - CORS 白名單: ['http://localhost:3000', 'https://localhost:3000', 'http://127.0.0.1:3000', 'https://127.0.0.1:3000']
+2025-12-12 16:16:33 - main - INFO - 🔓 CORS 開發模式：精確白名單（無 regex）
+2025-12-12 16:16:33 - main - INFO - Starting ChatBot application...
+2025-12-12 16:16:33 - main - INFO - Initializing global RAG system...
+2025-12-12 16:16:33 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-12-12 16:16:34 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce MX250 (2.0GB 顯存)
+2025-12-12 16:16:47 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: D:/AI-CB/models/bge-m3
+2025-12-12 16:16:48 - app.rag.contextual_rag - WARNING - Failed to load SentenceTransformer (D:/AI-CB/models/bge-m3): Error while deserializing header: incomplete metadata, file not fully covered
+2025-12-12 16:16:48 - app.rag.contextual_rag - INFO - 嘗試載入備用模型: paraphrase-multilingual-MiniLM-L12-v2
+2025-12-12 16:16:48 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-12-12 16:16:54 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-12-12 16:17:17 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: D:/AI-CB/models/bge-reranker-v2-m3 (精度: FP32)
+2025-12-12 16:17:17 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-12-12 16:17:17 - jieba - DEBUG - Loading model from cache C:\Users\yalkyao\AppData\Local\Temp\jieba.cache
+2025-12-12 16:17:18 - jieba - DEBUG - Loading model cost 1.259 seconds.
+2025-12-12 16:17:18 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-12-12 16:17:18 - app.rag.contextual_rag - INFO - ✅ Jieba 自定義詞典已載入: data\jieba_dict.txt
+2025-12-12 16:17:18 - app.rag.contextual_rag - INFO - No BM25 index found, will create on first add
+2025-12-12 16:17:18 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-12-12 16:17:18 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-12-12 16:17:18 - main - INFO - RAG system initialized: {'total_vectors': 0, 'total_documents': 0, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': False, 'bm25_index_exists': False, 'documents_file_exists': False, 'reranker_available': True, 'last_reindex': '2025-11-28T16:30:47.189565', 'auto_reindex_hours': 24}
+2025-12-12 16:17:18 - main - INFO - Uploads watcher task started
+2025-12-12 16:17:18 - main - INFO - Index rebuilder task started
+2025-12-12 16:17:18 - main - INFO - ChatBot application startup complete
+2025-12-12 16:17:19 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-12-12 17:00:36 - security - INFO - {"timestamp": "2025-12-12T09:00:36.876575", "event_type": "LOGIN_FAILED", "severity": "INFO", "user_id": null, "client_ip": "127.0.0.1", "method": "POST", "path": "/api/auth/login", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36", "details": {"username": "yalkyao", "reason": "無效的憑證"}}
+2025-12-12 17:00:44 - security - INFO - {"timestamp": "2025-12-12T09:00:44.933578", "event_type": "USER_LOGIN", "severity": "INFO", "user_id": 1, "client_ip": "127.0.0.1", "method": "POST", "path": "/api/auth/login", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36", "details": {"username": "yalkyao"}}
+2025-12-12 17:00:46 - app.api.tags - ERROR - Failed to load models from LLM_API_BASE
+Traceback (most recent call last):
+  File "D:\AI-CB\backend\app\api\tags.py", line 25, in get_tags
+    remote_models, remote_default = _fetch_remote_models()
+  File "D:\AI-CB\backend\app\api\tags.py", line 90, in _fetch_remote_models
+    response.raise_for_status()
+  File "D:\AI-CB\CBvenv\lib\site-packages\requests\models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 404 Client Error: Not Found for url: https://blowfish-absolute-absolutely.ngrok-free.app/api/tags
+2025-12-12 17:07:54 - security - INFO - {"timestamp": "2025-12-12T09:07:54.979300", "event_type": "USER_LOGOUT", "severity": "INFO", "user_id": 1, "client_ip": "127.0.0.1", "method": "POST", "path": "/api/auth/logout", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36", "details": {"username": "yalkyao"}}
+2025-12-12 17:08:02 - security - INFO - {"timestamp": "2025-12-12T09:08:02.372034", "event_type": "USER_LOGIN", "severity": "INFO", "user_id": 1, "client_ip": "127.0.0.1", "method": "POST", "path": "/api/auth/login", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36", "details": {"username": "yalkyao"}}
+2025-12-12 17:08:03 - app.api.tags - ERROR - Failed to load models from LLM_API_BASE
+Traceback (most recent call last):
+  File "D:\AI-CB\backend\app\api\tags.py", line 25, in get_tags
+    remote_models, remote_default = _fetch_remote_models()
+  File "D:\AI-CB\backend\app\api\tags.py", line 90, in _fetch_remote_models
+    response.raise_for_status()
+  File "D:\AI-CB\CBvenv\lib\site-packages\requests\models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 404 Client Error: Not Found for url: https://blowfish-absolute-absolutely.ngrok-free.app/api/tags
+2025-12-12 17:26:22 - main - INFO - 🔓 開發環境模式：使用精確的 localhost 白名單
+2025-12-12 17:26:22 - main - INFO - Rate limiting enabled: 60 requests per minute
+2025-12-12 17:26:22 - main - INFO - CORS 白名單: ['http://localhost:3000', 'https://localhost:3000', 'http://127.0.0.1:3000', 'https://127.0.0.1:3000']
+2025-12-12 17:26:22 - main - INFO - 🔓 CORS 開發模式：精確白名單（無 regex）
+2025-12-12 17:26:22 - main - INFO - Starting ChatBot application...
+2025-12-12 17:26:22 - main - INFO - Initializing global RAG system...
+2025-12-12 17:26:22 - app.core.rag_manager - INFO - Initializing global RAG instance...
+2025-12-12 17:26:24 - app.rag.contextual_rag - INFO - 🚀 GPU加速已啟用: NVIDIA GeForce MX250 (2.0GB 顯存)
+2025-12-12 17:26:39 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: D:/AI-CB/models/bge-m3
+2025-12-12 17:26:41 - app.rag.contextual_rag - WARNING - Failed to load SentenceTransformer (D:/AI-CB/models/bge-m3): Error while deserializing header: incomplete metadata, file not fully covered
+2025-12-12 17:26:41 - app.rag.contextual_rag - INFO - 嘗試載入備用模型: paraphrase-multilingual-MiniLM-L12-v2
+2025-12-12 17:26:41 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-12-12 17:26:55 - app.rag.contextual_rag - INFO - 嵌入模型已載入至 CUDA: paraphrase-multilingual-MiniLM-L12-v2 (維度: 384, 精度: FP32)
+2025-12-12 17:27:38 - app.rag.contextual_rag - INFO - Cross-Encoder 已載入至 CUDA: D:/AI-CB/models/bge-reranker-v2-m3 (精度: FP32)
+2025-12-12 17:27:39 - jieba - DEBUG - Building prefix dict from the default dictionary ...
+2025-12-12 17:27:39 - jieba - DEBUG - Loading model from cache C:\Users\yalkyao\AppData\Local\Temp\jieba.cache
+2025-12-12 17:27:43 - jieba - DEBUG - Loading model cost 4.131 seconds.
+2025-12-12 17:27:43 - jieba - DEBUG - Prefix dict has been built successfully.
+2025-12-12 17:27:43 - app.rag.contextual_rag - INFO - ✅ Jieba 自定義詞典已載入: data\jieba_dict.txt
+2025-12-12 17:27:43 - app.rag.contextual_rag - INFO - No BM25 index found, will create on first add
+2025-12-12 17:27:43 - app.rag.contextual_rag - INFO - Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook
+2025-12-12 17:27:43 - app.core.rag_manager - INFO - Global RAG instance initialized successfully
+2025-12-12 17:27:43 - main - INFO - RAG system initialized: {'total_vectors': 0, 'total_documents': 0, 'embedding_dimension': 384, 'index_type': 'FAISS IndexFlatIP + Whoosh BM25', 'vector_index_exists': False, 'bm25_index_exists': False, 'documents_file_exists': False, 'reranker_available': True, 'last_reindex': '2025-11-28T16:30:47.189565', 'auto_reindex_hours': 24}
+2025-12-12 17:27:43 - main - INFO - Uploads watcher task started
+2025-12-12 17:27:43 - main - INFO - Index rebuilder task started
+2025-12-12 17:27:43 - main - INFO - ChatBot application startup complete
+2025-12-12 17:27:44 - app.tasks.index_rebuilder - INFO - Starting periodic index rebuild task (interval: 24h)
+2025-12-12 17:28:12 - app.api.tags - ERROR - Failed to load models from LLM_API_BASE
+Traceback (most recent call last):
+  File "D:\AI-CB\backend\app\api\tags.py", line 25, in get_tags
+    remote_models, remote_default = _fetch_remote_models()
+  File "D:\AI-CB\backend\app\api\tags.py", line 90, in _fetch_remote_models
+    response.raise_for_status()
+  File "D:\AI-CB\CBvenv\lib\site-packages\requests\models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 404 Client Error: Not Found for url: https://blowfish-absolute-absolutely.ngrok-free.app/api/tags
+2025-12-12 17:30:11 - app.services.cache_service - INFO - Redis 快取已禁用 (設定 ENABLE_REDIS_CACHE=true 啟用)
+2025-12-12 17:30:11 - app.rag.contextual_rag - INFO - Retrieval strategy=HYBRID(FAQ-like) query='你好' candidates=0
+2025-12-12 17:30:11 - app.rag.contextual_rag - INFO - Calling LLM API: model=qwen3:0.6b, messages=2, url=https://blowfish-absolute-absolutely.ngrok-free.app/api/chat, timeout=120s
+2025-12-12 17:30:19 - app.rag.contextual_rag - ERROR - LLM API HTTP error unknown: 500 Server Error: Internal Server Error for url: https://blowfish-absolute-absolutely.ngrok-free.app/api/chat, detail: 
+2025-12-12 17:30:32 - app.rag.contextual_rag - INFO - Retrieval strategy=HYBRID(alpha=0.75) query='hello' candidates=0
+2025-12-12 17:30:32 - app.rag.contextual_rag - INFO - Calling LLM API: model=granite4:350m, messages=4, url=https://blowfish-absolute-absolutely.ngrok-free.app/api/chat, timeout=120s
+2025-12-12 17:31:01 - app.rag.contextual_rag - ERROR - LLM API HTTP error unknown: 500 Server Error: Internal Server Error for url: https://blowfish-absolute-absolutely.ngrok-free.app/api/chat, detail: 
+2025-12-12 17:31:56 - app.rag.contextual_rag - INFO - Retrieval strategy=HYBRID(alpha=0.75) query='hello' candidates=0
+2025-12-12 17:31:56 - app.rag.contextual_rag - INFO - Calling LLM API: model=granite4:350m, messages=2, url=https://blowfish-absolute-absolutely.ngrok-free.app/api/chat, timeout=120s
+2025-12-12 17:32:36 - app.rag.contextual_rag - ERROR - LLM API HTTP error unknown: 500 Server Error: Internal Server Error for url: https://blowfish-absolute-absolutely.ngrok-free.app/api/chat, detail: 
+2025-12-12 17:33:42 - security - INFO - {"timestamp": "2025-12-12T09:33:42.882011", "event_type": "TOKEN_REFRESH_ERROR", "severity": "INFO", "user_id": null, "client_ip": "127.0.0.1", "method": "POST", "path": "/api/auth/refresh", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36", "details": {"error": "verify_refresh_token() takes 1 positional argument but 2 were given"}}
+2025-12-12 17:38:46 - main - INFO - Shutting down ChatBot application...
+2025-12-12 17:38:46 - main - INFO - Uploads watcher task stopped
+2025-12-12 17:38:46 - main - INFO - Index rebuilder task stopped
+2025-12-12 17:38:46 - main - INFO - ChatBot application shutdown complete

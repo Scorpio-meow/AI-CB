@@ -3,7 +3,7 @@
  * 在生產環境中過濾掉敏感的調試日誌
  */
 
-const isDevelopment = process.env.NODE_ENV === 'development';
+const isDevelopment = import.meta.env.DEV;
 
 /**
  * 安全的 console.log 包裝器

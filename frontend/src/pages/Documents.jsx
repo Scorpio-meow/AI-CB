@@ -122,7 +122,7 @@ function Documents() {
         // 只有真正的超時才顯示超時錯誤
         if (err.name === 'AbortError' || err.name === 'CanceledError') {
           // 不顯示錯誤，讓使用者可以重試
-          if (process.env.NODE_ENV === 'development') console.debug('Documents loading was cancelled', err);
+          if (import.meta.env.DEV) console.debug('Documents loading was cancelled', err);
           setError('載入文檔超時，請重新整理頁面或檢查網路連線');
         } else if (err.response?.status === 400) {
           setError('載入文檔失敗：請求格式錯誤或授權無效，請嘗試重新登入');
@@ -292,7 +292,7 @@ function Documents() {
       it.controller.abort();
     } catch (err) {
       if (err.name === 'AbortError' || err.name === 'CanceledError') {
-        if (process.env.NODE_ENV === 'development') console.debug('Upload was cancelled', err);
+        if (import.meta.env.DEV) console.debug('Upload was cancelled', err);
       } else {
         setError('取消上傳失敗');
       }

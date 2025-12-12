@@ -178,13 +178,17 @@ python -m uvicorn main:app --reload --host 0.0.0.0 --port 8001
 # 開啟新終端，進入前端目錄
 cd frontend
 
-# 安裝依賴
-npm install
+# 安裝依賴（推薦 Bun，若使用 npm/yarn 也可）
+# Bun 安裝：PowerShell:
+# powershell -c "irm bun.sh/install.ps1 | iex"
+# 安裝套件
+bun install
 
 # 啟動前端開發服務器
-npm start
+bun run dev
 ```
 
+**備註**：本專案已在 `CBvenv` 的 PowerShell 激活腳本中加入 Bun 路徑（若安裝於 `~/.bun/bin`），啟動虛擬環境後 Bun 命令可以直接使用，否則請將 Bun 安裝目錄加入系統 PATH。
 #### 4. Redis 設置（可選，用於生產環境）
 
 ```bash
@@ -241,7 +245,7 @@ REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_DB=0
 # REDIS_PASSWORD=your_password  # 可選
-ENABLE_REDIS_CACHE=false
+ENABLE_REDIS_CACHE=true
 
 # === CORS 配置 ===
 ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000

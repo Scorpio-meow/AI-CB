@@ -6,3 +6,5 @@ frontend/package-lock.json
 backend/keys
 __pycache__
 models
+frontend/~
+backend/data/hf_home

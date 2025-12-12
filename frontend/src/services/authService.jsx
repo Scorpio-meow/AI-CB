@@ -195,7 +195,7 @@ class AuthService {
       return user;
     } catch (error) {
       // Only log timeout errors, other errors are handled by api interceptor
-      if (error.isTimeout && process.env.NODE_ENV === 'development') {
+      if (error.isTimeout && import.meta.env.DEV) {
         console.debug('getCurrentUser timeout (DevTunnels may be slow)');
       }
       throw error;

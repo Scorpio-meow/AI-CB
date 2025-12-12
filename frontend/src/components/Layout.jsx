@@ -56,7 +56,7 @@ function Layout({ children }) {
       // authService.getCurrentUser already logs errors and handles timeout
       if (isMountedRef.current && !error.isTimeout) {
         // Only log non-timeout errors when component is still mounted
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
           console.debug('Layout.loadUser error (non-critical):', error.message);
         }
       }
