@@ -12,19 +12,35 @@ logger = logging.getLogger(__name__)
 security = HTTPBearer()
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
 _digest_salt = b"cb_api_key_salt"
+
+
+def _api_key_log_digest(api_key: str) -> str:
+    """Return a short, non-reversible identifier for logging.
+
+    Use a computationally-expensive KDF (PBKDF2) to avoid fast hashing of sensitive
+    values (CodeQL: py/weak-sensitive-data-hashing).
+    """
+    try:
+        salt = _digest_salt + b"|api_key_log_digest_v1"
+        derived = hashlib.pbkdf2_hmac(
+            "sha256",
+            api_key.encode("utf-8"),
+            salt,
+            200_000,
+            dklen=16,
+        )
+        return derived.hex()[:8]
+    except Exception:
+        return "unknown"
 # 安全註解：
-# 下方 HMAC-SHA256 雜湊僅用於 API Key 日誌辨識（不可逆），不作為密碼雜湊或敏感資料存儲。
-# 不涉及驗證或存儲用途，無弱雜湊攻擊風險，符合 OWASP/CodeQL 建議。
+# 下方 PBKDF2-HMAC-SHA256 僅用於 API Key 日誌辨識（不可逆），不作為密碼雜湊或敏感資料存儲。
+# 目的僅為營運追蹤「相同輸入」的嘗試，不會記錄原始 Key。
 if not ADMIN_API_KEY or ADMIN_API_KEY == "CHANGE_THIS_TO_A_SECURE_RANDOM_STRING":
     # Generate a temporary secure key for development
     ADMIN_API_KEY = secrets.token_urlsafe(32)
     logger.warning("=" * 80)
     logger.warning("⚠️  WARNING: ADMIN_API_KEY not set in environment!")
-    try:
-        # 僅用於日誌辨識，不作密碼雜湊
-        digest = hmac.new(_digest_salt, ADMIN_API_KEY.encode('utf-8'), hashlib.sha256).hexdigest()[:8]
-    except Exception:
-        digest = 'unknown'
+    digest = _api_key_log_digest(ADMIN_API_KEY)
     logger.warning("⚠️  Using temporary API key (digest): %s", digest)
     logger.warning("⚠️  Please set ADMIN_API_KEY in your .env file!")
     logger.warning("=" * 80)
@@ -37,13 +53,10 @@ async def verify_admin_api_key(x_api_key: Optional[str] = Header(None, descripti
             detail="Missing API Key. Please provide X-API-Key header.",
             headers={"WWW-Authenticate": "ApiKey"}
         )
-    if x_api_key != ADMIN_API_KEY:
+    if not hmac.compare_digest(x_api_key, ADMIN_API_KEY):
         # 僅用於日誌辨識，不作密碼雜湊
         # Do not log the raw key value. Log a non-reversible digest to help operators identify attempts.
-        try:
-            digest = hmac.new(_digest_salt, x_api_key.encode('utf-8'), hashlib.sha256).hexdigest()[:8]
-        except Exception:
-            digest = 'unknown'
+        digest = _api_key_log_digest(x_api_key)
         logger.warning("Admin API access attempt with invalid API key (digest): %s", digest)
         raise HTTPException(
             status_code=403,
