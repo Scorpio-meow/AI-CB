@@ -8,3 +8,4 @@ __pycache__
 models
 frontend/~
 backend/data/hf_home
+backend/data/workflow_outputs/*

@@ -91,13 +91,21 @@ class HybridContextualRAG:
             import requests
             self.requests = requests
             import torch
-            self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-            if self.device == 'cuda':
+            
+            # Check if CPU is forced (for incompatible GPUs like MX250 with newer CUDA)
+            force_cpu = os.getenv("FORCE_CPU", "false").lower() == "true"
+            if force_cpu:
+                self.device = 'cpu'
+                logger.info("⚙️ FORCE_CPU=true，強制使用 CPU 模式")
+                self.batch_size = int(os.getenv("CPU_BATCH_SIZE", "32"))
+            elif torch.cuda.is_available():
+                self.device = 'cuda'
                 gpu_name = torch.cuda.get_device_name(0)
                 gpu_memory = round(torch.cuda.get_device_properties(0).total_memory / 1024**3, 2)
                 logger.info(f"🚀 GPU加速已啟用: {gpu_name} ({gpu_memory}GB 顯存)")
                 self.batch_size = int(os.getenv("GPU_BATCH_SIZE", "128"))
             else:
+                self.device = 'cpu'
                 logger.warning("⚠️ 未檢測到 CUDA，使用 CPU 模式")
                 self.batch_size = int(os.getenv("CPU_BATCH_SIZE", "32"))
             

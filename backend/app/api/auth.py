@@ -238,9 +238,18 @@ async def refresh_token(
                 detail="未找到刷新令牌"
             )
         
-        # 驗證 refresh token 並獲取用戶信息
-        user = verify_refresh_token(db, refresh_token_value)
+        # 驗證 refresh token 並獲取 payload
+        payload = verify_refresh_token(refresh_token_value)
         
+        # 從 payload 獲取用戶 ID 並從資料庫取得用戶
+        user_id = payload.get("user_id")
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="無效的刷新令牌"
+            )
+        
+        user = get_user_by_id(db, user_id)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
