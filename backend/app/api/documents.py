@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from app.models.database import get_db
-from app.models import Document, DocumentChunk
+from app.models import Document as DBDocument, DocumentChunk
 from app.core.rag_manager import get_rag_system
 from app.core.user_context import get_current_user_id, get_default_user_id
 from app.core.jwt_auth import get_current_admin_user
 from app.services.document_processor import DocumentProcessor
 from app.core.input_validator import InputValidator
 import re
-from langchain_core.documents import Document
+from langchain_core.documents import Document as LangChainDocument
 import os
 from typing import List
 import logging
@@ -55,13 +55,13 @@ def process_document_for_rag(content: str, metadata: dict, rag_system) -> tuple:
                 "question": q[:2000],
                 "preserve_whole": True
             }
-            langchain_docs.append(Document(
+            langchain_docs.append(LangChainDocument(
                 page_content=chunk_content,
                 metadata=qa_metadata
             ))
         logger.info(f"檢測到 {len(qa_pairs)} 個 Q&A 對，將作為完整塊處理")
     else:
-        langchain_docs.append(Document(
+        langchain_docs.append(LangChainDocument(
             page_content=content,
             metadata=metadata
         ))
@@ -176,7 +176,7 @@ async def upload_document(
                 continue
             try:
                 normalized_content = content.strip()
-                existing = db.query(Document).filter(Document.content == normalized_content).first()
+                existing = db.query(DBDocument).filter(DBDocument.content == normalized_content).first()
             except Exception:
                 existing = None
             if existing:
@@ -194,7 +194,7 @@ async def upload_document(
                     "http_status": 409
                 })
                 continue
-            document = Document(
+            document = DBDocument(
                 filename=safe_filename,
                 content=content,
                 file_type=up.content_type,
@@ -245,7 +245,7 @@ async def get_documents(
     current_user: dict = Depends(get_current_admin_user)
 ):
     try:
-        documents = db.query(Document).all()
+        documents = db.query(DBDocument).all()
         return documents
     except Exception:
         logger.exception("獲取文件列表失敗")
@@ -256,7 +256,7 @@ async def delete_document(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_admin_user)
 ):
-    document = db.query(Document).filter(Document.id == document_id).first()
+    document = db.query(DBDocument).filter(DBDocument.id == document_id).first()
     if not document:
         raise HTTPException(status_code=404, detail="文件不存在")
     try:
@@ -287,7 +287,7 @@ async def rebuild_index(
         rag_system.documents = []
         rag_system.index.reset()
         logger.info("從數據庫重新載入文檔...")
-        documents_from_db = db.query(Document).all()
+        documents_from_db = db.query(DBDocument).all()
         if not documents_from_db:
             logger.warning("數據庫中沒有文檔")
             return {

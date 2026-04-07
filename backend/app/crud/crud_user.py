@@ -163,6 +163,11 @@ def authenticate_user(
     
     if not PasswordManager.verify_password(password, user.hashed_password):
         return None
+
+    if PasswordManager.needs_rehash(user.hashed_password):
+        user.hashed_password = PasswordManager.hash_password(password)
+        db.commit()
+        db.refresh(user)
     
     return user
 

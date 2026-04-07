@@ -6,6 +6,8 @@ JWT 認證核心模組
 
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
+import logging
+import bcrypt as bcrypt_lib
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
@@ -15,6 +17,8 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 # JWT 配置
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-this-in-production")
@@ -54,10 +58,26 @@ except Exception as e:
     print(f"⚠️  Token 黑名單功能不可用: {e}")
 
 # 密碼加密配置
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# 預設採用 Argon2id；legacy bcrypt 只保留驗證相容，不再用於新雜湊。
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 # HTTP Bearer Token 認證
 security = HTTPBearer()
+
+
+def _normalize_legacy_bcrypt_password(password: str, max_bytes: int = 72) -> str:
+    """
+    將密碼安全地截斷到 legacy bcrypt 可接受的 UTF-8 byte 上限。
+
+    legacy bcrypt 只會處理前 72 bytes；若直接用字元長度切片，遇到多位元組字元時
+    仍可能超過限制並在舊雜湊驗證階段拋出錯誤。
+    """
+    encoded_password = password.encode("utf-8")
+
+    if len(encoded_password) <= max_bytes:
+        return password
+
+    return encoded_password[:max_bytes].decode("utf-8", errors="ignore")
 
 
 class PasswordManager:
@@ -74,9 +94,7 @@ class PasswordManager:
         Returns:
             加密後的密碼哈希
         """
-        # bcrypt 限制密碼長度為 72 字節
-        if len(password.encode('utf-8')) > 72:
-            password = password[:72]
+        # Argon2id 為新預設；不再截斷密碼長度。
         return pwd_context.hash(password)
     
     @staticmethod
@@ -91,10 +109,27 @@ class PasswordManager:
         Returns:
             驗證結果
         """
-        # bcrypt 限制密碼長度為 72 字節
-        if len(plain_password.encode('utf-8')) > 72:
-            plain_password = plain_password[:72]
+        # 既有 bcrypt 雜湊仍需相容：直接使用 bcrypt 套件驗證 legacy 哈希。
+        if hashed_password.startswith("$2"):
+            plain_password = _normalize_legacy_bcrypt_password(plain_password)
+            try:
+                return bcrypt_lib.checkpw(
+                    plain_password.encode("utf-8"),
+                    hashed_password.encode("utf-8"),
+                )
+            except ValueError:
+                return False
+
         return pwd_context.verify(plain_password, hashed_password)
+
+    @staticmethod
+    def needs_rehash(hashed_password: str) -> bool:
+        """
+        判斷密碼雜湊是否需要升級。
+
+        目前 bcrypt 舊雜湊會被視為需要升級到 Argon2id。
+        """
+        return hashed_password.startswith("$2") or pwd_context.needs_update(hashed_password)
 
 
 class TokenManager:
@@ -212,13 +247,13 @@ class TokenManager:
                     options={"verify_signature": True, "verify_exp": True}
                 )
             return payload
-        except JWTError as e:
-                logger.exception("無效的認證令牌: 驗證失敗")
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="無效的認證令牌: 驗證失敗",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
+        except JWTError:
+            logger.exception("無效的認證令牌: 驗證失敗")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="無效的認證令牌: 驗證失敗",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
     
     @staticmethod
     def verify_token_type(payload: Dict[str, Any], expected_type: str) -> bool:
