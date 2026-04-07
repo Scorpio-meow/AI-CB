@@ -5,9 +5,10 @@ pydantic
 waitress
 sqlalchemy
 python-dotenv
-langchain-core
+langchain_core
 langchain
 langchain-community
+langchain-text-splitters
 transformers
 numpy
 faiss-cpu

@@ -10,8 +10,8 @@ import faiss
 import pickle
 SentenceTransformer = None
 CrossEncoder = None
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.schema import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
 from sklearn.metrics.pairwise import cosine_similarity
 from whoosh import index, fields, qparser, scoring
 from whoosh.analysis import StandardAnalyzer, Analyzer, Tokenizer, Token

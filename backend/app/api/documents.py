@@ -8,7 +8,7 @@ from app.core.jwt_auth import get_current_admin_user
 from app.services.document_processor import DocumentProcessor
 from app.core.input_validator import InputValidator
 import re
-from langchain.schema import Document as LangchainDocument
+from langchain_core.documents import Document
 import os
 from typing import List
 import logging
@@ -55,13 +55,13 @@ def process_document_for_rag(content: str, metadata: dict, rag_system) -> tuple:
                 "question": q[:2000],
                 "preserve_whole": True
             }
-            langchain_docs.append(LangchainDocument(
+            langchain_docs.append(Document(
                 page_content=chunk_content,
                 metadata=qa_metadata
             ))
         logger.info(f"檢測到 {len(qa_pairs)} 個 Q&A 對，將作為完整塊處理")
     else:
-        langchain_docs.append(LangchainDocument(
+        langchain_docs.append(Document(
             page_content=content,
             metadata=metadata
         ))
