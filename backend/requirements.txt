@@ -4,6 +4,7 @@ uvicorn
 pydantic
 waitress
 sqlalchemy
+psycopg2-binary
 python-dotenv
 langchain_core
 langchain

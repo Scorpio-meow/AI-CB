@@ -58,10 +58,10 @@ if ENVIRONMENT == "production":
 else:
     # 開發環境：允許 localhost
     DEFAULT_ALLOWED_ORIGINS = [
-        "http://localhost:3000",
-        "https://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://127.0.0.1:3000",
+        "http://localhost:3001",
+        "https://localhost:3001",
+        "http://127.0.0.1:3001",
+        "https://127.0.0.1:3001",
     ]
     # 🔒 安全加固：開發環境也移除 regex，改用精確白名單
     # 如需使用 DevTunnels，請在 .env 中明確指定完整 URL

@@ -35,7 +35,8 @@ class ChatService:
         content: str, 
         is_user: bool, 
         conversation_id: Optional[int] = None,
-        context_used: Optional[str] = None
+        context_used: Optional[str] = None,
+        model_name: Optional[str] = None
     ):
         """保存消息到對話中"""
         # 如果沒有提供對話 ID，創建新對話
@@ -60,7 +61,8 @@ class ChatService:
             content=content,
             is_user=is_user,
             created_at=datetime.utcnow(),
-            context_used=context_used
+            context_used=context_used,
+            model_name=model_name
         )
         
         db.add(message)
@@ -120,7 +122,8 @@ class ChatService:
                     content=msg.content,
                     is_user=msg.is_user,
                     created_at=msg.created_at,
-                    context_used=msg.context_used
+                    context_used=msg.context_used,
+                    model_name=getattr(msg, "model_name", None)
                 ) for msg in reversed(recent_messages)
             ]
             
@@ -159,7 +162,8 @@ class ChatService:
                 content=msg.content,
                 is_user=msg.is_user,
                 created_at=msg.created_at,
-                context_used=msg.context_used
+                context_used=msg.context_used,
+                model_name=getattr(msg, "model_name", None)
             ) for msg in messages
         ]
         
@@ -229,6 +233,7 @@ class ChatService:
                 content=msg.content,
                 is_user=msg.is_user,
                 created_at=msg.created_at,
-                context_used=msg.context_used
+                context_used=msg.context_used,
+                model_name=getattr(msg, "model_name", None)
             ) for msg in reversed(messages)
         ]

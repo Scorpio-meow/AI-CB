@@ -35,7 +35,7 @@ class CustomAgent(Base):
     is_public = Column(Boolean, default=True, nullable=False, comment="是否為公開 Agent")
 
     # 創建此 Agent 的用戶 ID
-    created_by = Column(Integer, ForeignKey("users.id"), nullable=True, comment="創建者用戶 ID")
+    created_by = Column(Integer, ForeignKey("users.id"), index=True, nullable=True, comment="創建者用戶 ID")
 
     # 關聯到創建者（User 模型）
     creator = relationship("User", foreign_keys=[created_by])

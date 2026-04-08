@@ -18,7 +18,7 @@ class RedisCache:
     def __init__(self):
         # Redis 連線配置
         self.host = os.getenv("REDIS_HOST", "localhost")
-        self.port = int(os.getenv("REDIS_PORT", "6379"))
+        self.port = int(os.getenv("REDIS_PORT", "7967"))
         self.db = int(os.getenv("REDIS_DB", "0"))
         self.password = os.getenv("REDIS_PASSWORD", None)
         self.enabled = os.getenv("ENABLE_REDIS_CACHE", "false").lower() == "true"

@@ -60,16 +60,16 @@ function Chat() {
   // AbortController refs for cancelling requests
   const loadConversationAbortRef = useRef(null);
   const loadConversationsAbortRef = useRef(null);
-  
+
   // Refs for model selection to avoid dependency issues
   const selectedModelRef = useRef(selectedModel);
   const userSelectedModelRef = useRef(userSelectedModel);
-  
+
   // Update refs when state changes
   useEffect(() => {
     selectedModelRef.current = selectedModel;
   }, [selectedModel]);
-  
+
   useEffect(() => {
     userSelectedModelRef.current = userSelectedModel;
   }, [userSelectedModel]);
@@ -94,10 +94,10 @@ function Chat() {
             const cachedData = JSON.parse(cached);
             const cachedModels = cachedData.models || [];
             const cachedDetails = cachedData.details || [];
-            
+
             setAvailableModels(cachedModels);
             setModelDetails(cachedDetails);
-            
+
             // 只在沒有選中模型時才設置默認值
             const currentSelectedModel = selectedModelRef.current;
             if (!currentSelectedModel && cachedData.default) {
@@ -230,7 +230,7 @@ function Chat() {
       // 如果用戶已經手動選擇了模型，保持用戶的選擇（前提是模型仍在列表中）
       const currentSelectedModel = selectedModelRef.current;
       const currentUserSelectedModel = userSelectedModelRef.current;
-      
+
       if (currentUserSelectedModel && currentSelectedModel && models.includes(currentSelectedModel)) {
         // 保持用戶選擇，不需要重新設置
         console.log('[Models] 保持用戶選擇的模型:', currentSelectedModel);
@@ -738,11 +738,11 @@ function Chat() {
                   <Select
                     size="small"
                     value={selectedModel || ''}
-                    onChange={(e) => { 
+                    onChange={(e) => {
                       const newModel = e.target.value;
                       console.log('[Models] 用戶選擇模型:', newModel);
-                      setSelectedModel(newModel); 
-                      setUserSelectedModel(true); 
+                      setSelectedModel(newModel);
+                      setUserSelectedModel(true);
                     }}
                     label="模型"
                     disabled={loading || modelsLoading}

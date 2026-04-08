@@ -412,7 +412,7 @@ class DynamicWorkflowManager:
             messages = [
                 {
                     "role": "system",
-                    "content": system_prompt[:4000]  # 限制長度,防止過長
+                    "content": system_prompt
                 }
             ]
             
@@ -430,13 +430,13 @@ class DynamicWorkflowManager:
                     # 其他專業角色視為 assistant,並保留角色標註
                     messages.append({
                         "role": "assistant",
-                        "content": f"[{role}]\n{content[:2000]}"  # 限制單條長度
+                        "content": f"[{role}]\n{content}"
                     })
             
             # 添加當前任務描述
             messages.append({
                 "role": "user",
-                "content": task_description[:4000]  # 限制長度
+                "content": task_description
             })
             
             payload = {

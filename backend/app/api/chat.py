@@ -58,7 +58,12 @@ async def send_message(
     try:
         # 保存用戶消息（使用從header獲取的用戶ID，默認為1）
         user_message = await chat_service.save_message(
-            db, user_id, message_data.content, True, message_data.conversation_id
+            db,
+            user_id,
+            message_data.content,
+            True,
+            message_data.conversation_id,
+            model_name=message_data.model_name,
         )
         
         # 使用 RAG 系統生成回應（支援模型選擇）
@@ -73,8 +78,13 @@ async def send_message(
         
         # 保存機器人回應
         bot_message = await chat_service.save_message(
-            db, user_id, rag_response["answer"], False, 
-            user_message.conversation_id, rag_response["context_used"]
+            db,
+            user_id,
+            rag_response["answer"],
+            False,
+            user_message.conversation_id,
+            rag_response["context_used"],
+            model_name=message_data.model_name,
         )
         
         return ChatResponse(
@@ -83,7 +93,8 @@ async def send_message(
                 content=bot_message.content,
                 is_user=bot_message.is_user,
                 created_at=bot_message.created_at,
-                context_used=bot_message.context_used
+                context_used=bot_message.context_used,
+                model_name=getattr(bot_message, "model_name", None)
             ),
             conversation_id=user_message.conversation_id
         )

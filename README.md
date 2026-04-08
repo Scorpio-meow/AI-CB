@@ -83,7 +83,7 @@
 | **ORM** | SQLAlchemy 2.0+ |
 | **AI/ML** | LangChain, Sentence-Transformers, FAISS, Whoosh |
 | **LLM** | Ollama（本地部署） |
-| **數據庫** | SQLite (開發) / PostgreSQL (生產)、Redis (緩存) |
+| **數據庫** | PostgreSQL 17.9（開發/生產）、Redis（緩存） |
 | **安全** | cryptography, passlib, python-jose |
 | **文檔處理** | PyPDF2, python-docx, chardet |
 
@@ -136,7 +136,7 @@ flowchart TD
 - **Python**：3.10 或更高版本
 - **Node.js**：16.0 或更高版本
 - **Redis**：可選（推薦生產環境）
-- **數據庫**：SQLite（開發）/ PostgreSQL（生產）
+- **數據庫**：PostgreSQL 17.9（開發/生產）
 
 ### ⚡ 安裝步驟
 
@@ -168,6 +168,9 @@ cp .env.example .env
 # 初始化數據庫
 python init_db.py
 
+# （可選）若你有舊版 SQLite 資料，執行遷移到 PostgreSQL
+python scripts/migrate_sqlite_to_postgres.py
+
 # 啟動後端服務
 python -m uvicorn main:app --reload --host 0.0.0.0 --port 8001
 ```
@@ -189,11 +192,23 @@ bun run dev
 ```
 
 **備註**：本專案已在 `CBvenv` 的 PowerShell 激活腳本中加入 Bun 路徑（若安裝於 `~/.bun/bin`），啟動虛擬環境後 Bun 命令可以直接使用，否則請將 Bun 安裝目錄加入系統 PATH。
-#### 4. Redis 設置（可選，用於生產環境）
+#### 4. PostgreSQL 設置（必要）
+
+```bash
+# 使用 Docker 啟動 PostgreSQL 17.9
+docker run -d --name chatbot-postgres \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=chatbot \
+  -p 7690:5432 \
+  postgres:17.9
+```
+
+#### 5. Redis 設置（可選，用於生產環境）
 
 ```bash
 # 使用 Docker（推薦）
-docker run -d -p 6379:6379 --name chatbot-redis redis:alpine
+docker run -d -p 7967:6379 --name chatbot-redis redis:latest
 
 # 或使用 WSL（Windows）
 wsl
@@ -203,7 +218,7 @@ sudo service redis-server start
 ### ✅ 驗證安裝
 
 - **後端**：http://localhost:8001
-- **前端**：http://localhost:3000
+- **前端**：http://localhost:3001
 - **API 文檔**：http://localhost:8001/docs
 
 健康檢查：
@@ -237,18 +252,18 @@ PORT=8001
 LOG_LEVEL=INFO
 
 # === 資料庫配置 ===
-DATABASE_URL=sqlite:///./chatbot.db  # 開發環境
-# DATABASE_URL=postgresql://user:password@localhost/chatbot  # 生產環境
+DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:7690/chatbot
+# DATABASE_URL=sqlite:///./chatbot.db  # 僅臨時本地測試
 
 # === Redis 配置 (Token 黑名單) ===
 REDIS_HOST=localhost
-REDIS_PORT=6379
+REDIS_PORT=7967
 REDIS_DB=0
 # REDIS_PASSWORD=your_password  # 可選
 ENABLE_REDIS_CACHE=true
 
 # === CORS 配置 ===
-ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+ALLOWED_ORIGINS=http://localhost:3001,http://127.0.0.1:3001
 
 # === RAG 系統 - 模型配置 ===
 EMBEDDING_MODEL=BAAI/bge-m3
@@ -508,6 +523,18 @@ docker-compose down
 ```bash
 cd backend
 python scripts/create_admin.py
+```
+
+### Q: 如何把舊版 SQLite（chatbot.db）資料遷移到 PostgreSQL？
+```bash
+cd backend
+python scripts/migrate_sqlite_to_postgres.py
+
+# 指定來源檔
+python scripts/migrate_sqlite_to_postgres.py --source ./chatbot.db
+
+# 僅檢查不寫入
+python scripts/migrate_sqlite_to_postgres.py --dry-run
 ```
 
 ### Q: 如何重建向量索引？

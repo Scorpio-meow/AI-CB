@@ -24,7 +24,7 @@ class Conversation(Base):
     __tablename__ = "conversations"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
     title = Column(String, default="New Conversation")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
@@ -36,11 +36,12 @@ class Message(Base):
     __tablename__ = "messages"
     
     id = Column(Integer, primary_key=True, index=True)
-    conversation_id = Column(Integer, ForeignKey("conversations.id"))
+    conversation_id = Column(Integer, ForeignKey("conversations.id"), index=True)
     content = Column(Text)
     is_user = Column(Boolean)  # True if from user, False if from bot
     created_at = Column(DateTime, default=datetime.utcnow)
     context_used = Column(Text)  # Store RAG context used
+    model_name = Column(String, nullable=True)  # 選用模型名稱（兼容舊資料）
     
     conversation = relationship("Conversation", back_populates="messages")
 
@@ -51,7 +52,7 @@ class Document(Base):
     filename = Column(String)
     content = Column(Text)
     file_type = Column(String)
-    uploaded_by = Column(Integer, ForeignKey("users.id"))
+    uploaded_by = Column(Integer, ForeignKey("users.id"), index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     is_processed = Column(Boolean, default=False)
     
@@ -61,7 +62,7 @@ class DocumentChunk(Base):
     __tablename__ = "document_chunks"
     
     id = Column(Integer, primary_key=True, index=True)
-    document_id = Column(Integer, ForeignKey("documents.id"))
+    document_id = Column(Integer, ForeignKey("documents.id"), index=True)
     content = Column(Text)
     chunk_index = Column(Integer)
     vector_id = Column(String)  # ID in vector database
@@ -93,6 +94,7 @@ class MessageResponse(BaseModel):
     is_user: bool
     created_at: datetime
     context_used: Optional[str] = None
+    model_name: Optional[str] = None
 
 class ConversationResponse(BaseModel):
     id: int
