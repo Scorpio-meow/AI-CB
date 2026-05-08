@@ -11,7 +11,7 @@ from app.core.rag_manager import get_rag_system
 logger = logging.getLogger(__name__)
 
 # Configuration from environment
-REINDEX_INTERVAL_HOURS = int(os.getenv("REINDEX_INTERVAL_HOURS", "24"))
+REINDEX_HOURS = int(os.getenv("REINDEX_HOURS", "24"))
 ENABLE_AUTO_REINDEX_TASK = os.getenv("ENABLE_AUTO_REINDEX_TASK", "1") == "1"
 
 
@@ -27,8 +27,8 @@ async def periodic_index_rebuild():
         logger.info("Periodic index rebuild task is disabled (ENABLE_AUTO_REINDEX_TASK=0)")
         return
     
-    interval_seconds = REINDEX_INTERVAL_HOURS * 3600
-    logger.info(f"Starting periodic index rebuild task (interval: {REINDEX_INTERVAL_HOURS}h)")
+    interval_seconds = REINDEX_HOURS * 3600
+    logger.info(f"Starting periodic index rebuild task (interval: {REINDEX_HOURS}h)")
     
     while True:
         try:
@@ -49,7 +49,7 @@ async def periodic_index_rebuild():
                     if last_reindex and isinstance(last_reindex, datetime):
                         hours_since = (datetime.now() - last_reindex).total_seconds() / 3600
                         
-                        if hours_since < REINDEX_INTERVAL_HOURS:
+                        if hours_since < REINDEX_HOURS:
                             logger.info(f"Skipping reindex - only {hours_since:.1f}h since last rebuild")
                             continue
                 except Exception as e:

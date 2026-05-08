@@ -1186,7 +1186,7 @@ class HybridContextualRAG:
                 pass
             logger.error(f"LLM API HTTP error {status_code}: {e}, detail: {error_detail[:200]}")
             if status_code == 500:
-                return f"抱歉，模型服務器錯誤 (500)。可能是模型 '{model_to_use}' 負載過重或通過 ngrok 超時，建議切換到較小的模型 (如 gpt-oss:20b)。"
+                return f"抱歉，模型服務器錯誤 (500)。可能是模型 '{model_to_use}' 負載過重或通過 ngrok 超時，建議切換到較小的模型 (如 gemma4:26b)。"
             return f"抱歉，模型 API 返回錯誤 ({status_code}): {str(e)}"
         except Exception as e:
             logger.error(f"LLM API unexpected error: {type(e).__name__}: {e}")

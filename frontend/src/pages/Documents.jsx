@@ -39,6 +39,14 @@ const CACHE_TTL = 3 * 60 * 1000; // 3 分鐘
 // 請求去重標記
 let loadingPromise = null;
 
+const createUploadItem = (file) => ({
+  file,
+  progress: 0,
+  status: 'ready',
+  controller: null,
+  detail: null
+});
+
 function Documents() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -165,14 +173,13 @@ function Documents() {
 
     setSelectedFiles(accepted);
     // prepare upload items
-    const items = accepted.map((f) => ({ file: f, progress: 0, status: 'ready', controller: null, detail: null }));
+    const items = accepted.map(createUploadItem);
     setUploadItems(items);
     setError('');
   };
 
-  const uploadSingle = async (index) => {
-    const item = uploadItems[index];
-    if (!item) return;
+  const uploadSingle = async (item, index) => {
+    if (!item) return 'skipped';
 
     const controller = new AbortController();
 
@@ -210,35 +217,40 @@ function Documents() {
           next[index] = { ...next[index], status: 'success', progress: 100, detail: null };
           return next;
         });
+        return 'success';
       } else {
         setUploadItems((prev) => {
           const next = prev.slice();
           next[index] = { ...next[index], status: 'failed', detail: res?.detail || '上傳失敗' };
           return next;
         });
+        return 'failed';
       }
 
     } catch (err) {
+      console.error('Upload error:', err);
       if (axios.isCancel && axios.isCancel(err)) {
         setUploadItems((prev) => {
           const next = prev.slice();
           next[index] = { ...next[index], status: 'canceled', detail: '已取消' };
           return next;
         });
+        return 'canceled';
       } else if (err.name === 'CanceledError') {
         setUploadItems((prev) => {
           const next = prev.slice();
           next[index] = { ...next[index], status: 'canceled', detail: '已取消' };
           return next;
         });
+        return 'canceled';
       } else {
         setUploadItems((prev) => {
           const next = prev.slice();
           next[index] = { ...next[index], status: 'failed', detail: err.response?.data?.detail || err.message };
           return next;
         });
+        return 'failed';
       }
-      console.error('Upload error:', err);
     }
   };
 
@@ -248,19 +260,47 @@ function Documents() {
       return;
     }
     setUploadLoading(true);
+    setError('');
+    setSuccess('');
     // sequential upload; could be parallelized if desired
-    for (let i = 0; i < uploadItems.length; i++) {
+    const itemsToUpload = uploadItems.slice();
+    let successCount = 0;
+    let failedCount = 0;
+    let canceledCount = 0;
+
+    for (let i = 0; i < itemsToUpload.length; i++) {
       // skip already successful
-      const it = uploadItems[i];
+      const it = itemsToUpload[i];
       if (!it) continue;
       if (it.status === 'success') continue;
       // await uploadSingle for sequential behavior
-      await uploadSingle(i);
+      const result = await uploadSingle(it, i);
+      if (result === 'success') successCount += 1;
+      if (result === 'failed') failedCount += 1;
+      if (result === 'canceled') canceledCount += 1;
     }
 
     setUploadLoading(false);
     // refresh document list after uploads finish
-    loadDocuments();
+    documentsCache.data = null;
+    documentsCache.timestamp = 0;
+    await loadDocuments(true);
+
+    setSelectedFiles([]);
+    setUploadItems([]);
+    setUploadDialog(false);
+
+    if (successCount > 0) {
+      const summary = [`成功 ${successCount} 個`];
+      if (failedCount > 0) summary.push(`失敗 ${failedCount} 個`);
+      if (canceledCount > 0) summary.push(`取消 ${canceledCount} 個`);
+      setSuccess(`文件上傳完成：${summary.join('，')}`);
+    } else if (failedCount > 0 || canceledCount > 0) {
+      const summary = [];
+      if (failedCount > 0) summary.push(`失敗 ${failedCount} 個`);
+      if (canceledCount > 0) summary.push(`取消 ${canceledCount} 個`);
+      setError(`文件未成功上傳：${summary.join('，')}`);
+    }
   };
 
   const cancelAllUploads = () => {

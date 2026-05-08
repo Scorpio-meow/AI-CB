@@ -45,10 +45,10 @@ async def get_tags():
 
 
 def _load_fallback_models() -> list[str]:
-    available = os.getenv("AVAILABLE_MODELS", "gpt-oss:20b,gemma3:27b")
+    available = os.getenv("AVAILABLE_MODELS", "gemma4:26b,gemma3:27b")
     models = [m.strip() for m in available.split(",") if m.strip()]
     if not models:
-        models = ["gpt-oss:20b", "gemma3:27b"]
+        models = ["gemma4:26b", "gemma3:27b"]
     return models
 
 

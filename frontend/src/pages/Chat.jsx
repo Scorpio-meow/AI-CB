@@ -215,7 +215,7 @@ function Chat() {
       }
 
       if (!models || models.length === 0) {
-        models = ['gpt-oss:20b', 'gemma3:27b'];
+        models = ['gemma4:26b', 'gemma3:27b'];
         details = [];
       }
 
@@ -256,12 +256,12 @@ function Chat() {
       // 最後保險處理：顯示友善提示、使用預設模型，但不把原始 fetch 錯誤暴露為未處理例外
       console.warn('載入可用模型失敗，將使用預設模型。', error);
       setSnackbar({ open: true, message: '載入可用模型失敗，已改為使用預設模型', severity: 'warning' });
-      setAvailableModels(['gpt-oss:20b', 'gemma3:27b']);
+      setAvailableModels(['gemma4:26b', 'gemma3:27b']);
       setModelDetails([]);
       const currentSelectedModel = selectedModelRef.current;
       const currentUserSelectedModel = userSelectedModelRef.current;
       if (!currentUserSelectedModel || !currentSelectedModel) {
-        setSelectedModel('gpt-oss:20b');
+        setSelectedModel('gemma4:26b');
       }
     } finally {
       window.__tagsLoading = false;

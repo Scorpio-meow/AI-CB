@@ -39,9 +39,9 @@ manager = ConnectionManager()
 @router.get("/models")
 async def get_available_models():
     """獲取可用的模型列表"""
-    available_models_str = os.getenv("AVAILABLE_MODELS", "gpt-oss:20b,gemma3:27b")
+    available_models_str = os.getenv("AVAILABLE_MODELS", "gemma4:26b,gemma3:27b")
     models = [model.strip() for model in available_models_str.split(",")]
-    default_model = os.getenv("MODEL_NAME", "gpt-oss:20b")
+    default_model = os.getenv("MODEL_NAME", "gemma4:26b")
     
     return {
         "models": models,

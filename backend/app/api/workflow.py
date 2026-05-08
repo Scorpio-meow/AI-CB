@@ -29,9 +29,9 @@ from app.core.jwt_auth import get_current_active_user
 OLLAMA_HOST = os.getenv("LLM_API_BASE", "").strip()
 if not OLLAMA_HOST:
     print("⚠️ Environment variable LLM_API_BASE is not set. Workflow endpoints that call external LLM API will fail unless set.")
-MODEL_NAME = os.getenv("MODEL_NAME", "gpt-oss:20b").strip()
+MODEL_NAME = os.getenv("MODEL_NAME", "gemma4:26b").strip()
 if not MODEL_NAME:
-    print("⚠️ Environment variable MODEL_NAME is not set; defaulting to 'gpt-oss:20b'.")
+    print("⚠️ Environment variable MODEL_NAME is not set; defaulting to 'gemma4:26b'.")
 WORKFLOW_TIMEOUT = float(os.getenv("WORKFLOW_TIMEOUT", "180"))
 CYCLE_LIMIT = int(os.getenv("WORKFLOW_CYCLE_LIMIT", "2"))
 MAX_HISTORY_SIZE = int(os.getenv("WORKFLOW_MAX_HISTORY", "20"))
