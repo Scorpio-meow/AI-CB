@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from app.models.database import get_db
-from app.models import Document as DBDocument, DocumentChunk
+from app.models import Document as DBDocument
 from app.core.rag_manager import get_rag_system
 from app.core.user_context import get_current_user_id, get_default_user_id
 from app.core.jwt_auth import get_current_admin_user
@@ -264,7 +264,6 @@ async def delete_document(
         rag_system.remove_document_by_id(document_id, rebuild_bm25=False)
     except Exception as e:
         logger.warning("Failed to remove document from RAG system: %s", str(e))
-    db.query(DocumentChunk).filter(DocumentChunk.document_id == document_id).delete()
     try:
         upload_dir = UPLOAD_DIR
         file_path = os.path.join(upload_dir, document.filename)

@@ -55,19 +55,6 @@ class Document(Base):
     uploaded_by = Column(Integer, ForeignKey("users.id"), index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     is_processed = Column(Boolean, default=False)
-    
-    chunks = relationship("DocumentChunk", back_populates="document")
-
-class DocumentChunk(Base):
-    __tablename__ = "document_chunks"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    document_id = Column(Integer, ForeignKey("documents.id"), index=True)
-    content = Column(Text)
-    chunk_index = Column(Integer)
-    vector_id = Column(String)  # ID in vector database
-    
-    document = relationship("Document", back_populates="chunks")
 
 # Pydantic models for API
 class UserCreate(BaseModel):

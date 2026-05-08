@@ -5,7 +5,7 @@
 特性：
 - 可重複執行（使用 ON CONFLICT(id) DO UPDATE）
 - 先補齊 schema 相容欄位與索引
-- 搬移 users / conversations / messages / documents / document_chunks / custom_agents
+- 搬移 users / conversations / messages / documents / custom_agents
 - 自動校正 PostgreSQL sequence
 
 使用方式（於 backend 目錄執行）：
@@ -35,7 +35,7 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.models.database import Base, engine  # noqa: E402
-from app.models import User, Conversation, Message, Document, DocumentChunk  # noqa: E402,F401
+from app.models import User, Conversation, Message, Document  # noqa: E402,F401
 from app.models.custom_agent import CustomAgent  # noqa: E402,F401
 
 
@@ -88,12 +88,6 @@ TABLE_CONFIGS: Sequence[Dict[str, Any]] = (
             "is_processed",
         ],
         "bool_fields": {"is_processed"},
-        "json_fields": set(),
-    },
-    {
-        "name": "document_chunks",
-        "columns": ["id", "document_id", "content", "chunk_index", "vector_id"],
-        "bool_fields": set(),
         "json_fields": set(),
     },
     {
@@ -215,7 +209,6 @@ def ensure_target_schema() -> None:
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_conversations_user_id ON conversations (user_id)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_messages_conversation_id ON messages (conversation_id)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_documents_uploaded_by ON documents (uploaded_by)"))
-        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_document_chunks_document_id ON document_chunks (document_id)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_custom_agents_created_by ON custom_agents (created_by)"))
 
 

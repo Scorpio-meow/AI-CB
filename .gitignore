@@ -12,3 +12,4 @@ backend/data/workflow_outputs/*
 AICBvenv
 backend/logs
 frontend/bun.lock
+/.claude

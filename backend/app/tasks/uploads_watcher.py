@@ -3,7 +3,7 @@ import os
 import logging
 from typing import List
 from sqlalchemy.orm import Session
-from app.models import Document, DocumentChunk
+from app.models import Document
 from app.models.database import SessionLocal
 from app.core.rag_manager import get_rag_system
 from app.api.chat import manager as ws_manager
@@ -22,7 +22,7 @@ def get_db_session() -> Session:
 async def scan_and_cleanup_uploads(interval_seconds: int = None):
     """Background task: periodically scan data/uploads and remove DB entries whose files are missing.
 
-    When a missing file is detected, remove it from RAG, delete chunks and document DB record,
+    When a missing file is detected, remove it from RAG and delete the document DB record,
     and notify connected websocket clients about a 'documents_update' event.
     """
     if interval_seconds is None:
@@ -49,7 +49,6 @@ async def scan_and_cleanup_uploads(interval_seconds: int = None):
                             logger.warning(f"Failed to remove document {doc.id} from RAG: {e}")
 
                         try:
-                            db.query(DocumentChunk).filter(DocumentChunk.document_id == doc.id).delete(synchronize_session=False)
                             db.delete(doc)
                             db.commit()
                             missing_ids.append(doc.id)
