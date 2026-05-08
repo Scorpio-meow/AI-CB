@@ -2,7 +2,7 @@
  * 用戶資料頁面
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Box,
@@ -33,7 +33,7 @@ const ProfilePage = () => {
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
+
   // 修改密碼對話框
   const [passwordDialog, setPasswordDialog] = useState(false);
   const [passwordData, setPasswordData] = useState({
@@ -42,20 +42,22 @@ const ProfilePage = () => {
     confirmPassword: ''
   });
 
-  useEffect(() => {
-    loadUserProfile();
-  }, []);
-
-  const loadUserProfile = async () => {
+  const loadUserProfile = useCallback(async () => {
     try {
       const userData = await authService.getCurrentUser();
       setUser(userData);
-    } catch (err) {
+    } catch {
       setError('載入用戶資料失敗');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      loadUserProfile();
+    });
+  }, [loadUserProfile]);
 
   const handleChangePassword = async () => {
     if (!passwordData.currentPassword || !passwordData.newPassword) {

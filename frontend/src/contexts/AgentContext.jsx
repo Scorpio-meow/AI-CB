@@ -1,11 +1,8 @@
 // src/contexts/AgentContext.js
-import React, { createContext, useState, useEffect, useCallback, useContext, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import * as customAgentService from '../services/customAgentService';
 import { hasValidAuth } from '../utils/tokenUtils';
-
-const AgentContext = createContext();
-
-export const useAgents = () => useContext(AgentContext);
+import { AgentContext } from './agentContextInstance';
 
 export const AgentProvider = ({ children }) => {
   const [agents, setAgents] = useState([]);
@@ -40,7 +37,7 @@ export const AgentProvider = ({ children }) => {
         if (import.meta.env.DEV) console.debug('fetchAgents was cancelled', err);
         return;
       }
-      
+
       // 403 錯誤表示未授權，可能是 token 過期或無效
       if (err?.response?.status === 403) {
         if (import.meta.env.DEV) {
@@ -52,7 +49,7 @@ export const AgentProvider = ({ children }) => {
         }
         return;
       }
-      
+
       if (isMountedRef.current) {
         setError('無法載入 Agents 列表。');
       }
@@ -64,7 +61,13 @@ export const AgentProvider = ({ children }) => {
 
   useEffect(() => {
     isMountedRef.current = true;
-    fetchAgents();
+
+    const loadAgents = async () => {
+      await fetchAgents();
+    };
+
+    loadAgents();
+
     return () => {
       isMountedRef.current = false;
     };

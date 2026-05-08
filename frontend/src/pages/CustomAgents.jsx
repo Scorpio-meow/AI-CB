@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Container,
   Typography,
@@ -25,7 +25,7 @@ import {
 } from '@mui/material';
 import { Add, Edit, Delete, Public, Lock } from '@mui/icons-material';
 import * as customAgentService from '../services/customAgentService';
-import { useAgents } from '../contexts/AgentContext';
+import { useAgents } from '../contexts/useAgents';
 
 // Agent 表單的初始狀態
 const initialFormState = {
@@ -39,15 +39,15 @@ const initialFormState = {
 };
 
 function CustomAgents() {
-  const { 
-    agents, 
-    loading, 
-    error: contextError, 
-    addAgent, 
-    updateAgent, 
-    removeAgent 
+  const {
+    agents,
+    loading,
+    error: contextError,
+    addAgent,
+    updateAgent,
+    removeAgent
   } = useAgents();
-  
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState(initialFormState);
   const [formError, setFormError] = useState(null);
@@ -57,8 +57,8 @@ function CustomAgents() {
     setFormError(null);
     if (agent) {
       // 編輯模式：載入 agent 資料，確保 tools 是字串
-      setFormData({ 
-        ...agent, 
+      setFormData({
+        ...agent,
         tools: agent.tools ? agent.tools.join(', ') : '',
         is_public: agent.is_public !== undefined ? agent.is_public : true
       });
@@ -100,7 +100,7 @@ function CustomAgents() {
         const { data: newAgentData } = await customAgentService.createCustomAgent(submissionData);
         addAgent(newAgentData);
       }
-      
+
       handleCloseDialog();
     } catch (err) {
       setFormError('儲存失敗：' + (err.response?.data?.detail || err.message || '請檢查資料是否正確'));
@@ -159,18 +159,18 @@ function CustomAgents() {
                 <TableCell>{Array.isArray(agent.tools) ? agent.tools.join(', ') : ''}</TableCell>
                 <TableCell>
                   {agent.is_public !== false ? (
-                    <Chip 
-                      icon={<Public />} 
-                      label="公開" 
-                      color="success" 
-                      size="small" 
+                    <Chip
+                      icon={<Public />}
+                      label="公開"
+                      color="success"
+                      size="small"
                     />
                   ) : (
-                    <Chip 
-                      icon={<Lock />} 
-                      label="私人" 
-                      color="default" 
-                      size="small" 
+                    <Chip
+                      icon={<Lock />}
+                      label="私人"
+                      color="default"
+                      size="small"
                     />
                   )}
                 </TableCell>
@@ -188,10 +188,10 @@ function CustomAgents() {
       </TableContainer>
 
       {/* 新增/編輯用的 Dialog */}
-      <Dialog 
-        open={isDialogOpen} 
-        onClose={handleCloseDialog} 
-        fullWidth 
+      <Dialog
+        open={isDialogOpen}
+        onClose={handleCloseDialog}
+        fullWidth
         maxWidth="md"
         disableRestoreFocus
         aria-labelledby="agent-dialog-title"
@@ -199,50 +199,50 @@ function CustomAgents() {
         <DialogTitle id="agent-dialog-title">{formData.id ? '編輯 Agent' : '新增 Agent'}</DialogTitle>
         <DialogContent>
           {formError && <Alert severity="error" sx={{ mb: 2 }}>{formError}</Alert>}
-          <TextField 
-            name="name" 
-            label="名稱 (例如: 產品經理)" 
-            value={formData.name} 
-            onChange={handleFormChange} 
-            fullWidth 
-            margin="normal" 
+          <TextField
+            name="name"
+            label="名稱 (例如: 產品經理)"
+            value={formData.name}
+            onChange={handleFormChange}
+            fullWidth
+            margin="normal"
           />
-          <TextField 
-            name="role" 
-            label="角色 (英文，例如: Product Manager)" 
-            value={formData.role} 
-            onChange={handleFormChange} 
-            fullWidth 
-            margin="normal" 
+          <TextField
+            name="role"
+            label="角色 (英文，例如: Product Manager)"
+            value={formData.role}
+            onChange={handleFormChange}
+            fullWidth
+            margin="normal"
           />
-          <TextField 
-            name="expertise" 
-            label="專業領域" 
-            value={formData.expertise} 
-            onChange={handleFormChange} 
-            fullWidth 
-            margin="normal" 
-            multiline 
-            rows={3} 
+          <TextField
+            name="expertise"
+            label="專業領域"
+            value={formData.expertise}
+            onChange={handleFormChange}
+            fullWidth
+            margin="normal"
+            multiline
+            rows={3}
           />
-          <TextField 
-            name="prompt" 
-            label="系統提示 (Prompt)" 
-            value={formData.prompt} 
-            onChange={handleFormChange} 
-            fullWidth 
-            margin="normal" 
-            multiline 
-            rows={6} 
+          <TextField
+            name="prompt"
+            label="系統提示 (Prompt)"
+            value={formData.prompt}
+            onChange={handleFormChange}
+            fullWidth
+            margin="normal"
+            multiline
+            rows={6}
           />
-          <TextField 
-            name="tools" 
-            label="工具 (用逗號分隔，例如: File, Search)" 
-            value={formData.tools} 
-            onChange={handleFormChange} 
-            fullWidth 
-            margin="normal" 
-            helperText="請以逗號分隔多個工具。" 
+          <TextField
+            name="tools"
+            label="工具 (用逗號分隔，例如: File, Search)"
+            value={formData.tools}
+            onChange={handleFormChange}
+            fullWidth
+            margin="normal"
+            helperText="請以逗號分隔多個工具。"
           />
           <FormControlLabel
             control={

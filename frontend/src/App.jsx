@@ -46,25 +46,25 @@ const router = createBrowserRouter([
     element: <Layout />, // Layout 包裹所有頁面
     children: [
       { index: true, element: <Navigate to="/chat" replace /> },
-      { 
-        path: 'chat', 
-        element: <PrivateRoute element={withSuspense(<Chat />)} /> 
+      {
+        path: 'chat',
+        element: <PrivateRoute element={withSuspense(<Chat />)} />
       },
-      { 
-        path: 'documents', 
-        element: <AdminRoute element={withSuspense(<Documents />)} /> 
+      {
+        path: 'documents',
+        element: <AdminRoute element={withSuspense(<Documents />)} />
       },
-      { 
-        path: 'custom-agents', 
-        element: <PrivateRoute element={withSuspense(<CustomAgents />)} /> 
+      {
+        path: 'custom-agents',
+        element: <PrivateRoute element={withSuspense(<CustomAgents />)} />
       },
-      { 
-        path: 'profile', 
-        element: <PrivateRoute element={withSuspense(<ProfilePage />)} /> 
+      {
+        path: 'profile',
+        element: <PrivateRoute element={withSuspense(<ProfilePage />)} />
       },
-      { 
-        path: 'admin', 
-        element: <AdminRoute element={withSuspense(<AdminDashboard />)} /> 
+      {
+        path: 'admin',
+        element: <AdminRoute element={withSuspense(<AdminDashboard />)} />
       },
     ],
   },

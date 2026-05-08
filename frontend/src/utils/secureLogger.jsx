@@ -55,10 +55,10 @@ export const secureLog = (label, data) => {
 
   // 移除敏感欄位
   const sensitiveKeys = ['password', 'token', 'access_token', 'refresh_token', 'apiKey', 'secret'];
-  
+
   const removeSensitive = (obj) => {
     if (!obj || typeof obj !== 'object') return obj;
-    
+
     Object.keys(obj).forEach(key => {
       if (sensitiveKeys.some(sensitive => key.toLowerCase().includes(sensitive))) {
         obj[key] = '[REDACTED]';
@@ -66,7 +66,7 @@ export const secureLog = (label, data) => {
         removeSensitive(obj[key]);
       }
     });
-    
+
     return obj;
   };
 
@@ -78,16 +78,16 @@ if (!isDevelopment) {
   // 保留錯誤和警告
   const originalError = console.error;
   const originalWarn = console.warn;
-  
+
   // 覆寫 console 方法
-  console.log = () => {};
-  console.info = () => {};
-  console.debug = () => {};
-  
+  console.log = () => { };
+  console.info = () => { };
+  console.debug = () => { };
+
   // 恢復錯誤和警告
   console.error = originalError;
   console.warn = originalWarn;
-  
+
   console.warn('🔒 生產環境模式：調試日誌已禁用');
 }
 

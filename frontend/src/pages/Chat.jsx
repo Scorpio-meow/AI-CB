@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import DOMPurify from 'dompurify';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -73,6 +73,10 @@ function Chat() {
   useEffect(() => {
     userSelectedModelRef.current = userSelectedModel;
   }, [userSelectedModel]);
+
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
 
   // Load available models (now fetched from /api/tags). Supports several response shapes.
   const loadAvailableModels = useCallback(async (force = false) => {
@@ -263,7 +267,7 @@ function Chat() {
       window.__tagsLoading = false;
       setModelsLoading(false); // 結束載入
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
   // 使用 ref 來訪問 selectedModel 和 userSelectedModel，避免無限循環
 
   // Define all functions before they are used in effects
@@ -392,7 +396,9 @@ function Chat() {
 
   // Effects should be after function definitions
   useEffect(() => {
-    loadAvailableModels();
+    queueMicrotask(() => {
+      loadAvailableModels();
+    });
   }, [loadAvailableModels]);
 
   // Poll for available models every 5 minutes to keep list up-to-date
@@ -416,13 +422,17 @@ function Chat() {
   }, [loadAvailableModels]);
 
   useEffect(() => {
-    loadConversations();
+    queueMicrotask(() => {
+      loadConversations();
+    });
   }, [loadConversations]);
 
   useEffect(() => {
     // Handle navigation from workflow page
     if (location.state?.conversationId) {
-      loadConversation({ id: location.state.conversationId });
+      queueMicrotask(() => {
+        loadConversation({ id: location.state.conversationId });
+      });
       // Clear state to prevent reloading on refresh
       navigate(location.pathname, { replace: true, state: {} });
     }
@@ -432,7 +442,7 @@ function Chat() {
     if (viewMode === 'chat') {
       scrollToBottom();
     }
-  }, [messages, viewMode]);
+  }, [messages, viewMode, scrollToBottom]);
 
   // IntersectionObserver for auto-loading more messages when scrolling to top
   useEffect(() => {
@@ -464,10 +474,6 @@ function Chat() {
     };
   }, [hasMoreMessages, loadingMore, loadMoreMessages]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   const sendChatMessage = useCallback(async () => {
     if (!newMessage.trim() || viewMode !== 'chat') return;
 
@@ -497,7 +503,7 @@ function Chat() {
           setCurrentConversation(newConv);
         }
       }
-    } catch (error) {
+    } catch {
       setError('發送消息失敗');
       setMessages(prev => prev.slice(0, -1));
     } finally {
@@ -514,7 +520,7 @@ function Chat() {
         setCurrentConversation(null);
         setMessages([]);
       }
-    } catch (error) {
+    } catch {
       setError('刪除對話失敗');
     }
   }, [conversations, currentConversation]);

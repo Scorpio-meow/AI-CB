@@ -186,9 +186,9 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
 
     const connect = () => {
       // 防止在已有連接且狀態正常時重複連接
-      if (socketRef.current && 
-          (socketRef.current.readyState === WebSocket.OPEN || 
-           socketRef.current.readyState === WebSocket.CONNECTING)) {
+      if (socketRef.current &&
+        (socketRef.current.readyState === WebSocket.OPEN ||
+          socketRef.current.readyState === WebSocket.CONNECTING)) {
         if (import.meta.env.DEV) {
           console.debug('WebSocket 已存在且正常，跳過重複連接');
         }
@@ -198,9 +198,9 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
       try {
         const envWs = import.meta.env.VITE_WS_URL;
         const envApi = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE;
-        
+
         let websocketURL;
-        
+
         // 優先使用完整的 VITE_WS_URL（包含完整路徑）
         if (envWs) {
           // 直接使用完整的 WebSocket URL
@@ -219,7 +219,7 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
             // 本地開發環境: 直接使用後端端口
             protocol = 'ws:';
             host = '127.0.0.1:8001';
-            
+
             // 如果有 API base 配置，從中提取 host
             if (envApi) {
               const parsed = parseHostFromUrl(envApi, fallbackProtocol);
@@ -258,7 +258,7 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
             socketRef.current.onerror = null;
             socketRef.current.onmessage = null;
             socketRef.current.close();
-          } catch (e) {
+          } catch {
             // ignore close errors during reconnection
           }
         }
@@ -279,10 +279,10 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
             console.log('WebSocket 連線已關閉', ev);
           }
           setWsStatus('disconnected');
-          
+
           // 只有在已成功連接過且組件仍掛載時才嘗試重連
           if (!isMounted || !hasConnected) return;
-          
+
           if (reconnectAttempts < maxReconnectAttempts) {
             reconnectAttempts += 1;
             const backoff = 1000 * Math.min(5, reconnectAttempts); // linear backoff up to 5s
@@ -356,7 +356,7 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
       if (socketRef.current) {
         try {
           socketRef.current.close();
-        } catch (e) {
+        } catch {
           // ignore close errors during unmount
         }
       }
@@ -385,6 +385,7 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
       };
 
       socketRef.current.send(JSON.stringify({ type: "start_workflow", payload: payload }));
+      DiscussionBoard.displayName = 'DiscussionBoard';
     } else {
       alert("WebSocket 尚未連接，請稍後再試。");
     }
@@ -394,6 +395,8 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
     if (onWorkflowComplete && finalConversationId) {
       onWorkflowComplete(finalConversationId);
     }
+    DiscussionBoardWrapper.displayName = 'DiscussionBoardWrapper';
+
   };
 
   useImperativeHandle(ref, () => ({ startWorkflow: handleStartWorkflow }));

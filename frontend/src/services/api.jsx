@@ -62,15 +62,15 @@ api.interceptors.request.use(
   async (config) => {
     // 從 localStorage 獲取 token
     const token = localStorage.getItem('access_token');
-    
+
     if (token) {
       // 檢查是否需要刷新 Token（提前 5 分鐘刷新）
       if (shouldRefreshToken(token, 300) && !isRefreshing) {
         devLog('[Token] Token 即將過期，觸發靜默刷新...');
-        
+
         try {
           isRefreshing = true;
-          
+
           // 刷新 Token（使用 Cookie 中的 refresh_token）
           const response = await axios.post(
             `${API_BASE_URL}/auth/refresh`,
@@ -88,7 +88,7 @@ api.interceptors.request.use(
 
           // 更新當前請求的 token
           config.headers.Authorization = `Bearer ${access_token}`;
-          
+
           devLog('[Token] 靜默刷新成功');
         } catch (error) {
           devWarn('[Token] 靜默刷新失敗，清除無效 Token:', error.response?.status);
@@ -111,7 +111,7 @@ api.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
     }
-    
+
     return config;
   },
   (error) => {
@@ -170,10 +170,10 @@ api.interceptors.response.use(
         // 刷新失敗,清除認證信息並跳轉到登入頁
         isRefreshing = false;
         refreshSubscribers = [];
-        
+
         console.warn('[Token] Token 刷新失敗，清除認證信息:', refreshError.response?.status);
         clearAuth();
-        
+
         // 只有在非登錄頁面才跳轉，避免無限循環
         const currentPath = window.location.pathname;
         if (currentPath !== '/login' && currentPath !== '/register') {
@@ -183,7 +183,7 @@ api.interceptors.response.use(
             window.location.href = '/login';
           }, 100);
         }
-        
+
         return Promise.reject(refreshError);
       }
     }
@@ -194,8 +194,8 @@ api.interceptors.response.use(
 
 export const chatService = {
   async sendMessage(content, conversationId = null, model_name = null) {
-    const response = await api.post('/chat/send', { 
-      content, 
+    const response = await api.post('/chat/send', {
+      content,
       conversation_id: conversationId,
       model_name
     });
@@ -222,7 +222,7 @@ export const documentService = {
   async uploadDocument(file) {
     const formData = new FormData();
     formData.append('file', file);
-    
+
     const response = await api.post('/documents/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',

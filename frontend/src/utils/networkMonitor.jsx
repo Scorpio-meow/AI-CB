@@ -7,7 +7,7 @@ class NetworkMonitor {
   constructor() {
     this.listeners = [];
     this.isOnline = navigator.onLine;
-    
+
     // 監聽網絡狀態變化
     window.addEventListener('online', this.handleOnline.bind(this));
     window.addEventListener('offline', this.handleOffline.bind(this));
@@ -76,7 +76,7 @@ class NetworkMonitor {
         cache: 'no-cache',
         signal: AbortSignal.timeout(5000), // 5 秒超時
       });
-      
+
       return response.ok;
     } catch (error) {
       console.error('[Network] 服務器連接測試失敗:', error);

@@ -2,7 +2,7 @@
  * 登入頁面
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   Container,
@@ -23,12 +23,12 @@ import authService from '../services/authService';
 const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const [formData, setFormData] = useState({
     username: '',
     password: ''
   });
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -47,7 +47,7 @@ const LoginPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // 驗證
     if (!formData.username || !formData.password) {
       setError('請輸入用戶名和密碼');
@@ -59,14 +59,14 @@ const LoginPage = () => {
 
     try {
       const result = await authService.login(formData.username, formData.password);
-      
+
       if (result.success) {
         // 登入成功,跳轉到原始路徑或首頁
         navigate(from, { replace: true });
       } else {
         setError(result.error || '登入失敗');
       }
-    } catch (err) {
+    } catch {
       setError('登入失敗,請檢查網絡連接');
     } finally {
       setLoading(false);

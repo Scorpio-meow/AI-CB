@@ -1,5 +1,4 @@
 CBvenv
-frontend/node_modules
 frontend/package-lock.json
 */__pycache__/*
 *.pyc
@@ -13,3 +12,6 @@ AICBvenv
 backend/logs
 frontend/bun.lock
 /.claude
+/frontend/node_modules
+/frontend/build
+/frontend/~

@@ -2,7 +2,7 @@
  * 註冊頁面
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Container,
@@ -32,14 +32,14 @@ import authService from '../services/authService';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
-  
+
   const [formData, setFormData] = useState({
     username: '',
     email: '',
     password: '',
     confirmPassword: ''
   });
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -67,7 +67,7 @@ const RegisterPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // 驗證
     if (!formData.username || !formData.email || !formData.password) {
       setError('請填寫所有必填欄位');
@@ -88,7 +88,7 @@ const RegisterPage = () => {
         formData.email,
         formData.password
       );
-      
+
       if (result.success) {
         setSuccess(true);
         // 註冊成功,2秒後跳轉到首頁
@@ -98,7 +98,7 @@ const RegisterPage = () => {
       } else {
         setError(result.error || '註冊失敗');
       }
-    } catch (err) {
+    } catch {
       setError('註冊失敗,請檢查網絡連接');
     } finally {
       setLoading(false);

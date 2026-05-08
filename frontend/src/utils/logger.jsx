@@ -58,14 +58,14 @@ class Logger {
       if (typeof arg === 'string') {
         // 移除可能的 token 或密鑰
         return arg.replace(/Bearer\s+[^\s]+/gi, 'Bearer [REDACTED]')
-                  .replace(/token[=:]\s*[^\s&]+/gi, 'token=[REDACTED]')
-                  .replace(/api[_-]?key[=:]\s*[^\s&]+/gi, 'api_key=[REDACTED]');
+          .replace(/token[=:]\s*[^\s&]+/gi, 'token=[REDACTED]')
+          .replace(/api[_-]?key[=:]\s*[^\s&]+/gi, 'api_key=[REDACTED]');
       }
       if (typeof arg === 'object' && arg !== null) {
         // 清理對象中的敏感字段
         const cleaned = { ...arg };
         const sensitiveKeys = ['password', 'token', 'apiKey', 'api_key', 'secret', 'authorization'];
-        
+
         for (const key of Object.keys(cleaned)) {
           if (sensitiveKeys.some(sk => key.toLowerCase().includes(sk))) {
             cleaned[key] = '[REDACTED]';
@@ -106,17 +106,19 @@ class Logger {
 }
 
 // 覆蓋全局 console（可選，僅在嚴格模式下使用）
-export const overrideGlobalConsole = () => {
+const overrideGlobalConsole = () => {
   if (IS_PRODUCTION) {
     window.console = {
       ...window.console,
-      log: () => {},
-      debug: () => {},
-      info: () => {},
+      log: () => { },
+      debug: () => { },
+      info: () => { },
       warn: Logger.warn.bind(Logger),
       error: Logger.error.bind(Logger),
     };
   }
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
+export { overrideGlobalConsole };
 export default Logger;

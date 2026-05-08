@@ -13,7 +13,7 @@ const USER_KEY = 'user_info';
 const withTimeout = async (promise, timeoutMs = 45000) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  
+
   try {
     const result = await promise(controller.signal);
     clearTimeout(timeoutId);
@@ -43,25 +43,25 @@ class AuthService {
         }, { signal }),
         45000 // 45 秒超時，給 DevTunnels 更多時間
       );
-      
+
       const { user, tokens } = response.data;
       this.saveTokens(tokens);
       this.saveUser(user);
-      
+
       return { success: true, user, tokens };
     } catch (error) {
       console.error('註冊失敗:', error);
-      
+
       // 處理錯誤消息
       let errorMessage = error.isTimeout ? error.message : '註冊失敗';
-      
+
       if (!error.isTimeout && error.response?.data?.detail) {
         const detail = error.response.data.detail;
-        
+
         // 如果 detail 是數組（Pydantic 驗證錯誤）
         if (Array.isArray(detail)) {
           errorMessage = detail.map(err => err.msg || err).join(', ');
-        } 
+        }
         // 如果 detail 是字符串
         else if (typeof detail === 'string') {
           errorMessage = detail;
@@ -71,7 +71,7 @@ class AuthService {
           errorMessage = detail.msg || JSON.stringify(detail);
         }
       }
-      
+
       return {
         success: false,
         error: errorMessage
@@ -91,25 +91,25 @@ class AuthService {
         }, { signal }),
         45000 // 45 秒超時
       );
-      
+
       const { user, tokens } = response.data;
       this.saveTokens(tokens);
       this.saveUser(user);
-      
+
       return { success: true, user, tokens };
     } catch (error) {
       console.error('登入失敗:', error);
-      
+
       // 處理錯誤消息
       let errorMessage = error.isTimeout ? error.message : '登入失敗';
-      
+
       if (!error.isTimeout && error.response?.data?.detail) {
         const detail = error.response.data.detail;
-        
+
         // 如果 detail 是數組（Pydantic 驗證錯誤）
         if (Array.isArray(detail)) {
           errorMessage = detail.map(err => err.msg || err).join(', ');
-        } 
+        }
         // 如果 detail 是字符串
         else if (typeof detail === 'string') {
           errorMessage = detail;
@@ -119,7 +119,7 @@ class AuthService {
           errorMessage = detail.msg || JSON.stringify(detail);
         }
       }
-      
+
       return {
         success: false,
         error: errorMessage
@@ -151,7 +151,7 @@ class AuthService {
   async refreshAccessToken() {
     try {
       const refreshToken = this.getRefreshToken();
-      
+
       if (!refreshToken) {
         throw new Error('無刷新令牌');
       }
@@ -162,16 +162,16 @@ class AuthService {
         }, { signal }),
         45000 // 45 秒超時
       );
-      
+
       const { access_token, refresh_token } = response.data;
-      
+
       // 更新 Token
       this.saveTokens({
         access_token,
         refresh_token,
         token_type: 'bearer'
       });
-      
+
       return access_token;
     } catch (error) {
       console.error('刷新令牌失敗:', error);
@@ -237,7 +237,7 @@ class AuthService {
         }, { signal }),
         45000 // 45 秒超時
       );
-      
+
       return { success: true, message: response.data.message };
     } catch (error) {
       console.error('修改密碼失敗:', error);
@@ -259,7 +259,7 @@ class AuthService {
         10000 // 驗證只需 10 秒超時
       );
       return response.data.success;
-    } catch (error) {
+    } catch {
       return false;
     }
   }

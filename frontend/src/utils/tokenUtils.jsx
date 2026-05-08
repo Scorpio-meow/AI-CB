@@ -52,7 +52,7 @@ export const getTokenRemainingTime = (token) => {
  */
 export const shouldRefreshToken = (token, threshold = 300) => {
   if (!token) return false;
-  
+
   const remainingTime = getTokenRemainingTime(token);
   // 只有在 token 還未過期但接近過期時才刷新
   // 如果已經過期（remainingTime <= 0），不要嘗試刷新，直接讓它失敗
@@ -65,7 +65,7 @@ export const shouldRefreshToken = (token, threshold = 300) => {
 export const hasValidAuth = () => {
   const token = localStorage.getItem('access_token');
   if (!token) return false;
-  
+
   // 檢查 token 是否完全過期
   const remainingTime = getTokenRemainingTime(token);
   return remainingTime > 0;

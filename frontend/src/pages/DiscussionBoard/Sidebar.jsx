@@ -2,7 +2,7 @@
 
 import { Box, Paper, Typography, List, ListItem, ListItemText, ListItemIcon, CircularProgress, Alert } from '@mui/material';
 import { DragIndicator } from '@mui/icons-material';
-import { useAgents } from '../../contexts/AgentContext';
+import { useAgents } from '../../contexts/useAgents';
 
 const Sidebar = () => {
   const { agents, loading, error } = useAgents();
@@ -21,7 +21,7 @@ const Sidebar = () => {
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         請將角色拖拽到右側畫布中
       </Typography>
-      
+
       {loading ? (
         <CircularProgress />
       ) : error ? (
@@ -30,15 +30,15 @@ const Sidebar = () => {
         <Box sx={{ flex: 1, overflowY: 'auto', pr: 1 }}>
           <List sx={{ p: 0 }}>
             {agents.map((agent) => (
-              <ListItem 
-                key={agent.id} 
+              <ListItem
+                key={agent.id}
                 draggable
                 onDragStart={(event) => onDragStart(event, 'agent', agent.name, agent.role)}
-                sx={{ 
-                  cursor: 'grab', 
-                  border: '1px solid #ddd', 
-                  borderRadius: '8px', 
-                  mb: 1.5, 
+                sx={{
+                  cursor: 'grab',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  mb: 1.5,
                   backgroundColor: '#f9f9f9',
                   '&:hover': {
                     backgroundColor: '#f0f0f0',

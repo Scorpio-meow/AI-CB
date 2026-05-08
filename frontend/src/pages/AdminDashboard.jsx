@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box,
   Paper,
@@ -49,30 +49,16 @@ function AdminDashboard() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
   // 編輯用戶對話框
   const [editUserDialog, setEditUserDialog] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  
+
   // AbortController refs
   const abortControllerRef = useRef(null);
   const isMountedRef = useRef(true);
-  
-  useEffect(() => {
-    isMountedRef.current = true;
-    loadData();
-    
-    // Cleanup on unmount
-    return () => {
-      isMountedRef.current = false;
-      // 不要在組件卸載時取消請求，讓請求自然完成
-      // if (abortControllerRef.current) {
-      //   abortControllerRef.current.abort();
-      // }
-    };
-  }, []);
 
-  const loadData = async (force = false) => {
+  const loadData = useCallback(async (force = false) => {
     // 請求去重：如果已有進行中的請求，直接返回該 Promise
     if (loadingPromise && !force) {
       return loadingPromise;
@@ -84,7 +70,7 @@ function AdminDashboard() {
       const statsValid = cache.statistics.data && (now - cache.statistics.timestamp) < CACHE_TTL;
       const usersValid = cache.users.data && (now - cache.users.timestamp) < CACHE_TTL;
       const docsValid = cache.documents.data && (now - cache.documents.timestamp) < CACHE_TTL;
-      
+
       if (statsValid && usersValid && docsValid) {
         setStatistics(cache.statistics.data);
         setUsers(cache.users.data);
@@ -117,7 +103,7 @@ function AdminDashboard() {
           api.get('/admin/users', { signal: abortControllerRef.current.signal }),
           api.get('/admin/documents', { signal: abortControllerRef.current.signal })
         ]);
-        
+
         // 只有當組件還在時才更新狀態
         if (!isMountedRef.current) return;
 
@@ -149,7 +135,23 @@ function AdminDashboard() {
     })();
 
     return loadingPromise;
-  };
+  }, []);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    queueMicrotask(() => {
+      loadData();
+    });
+
+    // Cleanup on unmount
+    return () => {
+      isMountedRef.current = false;
+      // 不要在組件卸載時取消請求，讓請求自然完成
+      // if (abortControllerRef.current) {
+      //   abortControllerRef.current.abort();
+      // }
+    };
+  }, [loadData]);
 
   const handleEditUser = (user) => {
     setEditingUser({ ...user });
@@ -167,7 +169,7 @@ function AdminDashboard() {
         is_active: editingUser.is_active,
         is_admin: editingUser.is_admin
       }, { signal: controller.signal });
-      
+
       setEditUserDialog(false);
       loadData(true); // 強制刷新
     } catch (err) {
@@ -259,7 +261,7 @@ function AdminDashboard() {
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
@@ -273,7 +275,7 @@ function AdminDashboard() {
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
@@ -287,7 +289,7 @@ function AdminDashboard() {
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
@@ -326,15 +328,15 @@ function AdminDashboard() {
                   <TableCell>{user.username}</TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
-                    <Chip 
-                      label={user.is_active ? '活躍' : '停用'} 
+                    <Chip
+                      label={user.is_active ? '活躍' : '停用'}
                       color={user.is_active ? 'success' : 'error'}
                       size="small"
                     />
                   </TableCell>
                   <TableCell>
-                    <Chip 
-                      label={user.is_admin ? '管理員' : '用戶'} 
+                    <Chip
+                      label={user.is_admin ? '管理員' : '用戶'}
                       color={user.is_admin ? 'primary' : 'default'}
                       size="small"
                     />
@@ -343,15 +345,15 @@ function AdminDashboard() {
                     {new Date(user.created_at).toLocaleDateString()}
                   </TableCell>
                   <TableCell>
-                    <Button 
-                      size="small" 
+                    <Button
+                      size="small"
                       onClick={() => handleEditUser(user)}
                       sx={{ mr: 1 }}
                     >
                       編輯
                     </Button>
-                    <Button 
-                      size="small" 
+                    <Button
+                      size="small"
                       color="error"
                       onClick={() => handleDeleteUser(user.id)}
                     >
@@ -387,8 +389,8 @@ function AdminDashboard() {
                   <TableCell>{doc.filename}</TableCell>
                   <TableCell>{doc.file_type}</TableCell>
                   <TableCell>
-                    <Chip 
-                      label={doc.is_processed ? '已處理' : '處理中'} 
+                    <Chip
+                      label={doc.is_processed ? '已處理' : '處理中'}
                       color={doc.is_processed ? 'success' : 'warning'}
                       size="small"
                     />
@@ -397,8 +399,8 @@ function AdminDashboard() {
                     {new Date(doc.created_at).toLocaleDateString()}
                   </TableCell>
                   <TableCell>
-                    <Button 
-                      size="small" 
+                    <Button
+                      size="small"
                       color="error"
                       onClick={() => handleDeleteDocument(doc.id)}
                     >
@@ -413,8 +415,8 @@ function AdminDashboard() {
       </Paper>
 
       {/* 編輯用戶對話框 */}
-      <Dialog 
-        open={editUserDialog} 
+      <Dialog
+        open={editUserDialog}
         onClose={() => setEditUserDialog(false)}
         disableRestoreFocus
         aria-labelledby="edit-user-dialog-title"
@@ -427,21 +429,21 @@ function AdminDashboard() {
                 fullWidth
                 label="用戶名"
                 value={editingUser.username}
-                onChange={(e) => setEditingUser({...editingUser, username: e.target.value})}
+                onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })}
                 sx={{ mb: 2 }}
               />
               <TextField
                 fullWidth
                 label="郵箱"
                 value={editingUser.email}
-                onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
+                onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
                 sx={{ mb: 2 }}
               />
               <FormControlLabel
                 control={
                   <Switch
                     checked={editingUser.is_active}
-                    onChange={(e) => setEditingUser({...editingUser, is_active: e.target.checked})}
+                    onChange={(e) => setEditingUser({ ...editingUser, is_active: e.target.checked })}
                   />
                 }
                 label="帳號活躍"
@@ -450,7 +452,7 @@ function AdminDashboard() {
                 control={
                   <Switch
                     checked={editingUser.is_admin}
-                    onChange={(e) => setEditingUser({...editingUser, is_admin: e.target.checked})}
+                    onChange={(e) => setEditingUser({ ...editingUser, is_admin: e.target.checked })}
                   />
                 }
                 label="管理員權限"

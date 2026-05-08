@@ -6,7 +6,7 @@ const basePath = '/custom_agents';
 const withTimeout = async (apiCall, timeoutMs = 45000) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  
+
   try {
     const result = await apiCall(controller.signal);
     clearTimeout(timeoutId);

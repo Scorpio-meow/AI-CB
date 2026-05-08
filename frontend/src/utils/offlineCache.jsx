@@ -33,17 +33,17 @@ class OfflineCache {
 
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
-        
+
         // 創建對象存儲
         if (!db.objectStoreNames.contains(STORE_NAME)) {
-          const objectStore = db.createObjectStore(STORE_NAME, { 
-            keyPath: 'id', 
-            autoIncrement: true 
+          const objectStore = db.createObjectStore(STORE_NAME, {
+            keyPath: 'id',
+            autoIncrement: true
           });
-          
+
           objectStore.createIndex('timestamp', 'timestamp', { unique: false });
           objectStore.createIndex('type', 'type', { unique: false });
-          
+
           console.log('[OfflineCache] 對象存儲已創建');
         }
       };
@@ -67,7 +67,7 @@ class OfflineCache {
   async addRequest(request) {
     try {
       const db = await this.ensureDB();
-      
+
       const transaction = db.transaction([STORE_NAME], 'readwrite');
       const store = transaction.objectStore(STORE_NAME);
 
@@ -101,7 +101,7 @@ class OfflineCache {
   async getAllRequests() {
     try {
       const db = await this.ensureDB();
-      
+
       const transaction = db.transaction([STORE_NAME], 'readonly');
       const store = transaction.objectStore(STORE_NAME);
       const getAllRequest = store.getAll();
@@ -128,7 +128,7 @@ class OfflineCache {
   async removeRequest(id) {
     try {
       const db = await this.ensureDB();
-      
+
       const transaction = db.transaction([STORE_NAME], 'readwrite');
       const store = transaction.objectStore(STORE_NAME);
       const deleteRequest = store.delete(id);
@@ -155,7 +155,7 @@ class OfflineCache {
   async clearAll() {
     try {
       const db = await this.ensureDB();
-      
+
       const transaction = db.transaction([STORE_NAME], 'readwrite');
       const store = transaction.objectStore(STORE_NAME);
       const clearRequest = store.clear();
@@ -182,7 +182,7 @@ class OfflineCache {
   async getCount() {
     try {
       const db = await this.ensureDB();
-      
+
       const transaction = db.transaction([STORE_NAME], 'readonly');
       const store = transaction.objectStore(STORE_NAME);
       const countRequest = store.count();

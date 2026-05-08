@@ -4,12 +4,12 @@ import { Paper, Typography, Box, Divider, CircularProgress, Link } from '@mui/ma
 
 function AgentNode({ data }) {
   return (
-    <Paper 
-      elevation={3} 
-      sx={{ 
-        padding: '14px 10px', 
-        margin: '17px 0px', 
-        borderRadius: '8px', 
+    <Paper
+      elevation={3}
+      sx={{
+        padding: '14px 10px',
+        margin: '17px 0px',
+        borderRadius: '8px',
         border: data.isEntryPoint ? '3.5px solid #4CAF50' : '2px solid #000000ff',
         boxShadow: data.isEntryPoint ? '0 0 10px rgba(76, 175, 80, 0.5)' : 'none',
         width: 350,
@@ -17,17 +17,18 @@ function AgentNode({ data }) {
         transition: 'background-color 0.3s ease',
       }}
     >
-      <Handle type="target" position={Position.Top} style={{ 
-       background: data.isEntryPoint ? ' #4CAF50' : '#000000ff' ,width: 16,height: 16,
+      <Handle type="target" position={Position.Top} style={{
+        background: data.isEntryPoint ? ' #4CAF50' : '#000000ff', width: 16, height: 16,
         border: data.isEntryPoint ? '3.5px solid #4CAF50' : '2px solid #000000ff',
-        boxShadow: data.isEntryPoint ? '0 0 10px rgba(76, 175, 80, 0.5)' : 'none'}} />
-      
+        boxShadow: data.isEntryPoint ? '0 0 10px rgba(76, 175, 80, 0.5)' : 'none'
+      }} />
+
       <Typography variant="subtitle1" sx={{ fontWeight: 'bold', textAlign: 'center' }}>
         {data.label}
       </Typography>
       <Divider sx={{ my: 1 }} />
-      
-      <Box 
+
+      <Box
         sx={{
           minHeight: 50, // 設定最小高度，避免思考中狀態框太小
           maxHeight: 350,
@@ -35,7 +36,7 @@ function AgentNode({ data }) {
           fontSize: '0.875rem',
           backgroundColor: '#f5f5f5',
           padding: '8px',
-          border:"0.1px solid black",
+          border: "0.1px solid black",
           borderRadius: '4px',
           whiteSpace: 'pre-wrap',
           wordBreak: 'break-word',
@@ -55,7 +56,7 @@ function AgentNode({ data }) {
             </Typography>
           </Box>
         ) : (
-           data.response ? (
+          data.response ? (
             <Box sx={{ width: '100%' }}>
               <div>{data.response}</div>
               {data.downloadUrl && (
@@ -66,14 +67,15 @@ function AgentNode({ data }) {
                 </Box>
               )}
             </Box>
-           ) : <span style={{color: '#999'}}>等待回應...</span>
+          ) : <span style={{ color: '#999' }}>等待回應...</span>
         )}
       </Box>
 
-      <Handle type="source" position={Position.Bottom} style={{ 
-        background: data.isEntryPoint ? ' #4CAF50' : '#000000ff',width: 16,height: 16,
+      <Handle type="source" position={Position.Bottom} style={{
+        background: data.isEntryPoint ? ' #4CAF50' : '#000000ff', width: 16, height: 16,
         border: data.isEntryPoint ? '3.5px solid #4CAF50' : '2px solid #000000ff',
-        boxShadow: data.isEntryPoint ? '0 0 10px rgba(76, 175, 80, 0.5)' : 'none'}}/>
+        boxShadow: data.isEntryPoint ? '0 0 10px rgba(76, 175, 80, 0.5)' : 'none'
+      }} />
     </Paper>
   );
 }

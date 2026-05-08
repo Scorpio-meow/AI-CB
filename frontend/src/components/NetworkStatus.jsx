@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Snackbar, Alert } from '@mui/material';
 import networkMonitor from '../utils/networkMonitor';
 import offlineCache from '../utils/offlineCache';
@@ -63,9 +63,9 @@ const NetworkStatus = () => {
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
         onClose={handleCloseOfflineAlert}
       >
-        <Alert 
-          onClose={handleCloseOfflineAlert} 
-          severity="warning" 
+        <Alert
+          onClose={handleCloseOfflineAlert}
+          severity="warning"
           sx={{ width: '100%' }}
         >
           您目前處於離線狀態，某些功能可能不可用
@@ -79,13 +79,13 @@ const NetworkStatus = () => {
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
         onClose={handleCloseOnlineAlert}
       >
-        <Alert 
-          onClose={handleCloseOnlineAlert} 
-          severity="success" 
+        <Alert
+          onClose={handleCloseOnlineAlert}
+          severity="success"
           sx={{ width: '100%' }}
         >
-          {pendingRequestsCount > 0 
-            ? `網絡已恢復！檢測到 ${pendingRequestsCount} 個離線請求` 
+          {pendingRequestsCount > 0
+            ? `網絡已恢復！檢測到 ${pendingRequestsCount} 個離線請求`
             : '網絡已恢復'}
         </Alert>
       </Snackbar>

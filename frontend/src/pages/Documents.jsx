@@ -255,7 +255,6 @@ function Documents() {
       if (!it) continue;
       if (it.status === 'success') continue;
       // await uploadSingle for sequential behavior
-      // eslint-disable-next-line no-await-in-loop
       await uploadSingle(i);
     }
 
@@ -397,7 +396,7 @@ function Documents() {
     try {
       const response = await api.post('/documents/rebuild-index');
       const data = response.data;
-      
+
       // 顯示詳細的重建結果
       const messageParts = [
         `索引重建成功！`,
@@ -405,14 +404,14 @@ function Documents() {
         `向量塊: ${data.chunk_count || 0}`,
         `配置: ${data.chunk_size || '?'}/${data.chunk_overlap || '?'}`
       ];
-      
+
       // 如果檢測到 QA 對，添加到訊息中
       if (data.qa_pairs_detected && data.qa_pairs_detected > 0) {
         messageParts.push(`Q&A對: ${data.qa_pairs_detected}`);
       }
-      
+
       setSuccess(messageParts.join(' | '));
-      
+
       // 重建後重新載入文檔列表
       await loadDocuments(true);
     } catch (err) {
@@ -432,303 +431,303 @@ function Documents() {
   }
 
   return (
-  <Box p={3}>
-    <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-      <Typography variant="h4" component="h1">
-        知識庫管理
-      </Typography>
-      <Box display="flex" gap={2}>
-        <Button
-          variant="outlined"
-          startIcon={<RebuildIcon />}
-          onClick={() => setRebuildDialog(true)}
-          disabled={rebuildLoading}
-        >
-          {rebuildLoading ? '重建中...' : '重建索引'}
-        </Button>
-        <Button
-          variant="contained"
-          startIcon={<UploadIcon />}
-          onClick={() => setUploadDialog(true)}
-        >
-          上傳文檔
-        </Button>
-      </Box>
-    </Box>
-
-    {error && (
-      <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
-        {error}
-      </Alert>
-    )}
-
-    {success && (
-      <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>
-        {success}
-      </Alert>
-    )}
-
-    <Paper>
-      <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="h6">
-          已上傳的文檔 ({documents.length})
+    <Box p={3}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h4" component="h1">
+          知識庫管理
         </Typography>
-        <Box>
-          {/* Bulk delete removed - users should delete individually */}
+        <Box display="flex" gap={2}>
+          <Button
+            variant="outlined"
+            startIcon={<RebuildIcon />}
+            onClick={() => setRebuildDialog(true)}
+            disabled={rebuildLoading}
+          >
+            {rebuildLoading ? '重建中...' : '重建索引'}
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<UploadIcon />}
+            onClick={() => setUploadDialog(true)}
+          >
+            上傳文檔
+          </Button>
         </Box>
       </Box>
 
-      {documents.length === 0 ? (
-        <Box p={4} textAlign="center">
-          <DocumentIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
-          <Typography variant="h6" color="text.secondary" gutterBottom>
-            還沒有上傳任何文檔
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            開始上傳文檔來建立您的知識庫
-          </Typography>
-        </Box>
-      ) : (
-        <List>
-          {documents.map((doc, index) => (
-            <React.Fragment key={doc.id}>
-              <ListItem>
-                <ListItemText
-                  primary={
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <DocumentIcon color="primary" />
-                      <Typography variant="subtitle1">{doc.filename}</Typography>
-                      <Chip
-                        label={getFileTypeLabel(doc.file_type)}
-                        size="small"
-                        variant="outlined"
-                      />
-                      {doc.is_processed && (
-                        <Chip
-                          label="已處理"
-                          size="small"
-                          color="success"
-                          variant="outlined"
-                        />
-                      )}
-                    </Box>
-                  }
-                  secondary={
-                    <React.Fragment>
-                      <Typography variant="body2" color="text.secondary" component="span" display="block">
-                        上傳時間: {new Date(doc.created_at).toLocaleString('zh-TW')}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" component="span" display="block">
-                        文件類型: {doc.file_type}
-                      </Typography>
-                    </React.Fragment>
-                  }
-                />
-                <ListItemSecondaryAction>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    {deletingStatus[doc.id] === 'deleting' && (
-                      <Chip label="刪除中" size="small" color="warning" />
-                    )}
-                    {deletingStatus[doc.id] === 'deleted' && (
-                      <Chip label="已刪除" size="small" color="success" />
-                    )}
-                    {deletingStatus[doc.id] === 'failed' && (
-                      <Chip label="刪除失敗" size="small" color="error" />
-                    )}
-                    <IconButton
-                      edge="end"
-                      onClick={() => handleDelete(doc.id, doc.filename)}
-                      color="error"
-                      disabled={deletingStatus[doc.id] === 'deleting'}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </Box>
-                </ListItemSecondaryAction>
-              </ListItem>
-              {index < documents.length - 1 && <Divider />}
-            </React.Fragment>
-          ))}
-        </List>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
+          {error}
+        </Alert>
       )}
-    </Paper>
 
-    {/* 上傳對話框 */}
-    <Dialog
-      open={uploadDialog}
-      onClose={() => setUploadDialog(false)}
-      maxWidth="sm"
-      fullWidth
-      disableRestoreFocus
-      aria-labelledby="upload-dialog-title"
-    >
-      <DialogTitle id="upload-dialog-title">上傳文檔到知識庫</DialogTitle>
-      <DialogContent>
-        <Box sx={{ mt: 2 }}>
-          <input
-            accept=".txt,.pdf,.docx"
-            style={{ display: 'none' }}
-            id="file-upload"
-            type="file"
-            multiple
-            onChange={handleFileSelect}
-          />
-          <Box display="flex" gap={1}>
-            <label htmlFor="file-upload" style={{ flex: 1 }}>
-              <Button
-                variant="outlined"
-                component="span"
-                startIcon={<UploadIcon />}
-                fullWidth
-                sx={{ mb: 2 }}
-              >
-                選擇文件
-              </Button>
-            </label>
-            <Button variant="outlined" color="inherit" onClick={removeSelectedFiles} sx={{ mb: 2 }}>
-              移除檔案
-            </Button>
-          </Box>
+      {success && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>
+          {success}
+        </Alert>
+      )}
 
-          {selectedFiles && selectedFiles.length > 0 && (
-            <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
-              <Typography variant="subtitle2" gutterBottom>
-                已選擇的文件 ({selectedFiles.length}):
-              </Typography>
-              {selectedFiles.map((f, idx) => {
-                const item = uploadItems[idx] || { progress: 0, status: 'ready', detail: null };
-                return (
-                  <Box key={idx} sx={{ mb: 1 }}>
-                    <Box display="flex" justifyContent="space-between" alignItems="center">
-                      <Box>
-                        <Typography variant="body2">
-                          <strong>文件名:</strong> {f.name}
-                        </Typography>
-                        <Typography variant="body2">
-                          <strong>大小:</strong> {formatFileSize(f.size)}
-                        </Typography>
-                        <Typography variant="body2">
-                          <strong>類型:</strong> {getFileTypeLabel(f.type)}
-                        </Typography>
-                      </Box>
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <Chip label={item.status} size="small" />
-                        <IconButton size="small" onClick={() => removeFileAt(idx)}>
-                          <DeleteIcon />
-                        </IconButton>
-                      </Box>
-                    </Box>
-                    <Box sx={{ mt: 1 }}>
-                      <LinearProgress variant={item.status === 'uploading' ? 'determinate' : 'determinate'} value={item.progress} />
-                      <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mt: 0.5 }}>
-                        <Typography variant="caption">{item.progress}%</Typography>
-                        <Box>
-                          {item.status === 'uploading' && (
-                            <IconButton size="small" onClick={() => cancelUpload(idx)}>
-                              <CancelIcon />
-                            </IconButton>
-                          )}
-                        </Box>
-                      </Box>
-                    </Box>
-                    {idx < selectedFiles.length - 1 && <Divider sx={{ my: 1 }} />}
-                  </Box>
-                );
-              })}
-            </Paper>
-          )}
-
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            支援的文件格式: .txt, .pdf, .docx
-            <br />
-            最大文件大小: 50MB
+      <Paper>
+        <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+          <Typography variant="h6">
+            已上傳的文檔 ({documents.length})
           </Typography>
-
-          {/* per-file progress is shown above; no global progress required */}
+          <Box>
+            {/* Bulk delete removed - users should delete individually */}
+          </Box>
         </Box>
-      </DialogContent>
-      <DialogActions>
-        <Button
-          onClick={() => setUploadDialog(false)}
-          disabled={uploadLoading}
-        >
-          取消
-        </Button>
-        <Button onClick={cancelAllUploads} disabled={!uploadLoading}>
-          取消全部上傳
-        </Button>
-        <Button
-          onClick={startUpload}
-          variant="contained"
-          disabled={(!selectedFiles || selectedFiles.length === 0) || uploadLoading}
-        >
-          {uploadLoading ? '上傳中...' : '上傳'}
-        </Button>
-      </DialogActions>
-    </Dialog>
-    {/* 移除檔案確認對話框 */}
-    <Dialog 
-      open={confirmRemoveOpen} 
-      onClose={cancelRemove}
-      disableRestoreFocus
-      aria-labelledby="confirm-remove-dialog-title"
-    >
-      <DialogTitle id="confirm-remove-dialog-title">確認移除所選檔案？</DialogTitle>
-      <DialogContent>
-        <Typography>此操作將清除目前選取的檔案。確定要移除嗎？</Typography>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={cancelRemove}>取消</Button>
-        <Button onClick={confirmRemoveSelectedFiles} variant="contained" color="error">確定移除</Button>
-      </DialogActions>
-    </Dialog>
 
-    {/* 重建索引確認對話框 */}
-    <Dialog 
-      open={rebuildDialog} 
-      onClose={() => !rebuildLoading && setRebuildDialog(false)}
-      disableRestoreFocus
-      aria-labelledby="rebuild-dialog-title"
-    >
-      <DialogTitle id="rebuild-dialog-title">確認重建知識庫索引？</DialogTitle>
-      <DialogContent>
-        <Typography gutterBottom>
-          此操作將重新建立所有文檔的向量索引和 BM25 索引。
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          • 適用於索引損壞或不一致時
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          • 處理時間取決於文檔數量
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          • 重建期間可能影響查詢性能
-        </Typography>
-        {rebuildLoading && (
-          <Box sx={{ mt: 2 }}>
-            <LinearProgress />
-            <Typography variant="body2" sx={{ mt: 1 }} align="center">
-              正在重建索引，請稍候...
+        {documents.length === 0 ? (
+          <Box p={4} textAlign="center">
+            <DocumentIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              還沒有上傳任何文檔
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              開始上傳文檔來建立您的知識庫
             </Typography>
           </Box>
+        ) : (
+          <List>
+            {documents.map((doc, index) => (
+              <React.Fragment key={doc.id}>
+                <ListItem>
+                  <ListItemText
+                    primary={
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <DocumentIcon color="primary" />
+                        <Typography variant="subtitle1">{doc.filename}</Typography>
+                        <Chip
+                          label={getFileTypeLabel(doc.file_type)}
+                          size="small"
+                          variant="outlined"
+                        />
+                        {doc.is_processed && (
+                          <Chip
+                            label="已處理"
+                            size="small"
+                            color="success"
+                            variant="outlined"
+                          />
+                        )}
+                      </Box>
+                    }
+                    secondary={
+                      <React.Fragment>
+                        <Typography variant="body2" color="text.secondary" component="span" display="block">
+                          上傳時間: {new Date(doc.created_at).toLocaleString('zh-TW')}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" component="span" display="block">
+                          文件類型: {doc.file_type}
+                        </Typography>
+                      </React.Fragment>
+                    }
+                  />
+                  <ListItemSecondaryAction>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      {deletingStatus[doc.id] === 'deleting' && (
+                        <Chip label="刪除中" size="small" color="warning" />
+                      )}
+                      {deletingStatus[doc.id] === 'deleted' && (
+                        <Chip label="已刪除" size="small" color="success" />
+                      )}
+                      {deletingStatus[doc.id] === 'failed' && (
+                        <Chip label="刪除失敗" size="small" color="error" />
+                      )}
+                      <IconButton
+                        edge="end"
+                        onClick={() => handleDelete(doc.id, doc.filename)}
+                        color="error"
+                        disabled={deletingStatus[doc.id] === 'deleting'}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Box>
+                  </ListItemSecondaryAction>
+                </ListItem>
+                {index < documents.length - 1 && <Divider />}
+              </React.Fragment>
+            ))}
+          </List>
         )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={() => setRebuildDialog(false)} disabled={rebuildLoading}>
-          取消
-        </Button>
-        <Button 
-          onClick={handleRebuildIndex} 
-          variant="contained" 
-          color="primary"
-          disabled={rebuildLoading}
-        >
-          確認重建
-        </Button>
-      </DialogActions>
-    </Dialog>
-    {/* Bulk delete UI removed */}
-  </Box>
+      </Paper>
+
+      {/* 上傳對話框 */}
+      <Dialog
+        open={uploadDialog}
+        onClose={() => setUploadDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        disableRestoreFocus
+        aria-labelledby="upload-dialog-title"
+      >
+        <DialogTitle id="upload-dialog-title">上傳文檔到知識庫</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <input
+              accept=".txt,.pdf,.docx"
+              style={{ display: 'none' }}
+              id="file-upload"
+              type="file"
+              multiple
+              onChange={handleFileSelect}
+            />
+            <Box display="flex" gap={1}>
+              <label htmlFor="file-upload" style={{ flex: 1 }}>
+                <Button
+                  variant="outlined"
+                  component="span"
+                  startIcon={<UploadIcon />}
+                  fullWidth
+                  sx={{ mb: 2 }}
+                >
+                  選擇文件
+                </Button>
+              </label>
+              <Button variant="outlined" color="inherit" onClick={removeSelectedFiles} sx={{ mb: 2 }}>
+                移除檔案
+              </Button>
+            </Box>
+
+            {selectedFiles && selectedFiles.length > 0 && (
+              <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  已選擇的文件 ({selectedFiles.length}):
+                </Typography>
+                {selectedFiles.map((f, idx) => {
+                  const item = uploadItems[idx] || { progress: 0, status: 'ready', detail: null };
+                  return (
+                    <Box key={idx} sx={{ mb: 1 }}>
+                      <Box display="flex" justifyContent="space-between" alignItems="center">
+                        <Box>
+                          <Typography variant="body2">
+                            <strong>文件名:</strong> {f.name}
+                          </Typography>
+                          <Typography variant="body2">
+                            <strong>大小:</strong> {formatFileSize(f.size)}
+                          </Typography>
+                          <Typography variant="body2">
+                            <strong>類型:</strong> {getFileTypeLabel(f.type)}
+                          </Typography>
+                        </Box>
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <Chip label={item.status} size="small" />
+                          <IconButton size="small" onClick={() => removeFileAt(idx)}>
+                            <DeleteIcon />
+                          </IconButton>
+                        </Box>
+                      </Box>
+                      <Box sx={{ mt: 1 }}>
+                        <LinearProgress variant={item.status === 'uploading' ? 'determinate' : 'determinate'} value={item.progress} />
+                        <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mt: 0.5 }}>
+                          <Typography variant="caption">{item.progress}%</Typography>
+                          <Box>
+                            {item.status === 'uploading' && (
+                              <IconButton size="small" onClick={() => cancelUpload(idx)}>
+                                <CancelIcon />
+                              </IconButton>
+                            )}
+                          </Box>
+                        </Box>
+                      </Box>
+                      {idx < selectedFiles.length - 1 && <Divider sx={{ my: 1 }} />}
+                    </Box>
+                  );
+                })}
+              </Paper>
+            )}
+
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+              支援的文件格式: .txt, .pdf, .docx
+              <br />
+              最大文件大小: 50MB
+            </Typography>
+
+            {/* per-file progress is shown above; no global progress required */}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setUploadDialog(false)}
+            disabled={uploadLoading}
+          >
+            取消
+          </Button>
+          <Button onClick={cancelAllUploads} disabled={!uploadLoading}>
+            取消全部上傳
+          </Button>
+          <Button
+            onClick={startUpload}
+            variant="contained"
+            disabled={(!selectedFiles || selectedFiles.length === 0) || uploadLoading}
+          >
+            {uploadLoading ? '上傳中...' : '上傳'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      {/* 移除檔案確認對話框 */}
+      <Dialog
+        open={confirmRemoveOpen}
+        onClose={cancelRemove}
+        disableRestoreFocus
+        aria-labelledby="confirm-remove-dialog-title"
+      >
+        <DialogTitle id="confirm-remove-dialog-title">確認移除所選檔案？</DialogTitle>
+        <DialogContent>
+          <Typography>此操作將清除目前選取的檔案。確定要移除嗎？</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={cancelRemove}>取消</Button>
+          <Button onClick={confirmRemoveSelectedFiles} variant="contained" color="error">確定移除</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 重建索引確認對話框 */}
+      <Dialog
+        open={rebuildDialog}
+        onClose={() => !rebuildLoading && setRebuildDialog(false)}
+        disableRestoreFocus
+        aria-labelledby="rebuild-dialog-title"
+      >
+        <DialogTitle id="rebuild-dialog-title">確認重建知識庫索引？</DialogTitle>
+        <DialogContent>
+          <Typography gutterBottom>
+            此操作將重新建立所有文檔的向量索引和 BM25 索引。
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            • 適用於索引損壞或不一致時
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            • 處理時間取決於文檔數量
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            • 重建期間可能影響查詢性能
+          </Typography>
+          {rebuildLoading && (
+            <Box sx={{ mt: 2 }}>
+              <LinearProgress />
+              <Typography variant="body2" sx={{ mt: 1 }} align="center">
+                正在重建索引，請稍候...
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRebuildDialog(false)} disabled={rebuildLoading}>
+            取消
+          </Button>
+          <Button
+            onClick={handleRebuildIndex}
+            variant="contained"
+            color="primary"
+            disabled={rebuildLoading}
+          >
+            確認重建
+          </Button>
+        </DialogActions>
+      </Dialog>
+      {/* Bulk delete UI removed */}
+    </Box>
   );
 }
 

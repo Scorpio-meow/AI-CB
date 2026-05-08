@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -26,28 +26,19 @@ import { useNavigate, Outlet } from 'react-router-dom';
 import authService from '../services/authService';
 import { AgentProvider } from '../contexts/AgentContext';
 
-function Layout({ children }) {
+function Layout() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
   const isMountedRef = useRef(true);
 
-  useEffect(() => {
-    isMountedRef.current = true;
-    loadUser();
-    
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  const loadUser = async () => {
+  const loadUser = useCallback(async () => {
     if (!authService.isAuthenticated()) return;
-    
+
     try {
       const userData = await authService.getCurrentUser();
-      
+
       if (isMountedRef.current) {
         setUser(userData);
       }
@@ -61,7 +52,21 @@ function Layout({ children }) {
         }
       }
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    const initializeUser = async () => {
+      await loadUser();
+    };
+
+    initializeUser();
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [loadUser]);
 
   const handleMenuOpen = (event) => {
     setAnchorEl(event.currentTarget);
@@ -89,19 +94,19 @@ function Layout({ children }) {
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             ChatBot 系統
           </Typography>
-          
+
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Button 
-              color="inherit" 
+            <Button
+              color="inherit"
               startIcon={<Chat />}
               onClick={() => navigate('/chat')}
             >
               聊天
             </Button>
-            
+
             {user?.is_admin && (
-              <Button 
-                color="inherit" 
+              <Button
+                color="inherit"
                 startIcon={<Description />}
                 onClick={() => navigate('/documents')}
               >
@@ -109,8 +114,8 @@ function Layout({ children }) {
               </Button>
             )}
 
-            <Button 
-              color="inherit" 
+            <Button
+              color="inherit"
               startIcon={<SupportAgent />}
               onClick={() => navigate('/custom-agents')}
             >
@@ -118,8 +123,8 @@ function Layout({ children }) {
             </Button>
 
             {user?.is_admin && (
-              <Button 
-                color="inherit" 
+              <Button
+                color="inherit"
                 startIcon={<AdminPanelSettings />}
                 onClick={() => navigate('/admin')}
               >
@@ -173,7 +178,7 @@ function Layout({ children }) {
           <ListItemText>登出</ListItemText>
         </MenuItem>
       </Menu>
-      
+
       <Box component="main" sx={{ mt: 2 }}>
         <AgentProvider>
           <Outlet />

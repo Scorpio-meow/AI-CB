@@ -3,7 +3,6 @@
  * 檢查用戶是否已登入,未登入則跳轉到登入頁
  */
 
-import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import authService from '../services/authService';
 
@@ -55,4 +54,4 @@ export const PublicRoute = ({ element }) => {
 
   // 未登入,顯示內容 (登入頁)
   return element;
-};export default PrivateRoute;
+}; export default PrivateRoute;
