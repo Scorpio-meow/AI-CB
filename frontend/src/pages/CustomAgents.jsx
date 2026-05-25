@@ -24,7 +24,7 @@ import {
   Chip
 } from '@mui/material';
 import { Add, Edit, Delete, Public, Lock } from '@mui/icons-material';
-import * as customAgentService from '../services/customAgentService';
+import { useCustomAgents } from '../hooks/useCustomAgents';
 import { useAgents } from '../contexts/useAgents';
 
 // Agent 表單的初始狀態
@@ -47,6 +47,8 @@ function CustomAgents() {
     updateAgent,
     removeAgent
   } = useAgents();
+
+  const { createAgent, updateAgent: apiUpdateAgent, deleteAgent: apiDeleteAgent } = useCustomAgents();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState(initialFormState);
@@ -93,12 +95,20 @@ function CustomAgents() {
 
       if (formData.id) {
         // 更新模式
-        const { data: updatedAgentData } = await customAgentService.updateCustomAgent(formData.id, submissionData);
-        updateAgent(updatedAgentData);
+        const updatedAgentData = await apiUpdateAgent(formData.id, submissionData);
+        if (updatedAgentData) {
+          updateAgent(updatedAgentData);
+        } else {
+          throw new Error('更新失敗');
+        }
       } else {
         // 新增模式
-        const { data: newAgentData } = await customAgentService.createCustomAgent(submissionData);
-        addAgent(newAgentData);
+        const newAgentData = await createAgent(submissionData);
+        if (newAgentData) {
+          addAgent(newAgentData);
+        } else {
+          throw new Error('新增失敗');
+        }
       }
 
       handleCloseDialog();
@@ -112,8 +122,12 @@ function CustomAgents() {
   const handleDelete = async (id) => {
     if (window.confirm('確定要刪除這個 Agent 嗎？')) {
       try {
-        await customAgentService.deleteCustomAgent(id);
-        removeAgent(id);
+        const success = await apiDeleteAgent(id);
+        if (success) {
+          removeAgent(id);
+        } else {
+          throw new Error('刪除失敗');
+        }
       } catch (err) {
         alert('刪除失敗：' + (err.response?.data?.detail || err.message));
         console.error('刪除失敗。', err);

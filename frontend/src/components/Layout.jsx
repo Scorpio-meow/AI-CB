@@ -23,51 +23,15 @@ import {
   Logout
 } from '@mui/icons-material';
 import { useNavigate, Outlet } from 'react-router-dom';
-import authService from '../services/authService';
+import { useAuth } from '../hooks/useAuth';
 import { AgentProvider } from '../contexts/AgentContext';
 import { createMotionTransition, reduceMotionStyles } from '../utils/motion';
 
 function Layout() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const { user, logout } = useAuth();
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
-  const isMountedRef = useRef(true);
-
-  const loadUser = useCallback(async () => {
-    if (!authService.isAuthenticated()) return;
-
-    try {
-      const userData = await authService.getCurrentUser();
-
-      if (isMountedRef.current) {
-        setUser(userData);
-      }
-    } catch (error) {
-      // Silently handle errors during unmount or navigation
-      // authService.getCurrentUser already logs errors and handles timeout
-      if (isMountedRef.current && !error.isTimeout) {
-        // Only log non-timeout errors when component is still mounted
-        if (import.meta.env.DEV) {
-          console.debug('Layout.loadUser error (non-critical):', error.message);
-        }
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    isMountedRef.current = true;
-
-    const initializeUser = async () => {
-      await loadUser();
-    };
-
-    initializeUser();
-
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, [loadUser]);
 
   const handleMenuOpen = (event) => {
     setAnchorEl(event.currentTarget);
@@ -84,7 +48,7 @@ function Layout() {
 
   const handleLogout = async () => {
     handleMenuClose();
-    await authService.logout();
+    await logout();
     navigate('/login');
   };
 

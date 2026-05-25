@@ -1,27 +1,37 @@
-/**
- * JWT 認證服務
- * 處理用戶註冊、登入、登出和 Token 管理
- */
-
-import api from './api';
+import api, { User } from './api';
 
 const TOKEN_KEY = 'access_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
 const USER_KEY = 'user_info';
 
-// 超時控制輔助函數
-const withTimeout = async (promise, timeoutMs = 45000) => {
+export interface Tokens {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+}
+
+export interface RegisterLoginResult {
+  success: boolean;
+  user?: User;
+  tokens?: Tokens;
+  error?: string;
+}
+
+const withTimeout = async <T>(
+  promiseCreator: (signal: AbortSignal) => Promise<T>,
+  timeoutMs: number = 45000
+): Promise<T> => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const result = await promise(controller.signal);
+    const result = await promiseCreator(controller.signal);
     clearTimeout(timeoutId);
     return result;
-  } catch (error) {
+  } catch (error: any) {
     clearTimeout(timeoutId);
     if (error.name === 'AbortError' || error.name === 'CanceledError') {
-      const timeoutError = new Error('請求超時，請稍後再試');
+      const timeoutError = new Error('請求超時，請稍後再試') as any;
       timeoutError.isTimeout = true;
       throw timeoutError;
     }
@@ -30,18 +40,15 @@ const withTimeout = async (promise, timeoutMs = 45000) => {
 };
 
 class AuthService {
-  /**
-   * 用戶註冊
-   */
-  async register(username, email, password) {
+  async register(username: string, email: string, password: string): Promise<RegisterLoginResult> {
     try {
       const response = await withTimeout(
-        (signal) => api.post('/auth/register', {
+        (signal) => api.post<{ user: User; tokens: Tokens }>('/auth/register', {
           username,
           email,
           password
         }, { signal }),
-        45000 // 45 秒超時，給 DevTunnels 更多時間
+        45000
       );
 
       const { user, tokens } = response.data;
@@ -49,25 +56,19 @@ class AuthService {
       this.saveUser(user);
 
       return { success: true, user, tokens };
-    } catch (error) {
+    } catch (error: any) {
       console.error('註冊失敗:', error);
 
-      // 處理錯誤消息
       let errorMessage = error.isTimeout ? error.message : '註冊失敗';
 
       if (!error.isTimeout && error.response?.data?.detail) {
         const detail = error.response.data.detail;
 
-        // 如果 detail 是數組（Pydantic 驗證錯誤）
         if (Array.isArray(detail)) {
-          errorMessage = detail.map(err => err.msg || err).join(', ');
-        }
-        // 如果 detail 是字符串
-        else if (typeof detail === 'string') {
+          errorMessage = detail.map((err: any) => err.msg || err).join(', ');
+        } else if (typeof detail === 'string') {
           errorMessage = detail;
-        }
-        // 如果 detail 是對象
-        else if (typeof detail === 'object') {
+        } else if (typeof detail === 'object') {
           errorMessage = detail.msg || JSON.stringify(detail);
         }
       }
@@ -79,17 +80,14 @@ class AuthService {
     }
   }
 
-  /**
-   * 用戶登入
-   */
-  async login(username, password) {
+  async login(username: string, password: string): Promise<RegisterLoginResult> {
     try {
       const response = await withTimeout(
-        (signal) => api.post('/auth/login', {
+        (signal) => api.post<{ user: User; tokens: Tokens }>('/auth/login', {
           username,
           password
         }, { signal }),
-        45000 // 45 秒超時
+        45000
       );
 
       const { user, tokens } = response.data;
@@ -97,25 +95,19 @@ class AuthService {
       this.saveUser(user);
 
       return { success: true, user, tokens };
-    } catch (error) {
+    } catch (error: any) {
       console.error('登入失敗:', error);
 
-      // 處理錯誤消息
       let errorMessage = error.isTimeout ? error.message : '登入失敗';
 
       if (!error.isTimeout && error.response?.data?.detail) {
         const detail = error.response.data.detail;
 
-        // 如果 detail 是數組（Pydantic 驗證錯誤）
         if (Array.isArray(detail)) {
-          errorMessage = detail.map(err => err.msg || err).join(', ');
-        }
-        // 如果 detail 是字符串
-        else if (typeof detail === 'string') {
+          errorMessage = detail.map((err: any) => err.msg || err).join(', ');
+        } else if (typeof detail === 'string') {
           errorMessage = detail;
-        }
-        // 如果 detail 是對象
-        else if (typeof detail === 'object') {
+        } else if (typeof detail === 'object') {
           errorMessage = detail.msg || JSON.stringify(detail);
         }
       }
@@ -127,28 +119,20 @@ class AuthService {
     }
   }
 
-  /**
-   * 用戶登出
-   */
-  async logout() {
+  async logout(): Promise<void> {
     try {
-      // 通知後端 (記錄日誌) - 使用超時控制
       await withTimeout(
         (signal) => api.post('/auth/logout', {}, { signal }),
-        10000 // 登出只需 10 秒超時
+        10000
       );
     } catch (error) {
       console.error('登出請求失敗:', error);
     } finally {
-      // 無論後端請求是否成功,都清除本地 Token
       this.clearAuth();
     }
   }
 
-  /**
-   * 刷新 Access Token
-   */
-  async refreshAccessToken() {
+  async refreshAccessToken(): Promise<string> {
     try {
       const refreshToken = this.getRefreshToken();
 
@@ -157,15 +141,14 @@ class AuthService {
       }
 
       const response = await withTimeout(
-        (signal) => api.post('/auth/refresh', {
+        (signal) => api.post<{ access_token: string; refresh_token: string }>('/auth/refresh', {
           refresh_token: refreshToken
         }, { signal }),
-        45000 // 45 秒超時
+        45000
       );
 
       const { access_token, refresh_token } = response.data;
 
-      // 更新 Token
       this.saveTokens({
         access_token,
         refresh_token,
@@ -175,26 +158,21 @@ class AuthService {
       return access_token;
     } catch (error) {
       console.error('刷新令牌失敗:', error);
-      // 刷新失敗,清除認證信息
       this.clearAuth();
       throw error;
     }
   }
 
-  /**
-   * 獲取當前用戶資料
-   */
-  async getCurrentUser() {
+  async getCurrentUser(): Promise<User> {
     try {
       const response = await withTimeout(
-        (signal) => api.get('/auth/me', { signal }),
-        90000 // 90 秒超時，給 DevTunnels + token refresh 充足時間
+        (signal) => api.get<User>('/auth/me', { signal }),
+        90000
       );
       const user = response.data;
       this.saveUser(user);
       return user;
-    } catch (error) {
-      // Only log timeout errors, other errors are handled by api interceptor
+    } catch (error: any) {
       if (error.isTimeout && import.meta.env.DEV) {
         console.debug('getCurrentUser timeout (DevTunnels may be slow)');
       }
@@ -202,19 +180,16 @@ class AuthService {
     }
   }
 
-  /**
-   * 更新用戶資料
-   */
-  async updateProfile(data) {
+  async updateProfile(data: Partial<User>): Promise<{ success: boolean; user?: User; error?: string }> {
     try {
       const response = await withTimeout(
-        (signal) => api.put('/auth/me', data, { signal }),
-        45000 // 45 秒超時
+        (signal) => api.put<User>('/auth/me', data, { signal }),
+        45000
       );
       const user = response.data;
       this.saveUser(user);
       return { success: true, user };
-    } catch (error) {
+    } catch (error: any) {
       console.error('更新用戶資料失敗:', error);
       const errorMsg = error.isTimeout ? error.message : (error.response?.data?.detail || '更新失敗');
       return {
@@ -224,22 +199,19 @@ class AuthService {
     }
   }
 
-  /**
-   * 修改密碼
-   */
-  async changePassword(currentPassword, newPassword, confirmPassword) {
+  async changePassword(currentPassword: string, newPassword: string, confirmPassword: string): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
       const response = await withTimeout(
-        (signal) => api.post('/auth/change-password', {
+        (signal) => api.post<{ message: string }>('/auth/change-password', {
           current_password: currentPassword,
           new_password: newPassword,
           confirm_password: confirmPassword
         }, { signal }),
-        45000 // 45 秒超時
+        45000
       );
 
       return { success: true, message: response.data.message };
-    } catch (error) {
+    } catch (error: any) {
       console.error('修改密碼失敗:', error);
       const errorMsg = error.isTimeout ? error.message : (error.response?.data?.detail || '修改密碼失敗');
       return {
@@ -249,14 +221,11 @@ class AuthService {
     }
   }
 
-  /**
-   * 驗證 Token 是否有效
-   */
-  async validateToken() {
+  async validateToken(): Promise<boolean> {
     try {
       const response = await withTimeout(
-        (signal) => api.get('/auth/validate', { signal }),
-        10000 // 驗證只需 10 秒超時
+        (signal) => api.get<{ success: boolean }>('/auth/validate', { signal }),
+        10000
       );
       return response.data.success;
     } catch {
@@ -264,12 +233,7 @@ class AuthService {
     }
   }
 
-  // ==================== Token 管理 ====================
-
-  /**
-   * 保存 Tokens
-   */
-  saveTokens(tokens) {
+  saveTokens(tokens: Tokens) {
     if (tokens.access_token) {
       localStorage.setItem(TOKEN_KEY, tokens.access_token);
     }
@@ -278,57 +242,36 @@ class AuthService {
     }
   }
 
-  /**
-   * 保存用戶信息
-   */
-  saveUser(user) {
+  saveUser(user: User) {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
   }
 
-  /**
-   * 獲取 Access Token
-   */
-  getAccessToken() {
+  getAccessToken(): string | null {
     return localStorage.getItem(TOKEN_KEY);
   }
 
-  /**
-   * 獲取 Refresh Token
-   */
-  getRefreshToken() {
+  getRefreshToken(): string | null {
     return localStorage.getItem(REFRESH_TOKEN_KEY);
   }
 
-  /**
-   * 獲取用戶信息
-   */
-  getUser() {
+  getUser(): User | null {
     const userStr = localStorage.getItem(USER_KEY);
     try {
-      return userStr ? JSON.parse(userStr) : null;
+      return userStr ? JSON.parse(userStr) as User : null;
     } catch {
       return null;
     }
   }
 
-  /**
-   * 檢查是否已登入
-   */
-  isAuthenticated() {
+  isAuthenticated(): boolean {
     return !!this.getAccessToken();
   }
 
-  /**
-   * 檢查是否為管理員
-   */
-  isAdmin() {
+  isAdmin(): boolean {
     const user = this.getUser();
     return user?.is_admin === true;
   }
 
-  /**
-   * 清除所有認證信息
-   */
   clearAuth() {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
@@ -336,7 +279,5 @@ class AuthService {
   }
 }
 
-// 創建單例
 const authService = new AuthService();
-
 export default authService;

@@ -39,10 +39,10 @@ if not ADMIN_API_KEY or ADMIN_API_KEY == "CHANGE_THIS_TO_A_SECURE_RANDOM_STRING"
     # Generate a temporary secure key for development
     ADMIN_API_KEY = secrets.token_urlsafe(32)
     logger.warning("=" * 80)
-    logger.warning("⚠️  WARNING: ADMIN_API_KEY not set in environment!")
+    logger.warning("WARNING: ADMIN_API_KEY not set in environment!")
     digest = _api_key_log_digest(ADMIN_API_KEY)
-    logger.warning("⚠️  Using temporary API key (digest): %s", digest)
-    logger.warning("⚠️  Please set ADMIN_API_KEY in your .env file!")
+    logger.warning("Using temporary API key (digest): %s", digest)
+    logger.warning("Please set ADMIN_API_KEY in your .env file!")
     logger.warning("=" * 80)
 async def verify_admin_api_key(x_api_key: Optional[str] = Header(None, description="Admin API Key")) -> bool:
     if not x_api_key:
@@ -88,7 +88,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             from app.core.intrusion_detection import get_intrusion_detector
             detector = get_intrusion_detector()
             if detector.is_blacklisted(client_ip):
-                logger.error(f"🚫 拒絕黑名單 IP 訪問: {client_ip}")
+                logger.error(f"拒絕黑名單 IP 訪問: {client_ip}")
                 return Response(
                     content="Access Denied. Your IP has been blacklisted due to suspicious activity.",
                     status_code=403
@@ -105,7 +105,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             if current_time - req_time < self.period
         ]
         if len(self.clients[client_ip]) >= self.calls:
-            logger.warning(f"⚠️ 速率限制: {client_ip} 超過限制 ({len(self.clients[client_ip])} requests)")
+            logger.warning(f"速率限制: {client_ip} 超過限制 ({len(self.clients[client_ip])} requests)")
             if detector:
                 detector.record_event(
                     'api_request',

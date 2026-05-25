@@ -28,10 +28,11 @@ import {
   Check,
   Close
 } from '@mui/icons-material';
-import authService from '../services/authService';
+import { useAuth } from '../hooks/useAuth';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
+  const { register, loading, error: authError } = useAuth();
 
   const [formData, setFormData] = useState({
     username: '',
@@ -41,8 +42,7 @@ const RegisterPage = () => {
   });
 
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [localError, setLocalError] = useState('');
   const [success, setSuccess] = useState(false);
 
   // 密碼強度驗證
@@ -61,8 +61,7 @@ const RegisterPage = () => {
       ...formData,
       [e.target.name]: e.target.value
     });
-    // 清除錯誤提示
-    if (error) setError('');
+    if (localError) setLocalError('');
   };
 
   const handleSubmit = async (e) => {
@@ -70,40 +69,33 @@ const RegisterPage = () => {
 
     // 驗證
     if (!formData.username || !formData.email || !formData.password) {
-      setError('請填寫所有必填欄位');
+      setLocalError('請填寫所有必填欄位');
       return;
     }
 
     if (!isPasswordValid) {
-      setError('密碼不符合要求');
+      setLocalError('密碼不符合要求');
       return;
     }
 
-    setLoading(true);
-    setError('');
+    setLocalError('');
 
-    try {
-      const result = await authService.register(
-        formData.username,
-        formData.email,
-        formData.password
-      );
+    const result = await register(
+      formData.username,
+      formData.email,
+      formData.password
+    );
 
-      if (result.success) {
-        setSuccess(true);
-        // 註冊成功,2秒後跳轉到首頁
-        setTimeout(() => {
-          navigate('/', { replace: true });
-        }, 2000);
-      } else {
-        setError(result.error || '註冊失敗');
-      }
-    } catch {
-      setError('註冊失敗,請檢查網絡連接');
-    } finally {
-      setLoading(false);
+    if (result.success) {
+      setSuccess(true);
+      // 註冊成功,2秒後跳轉到首頁
+      setTimeout(() => {
+        navigate('/', { replace: true });
+      }, 2000);
     }
   };
+
+  const error = localError || authError;
 
   if (success) {
     return (

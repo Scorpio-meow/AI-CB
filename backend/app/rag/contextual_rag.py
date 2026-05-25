@@ -87,7 +87,7 @@ class HybridContextualRAG:
             self.model_name = os.getenv("MODEL_NAME", "")
             self.api_base = os.getenv("LLM_API_BASE", "").strip()
             if not self.api_base:
-                logger.warning("⚠️ Environment variable LLM_API_BASE is not set. Calls to external LLM API will fail.")
+                logger.warning("Environment variable LLM_API_BASE is not set. Calls to external LLM API will fail.")
             import requests
             self.requests = requests
             import torch
@@ -106,7 +106,7 @@ class HybridContextualRAG:
                 self.batch_size = int(os.getenv("GPU_BATCH_SIZE", "128"))
             else:
                 self.device = 'cpu'
-                logger.warning("⚠️ 未檢測到 CUDA，使用 CPU 模式")
+                logger.warning("未檢測到 CUDA，使用 CPU 模式")
                 self.batch_size = int(os.getenv("CPU_BATCH_SIZE", "32"))
             
             # Embedding model loading with fallback
@@ -139,7 +139,7 @@ class HybridContextualRAG:
             if self.use_fp16 and self.device == 'cuda':
                 try:
                     self.local_embeddings = self.local_embeddings.half()
-                    logger.info("✅ 嵌入模型已量化為 FP16 (顯存減少 50%)")
+                    logger.info("嵌入模型已量化為 FP16 (顯存減少 50%)")
                 except Exception as e:
                     logger.warning(f"FP16 量化失敗，使用 FP32: {e}")
                     self.use_fp16 = False
@@ -157,7 +157,7 @@ class HybridContextualRAG:
                 if self.use_fp16 and self.device == 'cuda':
                     try:
                         self.cross_encoder.model = self.cross_encoder.model.half()
-                        logger.info("✅ Cross-Encoder 已量化為 FP16")
+                        logger.info("Cross-Encoder 已量化為 FP16")
                     except Exception as e:
                         logger.warning(f"Cross-Encoder FP16 量化失敗: {e}")
                 
@@ -205,9 +205,9 @@ class HybridContextualRAG:
                 jieba_dict_path = os.path.join(self.data_dir, "jieba_dict.txt")
                 if os.path.exists(jieba_dict_path):
                     jieba.load_userdict(jieba_dict_path)
-                    logger.info(f"✅ Jieba 自定義詞典已載入: {jieba_dict_path}")
+                    logger.info(f"Jieba 自定義詞典已載入: {jieba_dict_path}")
                 else:
-                    logger.warning(f"⚠️ Jieba 自定義詞典未找到: {jieba_dict_path}")
+                    logger.warning(f"Jieba 自定義詞典未找到: {jieba_dict_path}")
             
             # FAISS GPU Configuration
             self.use_faiss_gpu = os.getenv("USE_FAISS_GPU", "false").lower() == "true"
@@ -221,13 +221,13 @@ class HybridContextualRAG:
                     # 設定 GPU 記憶體限制 (bytes)
                     gpu_temp_memory = int(os.getenv("FAISS_GPU_TEMP_MEMORY", str(2 * 1024 * 1024 * 1024)))  # 2GB
                     self.gpu_resources.setTempMemory(gpu_temp_memory)
-                    logger.info(f"✅ FAISS-GPU 資源已初始化 (設備 {self.faiss_gpu_device}, 臨時記憶體: {gpu_temp_memory / 1024**3:.1f}GB)")
+                    logger.info(f"FAISS-GPU 資源已初始化 (設備 {self.faiss_gpu_device}, 臨時記憶體: {gpu_temp_memory / 1024**3:.1f}GB)")
                 except Exception as e:
                     logger.warning(f"FAISS-GPU 初始化失敗，回退到 CPU: {e}")
                     self.use_faiss_gpu = False
                     self.gpu_resources = None
             elif self.use_faiss_gpu:
-                logger.warning("⚠️ FAISS-GPU 已啟用但庫不支援 GPU，請安裝 faiss-gpu。回退到 CPU 模式。")
+                logger.warning("FAISS-GPU 已啟用但庫不支援 GPU，請安裝 faiss-gpu。回退到 CPU 模式。")
                 self.use_faiss_gpu = False
             
             # 創建初始索引 (CPU)
@@ -401,7 +401,7 @@ class HybridContextualRAG:
                             self.faiss_gpu_device, 
                             cpu_index
                         )
-                        logger.info(f"✅ FAISS 索引已轉換至 GPU (設備 {self.faiss_gpu_device})")
+                        logger.info(f"FAISS 索引已轉換至 GPU (設備 {self.faiss_gpu_device})")
                     except Exception as e:
                         logger.warning(f"FAISS 索引 GPU 轉換失敗，使用 CPU: {e}")
                         self.index = cpu_index

@@ -41,16 +41,16 @@ def init_redis():
         
         # 測試連接
         redis_client.ping()
-        print(f"✅ Redis 連接成功: {REDIS_HOST}:{REDIS_PORT}")
-        print(f"✅ Token 黑名單功能已啟用")
+        print(f"Redis 連接成功: {REDIS_HOST}:{REDIS_PORT}")
+        print(f"Token 黑名單功能已啟用")
         return True
     except redis.ConnectionError as e:
-        print(f"⚠️  Redis 連接失敗: {e}")
-        print("⚠️  Token 黑名單功能將不可用，但系統仍可正常運行")
+        print(f"Redis 連接失敗: {e}")
+        print("Token 黑名單功能將不可用，但系統仍可正常運行")
         redis_client = None
         return False
     except Exception as e:
-        print(f"⚠️  Redis 初始化錯誤: {e}")
+        print(f"Redis 初始化錯誤: {e}")
         redis_client = None
         return False
 
@@ -94,7 +94,7 @@ class TokenBlacklist:
         """
         client = get_redis()
         if client is None:
-            print("⚠️  Redis 不可用，無法加入黑名單")
+            print("Redis 不可用，無法加入黑名單")
             return False
         
         try:
@@ -102,7 +102,7 @@ class TokenBlacklist:
             client.setex(key, expires_in, "revoked")
             return True
         except Exception as e:
-            print(f"❌ 加入黑名單失敗: {e}")
+            print(f"加入黑名單失敗: {e}")
             return False
     
     @staticmethod
@@ -125,7 +125,7 @@ class TokenBlacklist:
             key = f"{TokenBlacklist.PREFIX}{token}"
             return client.exists(key) > 0
         except Exception as e:
-            print(f"❌ 檢查黑名單失敗: {e}")
+            print(f"檢查黑名單失敗: {e}")
             # 發生錯誤時，為安全起見，假設 token 有效
             return False
     
@@ -146,7 +146,7 @@ class TokenBlacklist:
             client.delete(key)
             return True
         except Exception as e:
-            print(f"❌ 移除黑名單失敗: {e}")
+            print(f"移除黑名單失敗: {e}")
             return False
 
 

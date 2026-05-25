@@ -33,13 +33,13 @@ try:
     # 獲取 RSA 金鑰
     RSA_PRIVATE_KEY = rsa_manager.get_private_key_pem()
     RSA_PUBLIC_KEY = rsa_manager.get_public_key_pem()
-    print("✅ 使用 RSA 非對稱加密進行 JWT 簽名")
+    print("使用 RSA 非對稱加密進行 JWT 簽名")
 except Exception as e:
-    # 🔒 安全加固：拒絕降級到不安全的算法
+    # 安全加固：拒絕降級到不安全的算法
     import os
     if os.getenv("ENVIRONMENT") == "production":
         # 生產環境必須使用 RSA
-        print(f"❌ 生產環境 RSA 金鑰載入失敗: {e}")
+        print(f"生產環境 RSA 金鑰載入失敗: {e}")
         raise RuntimeError("生產環境必須使用 RSA 金鑰進行 JWT 簽名") from e
     else:
         # 開發環境允許降級，但發出警告
@@ -47,15 +47,15 @@ except Exception as e:
         RSA_PRIVATE_KEY = None
         RSA_PUBLIC_KEY = None
         ALGORITHM = "HS256"
-        print(f"⚠️  開發環境 RSA 金鑰載入失敗，暫時使用 HS256: {e}")
-        print(f"⚠️  警告：請盡快修復 RSA 金鑰配置！")
+        print(f"開發環境 RSA 金鑰載入失敗，暫時使用 HS256: {e}")
+        print(f"警告：請盡快修復 RSA 金鑰配置！")
 
 try:
     from app.core.redis_client import TokenBlacklist
     USE_BLACKLIST = True
 except Exception as e:
     USE_BLACKLIST = False
-    print(f"⚠️  Token 黑名單功能不可用: {e}")
+    print(f"Token 黑名單功能不可用: {e}")
 
 # 密碼加密配置
 # 預設採用 Argon2id；legacy bcrypt 只保留驗證相容，不再用於新雜湊。
@@ -461,7 +461,7 @@ def revoke_token(token: str, expires_in: int = None):
         expires_in: 過期時間（秒），如果為 None 則自動從 token 中提取
     """
     if not USE_BLACKLIST:
-        print("⚠️  Token 黑名單功能未啟用")
+        print("Token 黑名單功能未啟用")
         return False
     
     try:
@@ -478,6 +478,6 @@ def revoke_token(token: str, expires_in: int = None):
         
         return TokenBlacklist.add_token(token, expires_in)
     except Exception as e:
-        print(f"❌ 撤銷 Token 失敗: {e}")
+        print(f"撤銷 Token 失敗: {e}")
         return False
 

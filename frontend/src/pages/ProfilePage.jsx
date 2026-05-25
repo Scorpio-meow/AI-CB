@@ -25,12 +25,11 @@ import {
   Lock as LockIcon,
   AdminPanelSettings as AdminIcon
 } from '@mui/icons-material';
-import authService from '../services/authService';
+import { useAuth } from '../hooks/useAuth';
 
 const ProfilePage = () => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
+  const { user, loading, logout, changePassword } = useAuth();
+  const [localLoading, setLocalLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -41,23 +40,6 @@ const ProfilePage = () => {
     newPassword: '',
     confirmPassword: ''
   });
-
-  const loadUserProfile = useCallback(async () => {
-    try {
-      const userData = await authService.getCurrentUser();
-      setUser(userData);
-    } catch {
-      setError('載入用戶資料失敗');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    queueMicrotask(() => {
-      loadUserProfile();
-    });
-  }, [loadUserProfile]);
 
   const handleChangePassword = async () => {
     if (!passwordData.currentPassword || !passwordData.newPassword) {
@@ -70,16 +52,16 @@ const ProfilePage = () => {
       return;
     }
 
-    setUpdating(true);
+    setLocalLoading(true);
     setError('');
 
-    const result = await authService.changePassword(
+    const result = await changePassword(
       passwordData.currentPassword,
       passwordData.newPassword,
       passwordData.confirmPassword
     );
 
-    setUpdating(false);
+    setLocalLoading(false);
 
     if (result.success) {
       setSuccess('密碼修改成功');
@@ -90,12 +72,12 @@ const ProfilePage = () => {
         confirmPassword: ''
       });
     } else {
-      setError(result.error);
+      setError(result.error || '修改密碼失敗');
     }
   };
 
   const handleLogout = async () => {
-    await authService.logout();
+    await logout();
     window.location.href = '/login';
   };
 
@@ -302,9 +284,9 @@ const ProfilePage = () => {
             <Button
               onClick={handleChangePassword}
               variant="contained"
-              disabled={updating}
+              disabled={localLoading}
             >
-              {updating ? <CircularProgress size={24} /> : '確認修改'}
+              {localLoading ? <CircularProgress size={24} /> : '確認修改'}
             </Button>
           </DialogActions>
         </Dialog>

@@ -4,14 +4,14 @@
  */
 
 import { Navigate, useLocation } from 'react-router-dom';
-import authService from '../services/authService';
+import { useAuth } from '../hooks/useAuth';
 
 /**
  * 私有路由 - 需要登入才能訪問
  */
 export const PrivateRoute = ({ element }) => {
   const location = useLocation();
-  const isAuthenticated = authService.isAuthenticated();
+  const { isAuthenticated } = useAuth();
 
   if (!isAuthenticated) {
     // 未登入,跳轉到登入頁,並保存原始路徑
@@ -25,8 +25,7 @@ export const PrivateRoute = ({ element }) => {
  */
 export const AdminRoute = ({ element }) => {
   const location = useLocation();
-  const isAuthenticated = authService.isAuthenticated();
-  const isAdmin = authService.isAdmin();
+  const { isAuthenticated, isAdmin } = useAuth();
 
   if (!isAuthenticated) {
     // 未登入,跳轉到登入頁
@@ -45,7 +44,7 @@ export const AdminRoute = ({ element }) => {
  * 公開路由 - 已登入用戶不能訪問 (如登入頁)
  */
 export const PublicRoute = ({ element }) => {
-  const isAuthenticated = authService.isAuthenticated();
+  const { isAuthenticated } = useAuth();
 
   if (isAuthenticated) {
     // 已登入,跳轉到首頁

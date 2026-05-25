@@ -55,9 +55,9 @@ class SecretManager:
         # 不要在日誌中記錄密鑰本身，改為記錄不可逆摘要以便排查
         digest = hashlib.sha256(new_key).hexdigest()[:8]
         logger.warning(
-            "⚠️  未找到 SECRETS_ENCRYPTION_KEY 環境變數\n"
-            "⚠️  已生成新的加密密鑰（摘要）: %s\n"
-            "⚠️  請將此密鑰添加到環境變數中以保證數據持久性",
+            "未找到 SECRETS_ENCRYPTION_KEY 環境變數\n"
+            "已生成新的加密密鑰（摘要）: %s\n"
+            "請將此密鑰添加到環境變數中以保證數據持久性",
             digest
         )
         return new_key
@@ -103,7 +103,7 @@ class SecretManager:
         except Exception:
             secret_digest = 'unknown'
         logger.warning(
-            "🔑 生成新的 %s，並已加密保存。請將此密鑰添加到 .env 文件中以便持久化",
+            "生成新的 %s，並已加密保存。請將此密鑰添加到 .env 文件中以便持久化",
             key_name
         )
         

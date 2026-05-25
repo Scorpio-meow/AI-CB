@@ -43,9 +43,9 @@ class RedisCache:
                 )
                 # 測試連線
                 self.client.ping()
-                logger.info(f"✅ Redis 快取已啟用: {self.host}:{self.port}/{self.db}")
+                logger.info(f"Redis 快取已啟用: {self.host}:{self.port}/{self.db}")
             except Exception as e:
-                logger.warning(f"⚠️ Redis 連線失敗，快取已禁用: {e}")
+                logger.warning(f"Redis 連線失敗，快取已禁用: {e}")
                 self.client = None
                 self.enabled = False
         else:
@@ -75,7 +75,7 @@ class RedisCache:
             
             if cached:
                 result = json.loads(cached)
-                logger.info(f"🎯 快取命中: {key}")
+                logger.info(f"快取命中: {key}")
                 return result
             
             logger.debug(f"快取未命中: {key}")
@@ -99,7 +99,7 @@ class RedisCache:
             ttl = ttl or self.default_ttl
             
             self.client.setex(key, ttl, value)
-            logger.debug(f"💾 快取已儲存: {key} (TTL: {ttl}s)")
+            logger.debug(f"快取已儲存: {key} (TTL: {ttl}s)")
             return True
             
         except Exception as e:
@@ -115,7 +115,7 @@ class RedisCache:
         try:
             key = self._make_cache_key(query, user_id, conversation_id)
             result = self.client.delete(key)
-            logger.debug(f"🗑️ 快取已刪除: {key}")
+            logger.debug(f"快取已刪除: {key}")
             return result > 0
             
         except Exception as e:
@@ -133,7 +133,7 @@ class RedisCache:
             
             if keys:
                 count = self.client.delete(*keys)
-                logger.info(f"🧹 已清空 {count} 個快取項目")
+                logger.info(f"已清空 {count} 個快取項目")
                 return count
             
             return 0
@@ -196,7 +196,7 @@ class RedisCache:
             
             if keys:
                 count = self.client.delete(*keys)
-                logger.info(f"🗑️ 模式 '{pattern}' 刪除 {count} 個快取")
+                logger.info(f"模式 '{pattern}' 刪除 {count} 個快取")
                 return count
             
             return 0

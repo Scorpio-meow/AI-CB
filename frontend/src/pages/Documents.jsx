@@ -28,6 +28,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import api from '../services/api';
+import { useDocuments } from '../hooks/useDocuments';
 
 // 記憶體快取（3分鐘 TTL）
 const documentsCache = {
@@ -48,12 +49,18 @@ const createUploadItem = (file) => ({
 });
 
 function Documents() {
-  const [documents, setDocuments] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const {
+    documents,
+    loading,
+    error: docError,
+    fetchDocuments,
+    deleteDocument
+  } = useDocuments();
+
+  const [localError, setLocalError] = useState('');
+  const [success, setSuccess] = useState('');
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadItems, setUploadItems] = useState([]);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [uploadDialog, setUploadDialog] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [deletingStatus, setDeletingStatus] = useState({});
@@ -61,95 +68,16 @@ function Documents() {
   const [rebuildLoading, setRebuildLoading] = useState(false);
   const [rebuildDialog, setRebuildDialog] = useState(false);
 
-  // AbortController ref
-  const loadAbortControllerRef = useRef(null);
   const isMountedRef = useRef(true);
 
   useEffect(() => {
     isMountedRef.current = true;
-    loadDocuments();
+    fetchDocuments();
 
-    // Cleanup on unmount
     return () => {
       isMountedRef.current = false;
-      // 不要在組件卸載時取消請求，讓請求自然完成
-      // if (loadAbortControllerRef.current) {
-      //   loadAbortControllerRef.current.abort();
-      // }
     };
-  }, []);
-
-  const loadDocuments = async (force = false) => {
-    // 請求去重：如果已有進行中的請求，直接返回該 Promise
-    if (loadingPromise && !force) {
-      return loadingPromise;
-    }
-
-    // 檢查快取（僅在非強制刷新時）
-    const now = Date.now();
-    if (!force && documentsCache.data && (now - documentsCache.timestamp) < CACHE_TTL) {
-      setDocuments(documentsCache.data);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    // 取消之前的請求
-    if (loadAbortControllerRef.current) {
-      loadAbortControllerRef.current.abort();
-    }
-
-    // 創建新的 AbortController
-    loadAbortControllerRef.current = new AbortController();
-    const timeoutId = setTimeout(() => {
-      if (loadAbortControllerRef.current) {
-        loadAbortControllerRef.current.abort();
-      }
-    }, 120000); // 120 秒超時，給 DevTunnels + token refresh + CORS preflight 充足時間
-
-    loadingPromise = (async () => {
-      try {
-        const response = await api.get('/documents/', {  // 修正：加上 trailing slash 避免 307 redirect
-          signal: loadAbortControllerRef.current.signal
-        });
-
-        // 只有當組件還在時才更新狀態
-        if (!isMountedRef.current) return;
-
-        // 更新快取
-        documentsCache.data = response.data;
-        documentsCache.timestamp = Date.now();
-
-        setDocuments(response.data);
-        setError('');
-      } catch (err) {
-        if (!isMountedRef.current) return;
-
-        // 只有真正的超時才顯示超時錯誤
-        if (err.name === 'AbortError' || err.name === 'CanceledError') {
-          // 不顯示錯誤，讓使用者可以重試
-          if (import.meta.env.DEV) console.debug('Documents loading was cancelled', err);
-          setError('載入文檔超時，請重新整理頁面或檢查網路連線');
-        } else if (err.response?.status === 400) {
-          setError('載入文檔失敗：請求格式錯誤或授權無效，請嘗試重新登入');
-          console.error('Load documents 400 error:', err.response?.data);
-        } else {
-          setError('載入文檔失敗：' + (err.response?.data?.detail || err.message || '未知錯誤'));
-          console.error('Load documents error:', err);
-        }
-      } finally {
-        clearTimeout(timeoutId);
-        if (isMountedRef.current) {
-          setLoading(false);
-        }
-        loadingPromise = null;
-      }
-    })();
-
-    return loadingPromise;
-  };
+  }, [fetchDocuments]);
 
   const handleFileSelect = (event) => {
     const files = Array.from(event.target.files || []);
@@ -161,21 +89,20 @@ function Documents() {
     const accepted = [];
     for (const file of files) {
       if (!allowedTypes.includes(file.type)) {
-        setError('不支援的文件類型。請上傳 .txt, .pdf 或 .docx 文件');
+        setLocalError('不支援的文件類型。請上傳 .txt, .pdf 或 .docx 文件');
         return;
       }
       if (file.size > maxSize) {
-        setError('文件大小不能超過 50MB');
+        setLocalError('文件大小不能超過 50MB');
         return;
       }
       accepted.push(file);
     }
 
     setSelectedFiles(accepted);
-    // prepare upload items
     const items = accepted.map(createUploadItem);
     setUploadItems(items);
-    setError('');
+    setLocalError('');
   };
 
   const uploadSingle = async (item, index) => {
@@ -183,7 +110,6 @@ function Documents() {
 
     const controller = new AbortController();
 
-    // mark uploading and attach controller
     setUploadItems((prev) => {
       const next = prev.slice();
       next[index] = { ...next[index], status: 'uploading', controller, progress: 0, detail: null };
@@ -198,7 +124,7 @@ function Documents() {
         headers: { 'Content-Type': 'multipart/form-data' },
         signal: controller.signal,
         onUploadProgress: (e) => {
-          if (e.lengthComputable) {
+          if (e.lengthComputable && e.total) {
             const p = Math.round((e.loaded * 100) / e.total);
             setUploadItems((prev) => {
               const next = prev.slice();
@@ -209,7 +135,6 @@ function Documents() {
         }
       });
 
-      // backend returns results array
       const res = response.data?.results?.[0];
       if (res && res.status === 'success') {
         setUploadItems((prev) => {
@@ -256,24 +181,22 @@ function Documents() {
 
   const startUpload = async () => {
     if (!selectedFiles || selectedFiles.length === 0) {
-      setError('請選擇文件');
+      setLocalError('請選擇文件');
       return;
     }
     setUploadLoading(true);
-    setError('');
+    setLocalError('');
     setSuccess('');
-    // sequential upload; could be parallelized if desired
+
     const itemsToUpload = uploadItems.slice();
     let successCount = 0;
     let failedCount = 0;
     let canceledCount = 0;
 
     for (let i = 0; i < itemsToUpload.length; i++) {
-      // skip already successful
       const it = itemsToUpload[i];
       if (!it) continue;
       if (it.status === 'success') continue;
-      // await uploadSingle for sequential behavior
       const result = await uploadSingle(it, i);
       if (result === 'success') successCount += 1;
       if (result === 'failed') failedCount += 1;
@@ -281,10 +204,9 @@ function Documents() {
     }
 
     setUploadLoading(false);
-    // refresh document list after uploads finish
     documentsCache.data = null;
     documentsCache.timestamp = 0;
-    await loadDocuments(true);
+    await fetchDocuments();
 
     setSelectedFiles([]);
     setUploadItems([]);
@@ -299,12 +221,11 @@ function Documents() {
       const summary = [];
       if (failedCount > 0) summary.push(`失敗 ${failedCount} 個`);
       if (canceledCount > 0) summary.push(`取消 ${canceledCount} 個`);
-      setError(`文件未成功上傳：${summary.join('，')}`);
+      setLocalError(`文件未成功上傳：${summary.join('，')}`);
     }
   };
 
   const cancelAllUploads = () => {
-    // Abort any active per-file controllers
     setUploadItems((prev) => {
       for (const it of prev) {
         if (it && it.controller) {
@@ -330,10 +251,8 @@ function Documents() {
     try {
       it.controller.abort();
     } catch (err) {
-      if (err.name === 'AbortError' || err.name === 'CanceledError') {
-        if (import.meta.env.DEV) console.debug('Upload was cancelled', err);
-      } else {
-        setError('取消上傳失敗');
+      if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+        setLocalError('取消上傳失敗');
       }
     }
     setUploadItems((prev) => {
@@ -345,7 +264,7 @@ function Documents() {
 
   const removeSelectedFiles = () => {
     if (uploadLoading) {
-      setError('正在上傳中，請先取消上傳後再移除檔案');
+      setLocalError('正在上傳中，請先取消上傳後再移除檔案');
       return;
     }
     setConfirmRemoveOpen(true);
@@ -354,7 +273,7 @@ function Documents() {
   const confirmRemoveSelectedFiles = () => {
     setSelectedFiles([]);
     setUploadItems([]);
-    setError('');
+    setLocalError('');
     setConfirmRemoveOpen(false);
   };
 
@@ -365,7 +284,7 @@ function Documents() {
   const removeFileAt = (index) => {
     const it = uploadItems[index];
     if (it && it.status === 'uploading') {
-      setError('該檔案正在上傳，請先取消上傳後再移除');
+      setLocalError('該檔案正在上傳，請先取消上傳後再移除');
       return;
     }
     if (!window.confirm('確定要從選取清單移除此檔案嗎？')) return;
@@ -376,33 +295,15 @@ function Documents() {
   const handleDelete = async (documentId, filename) => {
     if (!window.confirm(`確定要刪除文檔 "${filename}" 嗎？此操作不可逆！`)) return;
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 秒超時
-
     try {
       setDeletingStatus((prev) => ({ ...prev, [documentId]: 'deleting' }));
-      await api.delete(`/documents/${documentId}`, { signal: controller.signal });
+      await deleteDocument(documentId);
       setDeletingStatus((prev) => ({ ...prev, [documentId]: 'deleted' }));
-
-      // 從列表中移除以提供快速 UX
-      setDocuments((prev) => prev.filter((d) => d.id !== documentId));
-
-      // 清除快取
-      documentsCache.data = null;
-      documentsCache.timestamp = 0;
-
       setSuccess('文檔刪除成功');
     } catch (err) {
       console.error('刪除文檔錯誤:', err);
       setDeletingStatus((prev) => ({ ...prev, [documentId]: 'failed' }));
-
-      if (err.name === 'AbortError' || err.name === 'CanceledError') {
-        setError('刪除文檔超時，請稍後再試');
-      } else {
-        setError('刪除文檔失敗: ' + (err.response?.data?.detail || err.message));
-      }
-    } finally {
-      clearTimeout(timeoutId);
+      setLocalError('刪除文檔失敗: ' + (err.message || '未知錯誤'));
     }
   };
 
@@ -430,14 +331,13 @@ function Documents() {
   const handleRebuildIndex = async () => {
     setRebuildDialog(false);
     setRebuildLoading(true);
-    setError('');
+    setLocalError('');
     setSuccess('');
 
     try {
       const response = await api.post('/documents/rebuild-index');
       const data = response.data;
 
-      // 顯示詳細的重建結果
       const messageParts = [
         `索引重建成功！`,
         `文檔: ${data.document_count || 0}`,
@@ -445,22 +345,21 @@ function Documents() {
         `配置: ${data.chunk_size || '?'}/${data.chunk_overlap || '?'}`
       ];
 
-      // 如果檢測到 QA 對，添加到訊息中
       if (data.qa_pairs_detected && data.qa_pairs_detected > 0) {
         messageParts.push(`Q&A對: ${data.qa_pairs_detected}`);
       }
 
       setSuccess(messageParts.join(' | '));
-
-      // 重建後重新載入文檔列表
-      await loadDocuments(true);
+      await fetchDocuments();
     } catch (err) {
       console.error('重建索引錯誤:', err);
-      setError('重建索引失敗: ' + (err.response?.data?.detail || err.message || '未知錯誤'));
+      setLocalError('重建索引失敗: ' + (err.response?.data?.detail || err.message || '未知錯誤'));
     } finally {
       setRebuildLoading(false);
     }
   };
+
+  const error = localError || docError;
 
   if (loading) {
     return (
@@ -496,7 +395,7 @@ function Documents() {
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setLocalError('')}>
           {error}
         </Alert>
       )}
@@ -512,9 +411,6 @@ function Documents() {
           <Typography variant="h6">
             已上傳的文檔 ({documents.length})
           </Typography>
-          <Box>
-            {/* Bulk delete removed - users should delete individually */}
-          </Box>
         </Box>
 
         {documents.length === 0 ? (
@@ -658,7 +554,7 @@ function Documents() {
                         </Box>
                       </Box>
                       <Box sx={{ mt: 1 }}>
-                        <LinearProgress variant={item.status === 'uploading' ? 'determinate' : 'determinate'} value={item.progress} />
+                        <LinearProgress variant="determinate" value={item.progress} />
                         <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mt: 0.5 }}>
                           <Typography variant="caption">{item.progress}%</Typography>
                           <Box>
@@ -682,8 +578,6 @@ function Documents() {
               <br />
               最大文件大小: 50MB
             </Typography>
-
-            {/* per-file progress is shown above; no global progress required */}
           </Box>
         </DialogContent>
         <DialogActions>
@@ -705,6 +599,7 @@ function Documents() {
           </Button>
         </DialogActions>
       </Dialog>
+
       {/* 移除檔案確認對話框 */}
       <Dialog
         open={confirmRemoveOpen}
@@ -766,7 +661,6 @@ function Documents() {
           </Button>
         </DialogActions>
       </Dialog>
-      {/* Bulk delete UI removed */}
     </Box>
   );
 }

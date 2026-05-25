@@ -18,11 +18,12 @@ import {
   IconButton
 } from '@mui/material';
 import { Visibility, VisibilityOff, Login as LoginIcon } from '@mui/icons-material';
-import authService from '../services/authService';
+import { useAuth } from '../hooks/useAuth';
 
 const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { login, loading, error: authError } = useAuth();
 
   const [formData, setFormData] = useState({
     username: '',
@@ -30,8 +31,7 @@ const LoginPage = () => {
   });
 
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [localError, setLocalError] = useState('');
 
   // 獲取登入前的路徑
   const from = location.state?.from?.pathname || '/';
@@ -41,8 +41,7 @@ const LoginPage = () => {
       ...formData,
       [e.target.name]: e.target.value
     });
-    // 清除錯誤提示
-    if (error) setError('');
+    if (localError) setLocalError('');
   };
 
   const handleSubmit = async (e) => {
@@ -50,28 +49,19 @@ const LoginPage = () => {
 
     // 驗證
     if (!formData.username || !formData.password) {
-      setError('請輸入用戶名和密碼');
+      setLocalError('請輸入用戶名和密碼');
       return;
     }
 
-    setLoading(true);
-    setError('');
+    setLocalError('');
 
-    try {
-      const result = await authService.login(formData.username, formData.password);
-
-      if (result.success) {
-        // 登入成功,跳轉到原始路徑或首頁
-        navigate(from, { replace: true });
-      } else {
-        setError(result.error || '登入失敗');
-      }
-    } catch {
-      setError('登入失敗,請檢查網絡連接');
-    } finally {
-      setLoading(false);
+    const result = await login(formData.username, formData.password);
+    if (result.success) {
+      navigate(from, { replace: true });
     }
   };
+
+  const error = localError || authError;
 
   return (
     <Container maxWidth="sm">
