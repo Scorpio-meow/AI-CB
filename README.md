@@ -5,8 +5,9 @@
 一個基於增強型混合 RAG（檢索增強生成）技術的智能對話系統
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react&logoColor=black)](https://reactjs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat&logo=react&logoColor=black)](https://reactjs.org/)
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
+[![Vite](https://img.shields.io/badge/Vite-7-646CFF?style=flat&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 [功能特色](#-功能特色) • [快速開始](#-快速開始) • [技術架構](#️-技術架構) • [API 文檔](#-api-文檔)
@@ -33,34 +34,41 @@
 
 ### 🤖 智能對話系統
 
-- **混合 RAG 檢索**：結合向量搜尋（FAISS）和 BM25關鍵詞匹配
+- **混合 RAG 檢索**：結合向量搜尋（FAISS）和 BM25 關鍵詞匹配
 - **智能重排序**：使用 Cross-Encoder 提升檢索結果相關性
 - **多模型支援**：動態切換不同 LLM 模型
 - **對話管理**：支援多對話並行，保留歷史記錄
 - **即時通訊**：基於 WebSocket 的實時對話
 
+### 🗣️ 討論看板（Discussion Board）
+
+- **多 Agent 協作**：以視覺化節點圖呈現多個 AI Agent 的討論流程
+- **React Flow 整合**：直觀的拖拉式節點介面
+- **即時串流**：Agent 回覆逐字即時顯示
+- **標籤系統**：依標籤分類與篩選討論主題
+
 ### 🔒 安全與認證
 
-- **JWT 雙 Token 機制**：Access Token (30分鐘) + Refresh Token (7天)
+- **JWT 雙 Token 機制**：Access Token（30 分鐘）+ Refresh Token（7 天）
 - **RSA 非對稱加密**：使用 RSA-2048 簽名，適用於微服務架構
 - **Token 黑名單**：Redis 實現的撤銷機制
 - **靜默刷新**：自動更新 Token，無感體驗
 - **角色權限控制**：基於 RBAC 的細粒度權限管理
-- **速率限制**：防止 API 濫用（60次/分鐘）
+- **速率限制**：防止 API 濫用（60 次/分鐘）
 
 ### 📚 知識庫管理
 
 - **多格式支援**：PDF、TXT、DOCX 文件處理
 - **流式上傳**：支援大文件（最大 10MB）
 - **批次操作**：批次上傳最多 10 個文件
-- **智能分塊**：RecursiveCharacterTextSplitter（300字符，100重疊）
+- **智能分塊**：RecursiveCharacterTextSplitter（300 字符，100 重疊）
 - **混合索引**：FAISS + Whoosh 雙重索引
 - **多編碼支援**：自動檢測 UTF-8、GBK、Big5 等編碼
 
 ### 🎯 Agent 工作流系統
 
 - **自定義 Agent**：創建專屬的 AI Agent
-- **可見性控制**：公開/私有設定
+- **可見性控制**：公開／私有設定
 - **權限隔離**：用戶僅能訪問自己的或公開的 Agent
 - **角色預設**：內建多種專業角色模板
 
@@ -81,22 +89,25 @@
 |------|------|
 | **Web 框架** | FastAPI 0.104+ |
 | **ORM** | SQLAlchemy 2.0+ |
-| **AI/ML** | LangChain, Sentence-Transformers, FAISS, Whoosh |
-| **LLM** | Ollama（本地部署） |
+| **AI/ML** | LangChain, Sentence-Transformers, FlagEmbedding, FAISS, Whoosh |
+| **LLM** | Ollama（本地部署）或任意 OpenAI 相容端點 |
 | **數據庫** | PostgreSQL 17.9（開發/生產）、Redis（緩存） |
-| **安全** | cryptography, passlib, python-jose |
-| **文檔處理** | PyPDF2, python-docx, chardet |
+| **安全** | cryptography, passlib, python-jose, argon2-cffi |
+| **文檔處理** | pypdf, python-docx, chardet, jieba |
 
 ### 前端技術棧
 
 | 類別 | 技術 |
 |------|------|
-| **核心框架** | React 18 |
-| **UI 組件庫** | Material-UI (MUI) v5 |
-| **路由** | React Router v6 |
+| **核心框架** | React 19 |
+| **UI 組件庫** | Material-UI (MUI) v7 |
+| **路由** | React Router v7 |
 | **HTTP 客戶端** | Axios |
 | **WebSocket** | 原生 WebSocket API |
-| **構建工具** | Create React App |
+| **流程圖** | React Flow（討論看板節點視覺化） |
+| **Markdown 渲染** | react-markdown + remark-gfm |
+| **構建工具** | Vite 7 |
+| **測試框架** | Vitest |
 
 ### RAG 系統架構
 
@@ -122,7 +133,7 @@ flowchart TD
 
 ### 核心模型
 
-- **嵌入模型**：`BAAI/bge-m3`（1024維，支援100+語言）
+- **嵌入模型**：`BAAI/bge-m3`（1024 維，支援 100+ 語言）
 - **重排序模型**：`BAAI/bge-reranker-v2-m3`（提升檢索精度）
 - **向量索引**：FAISS IndexFlatIP（內積相似度）
 - **BM25 索引**：Whoosh StandardAnalyzer + jieba 中文分詞
@@ -134,7 +145,7 @@ flowchart TD
 ### 📋 環境要求
 
 - **Python**：3.10 或更高版本
-- **Node.js**：16.0 或更高版本
+- **Node.js**：18.0 或更高版本（或使用 Bun）
 - **Redis**：可選（推薦生產環境）
 - **數據庫**：PostgreSQL 17.9（開發/生產）
 
@@ -160,6 +171,8 @@ python -m venv CBvenv
 source CBvenv/bin/activate  # Linux/macOS
 
 # 安裝依賴
+# 若需 GPU 加速，請先手動安裝 PyTorch：
+# pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu130
 pip install -r requirements.txt
 
 # 配置環境變數（複製並編輯 .env 文件）
@@ -181,17 +194,21 @@ python -m uvicorn main:app --reload --host 0.0.0.0 --port 8001
 # 開啟新終端，進入前端目錄
 cd frontend
 
-# 安裝依賴（推薦 Bun，若使用 npm/yarn 也可）
-# Bun 安裝：PowerShell:
+# 安裝依賴（推薦 Bun）
+# Bun 安裝（Windows PowerShell）：
 # powershell -c "irm bun.sh/install.ps1 | iex"
-# 安裝套件
 bun install
 
 # 啟動前端開發服務器
 bun run dev
+
+# 或使用 npm
+npm install
+npm run dev
 ```
 
-**備註**：本專案已在 `CBvenv` 的 PowerShell 激活腳本中加入 Bun 路徑（若安裝於 `~/.bun/bin`），啟動虛擬環境後 Bun 命令可以直接使用，否則請將 Bun 安裝目錄加入系統 PATH。
+> **備註**：本專案已在 `CBvenv` 的 PowerShell 激活腳本中加入 Bun 路徑（若安裝於 `~/.bun/bin`），啟動虛擬環境後 Bun 命令可以直接使用，否則請將 Bun 安裝目錄加入系統 PATH。
+
 #### 4. PostgreSQL 設置（必要）
 
 ```bash
@@ -218,7 +235,7 @@ sudo service redis-server start
 ### ✅ 驗證安裝
 
 - **後端**：http://localhost:8001
-- **前端**：http://localhost:3001
+- **前端**：http://localhost:5173（Vite 預設）
 - **API 文檔**：http://localhost:8001/docs
 
 健康檢查：
@@ -263,7 +280,7 @@ REDIS_DB=0
 ENABLE_REDIS_CACHE=true
 
 # === CORS 配置 ===
-ALLOWED_ORIGINS=http://localhost:3001,http://127.0.0.1:3001
+ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 
 # === RAG 系統 - 模型配置 ===
 EMBEDDING_MODEL=BAAI/bge-m3
@@ -299,19 +316,14 @@ RATE_LIMIT_PER_MINUTE=60
 
 ```env
 # === API 連接 ===
-REACT_APP_API_URL=http://localhost:8001
-REACT_APP_API_BASE=http://localhost:8001
+VITE_API_URL=http://localhost:8001
+VITE_API_BASE=http://localhost:8001
 
 # === WebSocket 連接 ===
-REACT_APP_WS_URL=ws://localhost:8001
-
-# === 開發服務器配置 ===
-PORT=3000
-HOST=localhost
+VITE_WS_URL=ws://localhost:8001
 
 # === 功能開關 ===
-REACT_APP_ENABLE_ANALYTICS=false
-REACT_APP_ENABLE_DEBUG=true
+VITE_ENABLE_DEBUG=true
 ```
 
 ---
@@ -410,6 +422,20 @@ Content-Type: application/json
 }
 ```
 
+### 討論看板（Workflow）
+
+#### 建立工作流
+```http
+POST /api/workflow/
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "title": "技術討論",
+  "tag_ids": [1, 2]
+}
+```
+
 完整 API 文檔請訪問：http://localhost:8001/docs
 
 ---
@@ -422,27 +448,49 @@ Content-Type: application/json
 AI-CB/
 ├── backend/                 # 後端服務
 │   ├── app/                # 應用核心代碼
-│   │   ├── api/           # API 路由
-│   │   ├── core/          # 核心功能（RAG、安全）
-│   │   ├── models/        # 數據模型
-│   │   ├── schemas/       # Pydantic 模式
-│   │   └── tasks/         # 後台任務
+│   │   ├── api/           # API 路由（auth, chat, documents, admin, custom_agent, tags, workflow）
+│   │   ├── core/          # 核心功能（安全、設定）
+│   │   ├── crud/          # 資料庫 CRUD 操作
+│   │   ├── models/        # SQLAlchemy 數據模型
+│   │   ├── rag/           # RAG 系統（contextual_rag.py）
+│   │   ├── schemas/       # Pydantic 請求/回應模式
+│   │   ├── services/      # 業務邏輯服務層
+│   │   ├── tasks/         # 後台排程任務
+│   │   └── middleware.py  # 速率限制等中介層
 │   ├── data/              # 數據存儲（向量索引、文檔）
 │   ├── keys/              # RSA 金鑰
 │   ├── logs/              # 日誌文件
 │   ├── scripts/           # 工具腳本
+│   │   ├── migrate_sqlite_to_postgres.py
+│   │   ├── reset_faiss.py
+│   │   └── docx_to_txt.py
+│   ├── tests/             # 測試套件
 │   ├── main.py            # 應用入口
+│   ├── init_db.py         # 資料庫初始化
 │   └── requirements.txt   # Python 依賴
 │
-├── frontend/               # 前端應用
+├── frontend/               # 前端應用（Vite + React 19）
 │   ├── public/            # 靜態資源
 │   ├── src/               # 源代碼
-│   │   ├── components/   # React 組件
-│   │   ├── contexts/     # Context API
+│   │   ├── components/   # 共用 React 組件（Layout, PrivateRoute, NetworkStatus）
+│   │   ├── contexts/     # Context API（認證、主題）
+│   │   ├── hooks/        # 自定義 Hooks
 │   │   ├── pages/        # 頁面組件
+│   │   │   ├── Chat.jsx
+│   │   │   ├── Documents.jsx
+│   │   │   ├── CustomAgents.jsx
+│   │   │   ├── AdminDashboard.jsx
+│   │   │   ├── ProfilePage.jsx
+│   │   │   ├── LoginPage.jsx
+│   │   │   ├── RegisterPage.jsx
+│   │   │   └── DiscussionBoard/  # 多 Agent 討論看板
+│   │   ├── services/     # API 服務（authService, customAgentService）
 │   │   └── utils/        # 工具函數
+│   ├── vite.config.js     # Vite 構建配置
 │   └── package.json       # Node.js 依賴
 │
+├── Security-Guidelines_Traditional-Chinese.md
+├── Security-Guidelines-Explanation_Traditional-Chinese.md
 └── README.md              # 本文檔
 ```
 
@@ -465,6 +513,8 @@ AI-CB/
 
    # 前端測試
    cd frontend
+   bun run test
+   # 或
    npm test
    ```
 
@@ -478,7 +528,7 @@ AI-CB/
 ### 代碼風格
 
 - **Python**：遵循 PEP 8
-- **JavaScript**：遵循 ESLint 規則
+- **JavaScript/JSX**：遵循 ESLint 規則（參考 `eslint.config.js`）
 - **提交消息**：使用 Conventional Commits
 
 ---
@@ -488,7 +538,8 @@ AI-CB/
 ### Docker 部署
 
 ```bash
-# 構建並啟動服務
+# 使用 docker-compose（位於 backend/ 目錄）
+cd backend
 docker-compose up -d
 
 # 查看日誌
@@ -505,6 +556,7 @@ docker-compose down
    - 設置安全的 `JWT_SECRET_KEY` 和 `ADMIN_API_KEY`
    - 配置 PostgreSQL 數據庫
    - 啟用 Redis
+   - 更新 `ALLOWED_ORIGINS` 為正式域名
 
 2. **使用 HTTPS**
    - 配置 SSL 證書
@@ -514,16 +566,11 @@ docker-compose down
    - 使用 Gunicorn/Uvicorn workers
    - 啟用數據庫連接池
    - 配置 CDN
+   - 前端執行 `bun run build` 構建靜態資源
 
 ---
 
 ## ❓ 常見問題
-
-### Q: 如何創建管理員賬戶？
-```bash
-cd backend
-python scripts/create_admin.py
-```
 
 ### Q: 如何把舊版 SQLite（chatbot.db）資料遷移到 PostgreSQL？
 ```bash
@@ -537,20 +584,30 @@ python scripts/migrate_sqlite_to_postgres.py --source ./chatbot.db
 python scripts/migrate_sqlite_to_postgres.py --dry-run
 ```
 
-### Q: 如何重建向量索引？
-系統會每 24 小時自動重建索引。手動重建：
+### Q: 如何重置 FAISS 向量索引？
+系統會依 `REINDEX_HOURS` 設定自動重建索引。手動重置：
 ```bash
 cd backend
-python scripts/rebuild_index.py
+python scripts/reset_faiss.py
 ```
 
 ### Q: 如何更換 LLM 模型？
 在 `backend/.env` 中修改 `LLM_API_BASE`，然後重啟後端服務。
 
 ### Q: 前端無法連接後端？
-檢查 `frontend/package.json` 中的 `proxy` 設置是否正確：
-```json
-"proxy": "http://127.0.0.1:8001"
+確認 `frontend/vite.config.js` 中的 proxy 設置是否正確，預設應代理至 `http://127.0.0.1:8001`。
+
+### Q: 模型下載速度慢？
+可設定 Hugging Face 鏡像站：
+```bash
+# Windows PowerShell
+$env:HF_ENDPOINT = "https://hf-mirror.com"
+```
+
+### Q: 如何啟用 GPU 加速？
+安裝對應 CUDA 版本的 PyTorch：
+```bash
+pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu130
 ```
 
 ---
@@ -582,9 +639,8 @@ python scripts/rebuild_index.py
 
 <div align="center">
 
-**感謝使用 AI-CB！** ⭐
+**感謝使用 AI-CB！**
 
 如果這個項目對你有幫助，請給我們一個 Star！
-
 
 </div>
