@@ -1,6 +1,5 @@
 import os
 import secrets
-import hashlib
 import hmac
 from typing import Optional
 from fastapi import Header, HTTPException, Request, Response
@@ -11,37 +10,13 @@ from app.core.security_logging import log_unauthorized_access, log_security_even
 logger = logging.getLogger(__name__)
 security = HTTPBearer()
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
-_digest_salt = b"cb_api_key_salt"
-
-
-def _api_key_log_digest(api_key: str) -> str:
-    """Return a short, non-reversible identifier for logging.
-
-    Use a computationally-expensive KDF (PBKDF2) to avoid fast hashing of sensitive
-    values (CodeQL: py/weak-sensitive-data-hashing).
-    """
-    try:
-        salt = _digest_salt + b"|api_key_log_digest_v1"
-        derived = hashlib.pbkdf2_hmac(
-            "sha256",
-            api_key.encode("utf-8"),
-            salt,
-            200_000,
-            dklen=16,
-        )
-        return derived.hex()[:8]
-    except Exception:
-        return "unknown"
 # 安全註解：
-# 下方 PBKDF2-HMAC-SHA256 僅用於 API Key 日誌辨識（不可逆），不作為密碼雜湊或敏感資料存儲。
-# 目的僅為營運追蹤「相同輸入」的嘗試，不會記錄原始 Key。
 if not ADMIN_API_KEY or ADMIN_API_KEY == "CHANGE_THIS_TO_A_SECURE_RANDOM_STRING":
     # Generate a temporary secure key for development
     ADMIN_API_KEY = secrets.token_urlsafe(32)
     logger.warning("=" * 80)
     logger.warning("WARNING: ADMIN_API_KEY not set in environment!")
-    digest = _api_key_log_digest(ADMIN_API_KEY)
-    logger.warning("Using temporary API key (digest): %s", digest)
+    logger.warning("Using temporary API key for development; set ADMIN_API_KEY in your environment.")
     logger.warning("Please set ADMIN_API_KEY in your .env file!")
     logger.warning("=" * 80)
 async def verify_admin_api_key(x_api_key: Optional[str] = Header(None, description="Admin API Key")) -> bool:
@@ -54,10 +29,7 @@ async def verify_admin_api_key(x_api_key: Optional[str] = Header(None, descripti
             headers={"WWW-Authenticate": "ApiKey"}
         )
     if not hmac.compare_digest(x_api_key, ADMIN_API_KEY):
-        # 僅用於日誌辨識，不作密碼雜湊
-        # Do not log the raw key value. Log a non-reversible digest to help operators identify attempts.
-        digest = _api_key_log_digest(x_api_key)
-        logger.warning("Admin API access attempt with invalid API key (digest): %s", digest)
+        logger.warning("Admin API access attempt with invalid API key")
         raise HTTPException(
             status_code=403,
             detail="Invalid API Key",
