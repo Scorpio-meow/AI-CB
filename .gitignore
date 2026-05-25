@@ -17,4 +17,5 @@ frontend/bun.lock
 /frontend/~
 /backend/data
 backend/.env
-frontend/.env
+frontend/.env
+.env
