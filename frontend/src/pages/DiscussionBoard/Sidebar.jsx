@@ -18,10 +18,14 @@ const Sidebar = () => {
       <Typography variant="h6" gutterBottom>
         AI 角色列表
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+      <Typography
+        variant="body2"
+        sx={{
+          color: "text.secondary",
+          mb: 2
+        }}>
         請將角色拖拽到右側畫布中
       </Typography>
-
       {loading ? (
         <CircularProgress />
       ) : error ? (

@@ -114,7 +114,9 @@ const RegisterPage = () => {
               <Typography variant="h5" gutterBottom>
                 註冊成功!
               </Typography>
-              <Typography variant="body1" color="text.secondary">
+              <Typography variant="body1" sx={{
+                color: "text.secondary"
+              }}>
                 正在跳轉到首頁...
               </Typography>
             </CardContent>
@@ -143,7 +145,9 @@ const RegisterPage = () => {
               <Typography variant="h4" component="h1" gutterBottom>
                 創建新帳號
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
                 填寫以下資料完成註冊
               </Typography>
             </Box>
@@ -189,17 +193,19 @@ const RegisterPage = () => {
                 onChange={handleChange}
                 disabled={loading}
                 margin="normal"
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowPassword(!showPassword)}
-                        edge="end"
-                      >
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  )
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => setShowPassword(!showPassword)}
+                          edge="end"
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    )
+                  }
                 }}
               />
 
@@ -217,7 +223,9 @@ const RegisterPage = () => {
               {/* Password Requirements */}
               {formData.password && (
                 <Box sx={{ mt: 2, mb: 1 }}>
-                  <Typography variant="caption" color="text.secondary" gutterBottom>
+                  <Typography variant="caption" gutterBottom sx={{
+                    color: "text.secondary"
+                  }}>
                     密碼要求:
                   </Typography>
                   <List dense>
@@ -231,7 +239,9 @@ const RegisterPage = () => {
                       </ListItemIcon>
                       <ListItemText
                         primary="至少 8 個字符"
-                        primaryTypographyProps={{ variant: 'caption' }}
+                        slotProps={{
+                          primary: { variant: 'caption' }
+                        }}
                       />
                     </ListItem>
                     <ListItem disablePadding>
@@ -244,7 +254,9 @@ const RegisterPage = () => {
                       </ListItemIcon>
                       <ListItemText
                         primary="包含大寫字母"
-                        primaryTypographyProps={{ variant: 'caption' }}
+                        slotProps={{
+                          primary: { variant: 'caption' }
+                        }}
                       />
                     </ListItem>
                     <ListItem disablePadding>
@@ -257,7 +269,9 @@ const RegisterPage = () => {
                       </ListItemIcon>
                       <ListItemText
                         primary="包含小寫字母"
-                        primaryTypographyProps={{ variant: 'caption' }}
+                        slotProps={{
+                          primary: { variant: 'caption' }
+                        }}
                       />
                     </ListItem>
                     <ListItem disablePadding>
@@ -270,7 +284,9 @@ const RegisterPage = () => {
                       </ListItemIcon>
                       <ListItemText
                         primary="包含數字"
-                        primaryTypographyProps={{ variant: 'caption' }}
+                        slotProps={{
+                          primary: { variant: 'caption' }
+                        }}
                       />
                     </ListItem>
                     <ListItem disablePadding>
@@ -283,7 +299,9 @@ const RegisterPage = () => {
                       </ListItemIcon>
                       <ListItemText
                         primary="兩次密碼輸入一致"
-                        primaryTypographyProps={{ variant: 'caption' }}
+                        slotProps={{
+                          primary: { variant: 'caption' }
+                        }}
                       />
                     </ListItem>
                   </List>
@@ -311,7 +329,9 @@ const RegisterPage = () => {
 
             {/* Links */}
             <Box sx={{ textAlign: 'center', mt: 2 }}>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
                 已有帳號?{' '}
                 <Link to="/login" style={{ textDecoration: 'none' }}>
                   <Typography
@@ -331,10 +351,11 @@ const RegisterPage = () => {
         {/* Footer */}
         <Typography
           variant="body2"
-          color="text.secondary"
           align="center"
-          sx={{ mt: 3 }}
-        >
+          sx={{
+            color: "text.secondary",
+            mt: 3
+          }}>
           ChatBot © 2025 - Powered by JWT Authentication
         </Typography>
       </Box>

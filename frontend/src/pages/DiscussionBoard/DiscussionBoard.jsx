@@ -1,7 +1,8 @@
 // src/components/DiscussionBoard/DiscussionBoard.js
 
 import React, { useState, useCallback, useRef, useEffect, useMemo, useImperativeHandle } from 'react';
-import ReactFlow, {
+import {
+  ReactFlow,
   ReactFlowProvider,
   addEdge,
   useNodesState,
@@ -9,8 +10,8 @@ import ReactFlow, {
   Controls,
   Background,
   applyEdgeChanges,
-} from 'reactflow';
-import 'reactflow/dist/style.css';
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 import { Box, Paper, Typography, Menu, MenuItem, Chip, Button, Alert, CircularProgress } from '@mui/material';
 import { DoneAll } from '@mui/icons-material';
 import AgentNode from './AgentNode';
@@ -71,11 +72,10 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
 
   const onDrop = useCallback((event) => {
     event.preventDefault();
-    const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
     const { nodeType, label, profession } = JSON.parse(event.dataTransfer.getData('application/reactflow'));
     if (typeof nodeType === 'undefined' || !nodeType) return;
 
-    const position = reactFlowInstance.project({ x: event.clientX - reactFlowBounds.left, y: event.clientY - reactFlowBounds.top });
+    const position = reactFlowInstance.screenToFlowPosition({ x: event.clientX, y: event.clientY });
     const newNodeId = getUniqueId();
     const newNode = {
       id: newNodeId,
@@ -248,6 +248,12 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
           if (import.meta.env.DEV) {
             console.log('構建 WebSocket URL:', websocketURL);
           }
+        }
+
+        const token = localStorage.getItem('access_token');
+        if (token) {
+          const separator = websocketURL.includes('?') ? '&' : '?';
+          websocketURL = `${websocketURL}${separator}token=${encodeURIComponent(token)}`;
         }
 
         // close existing socket if any

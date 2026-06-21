@@ -1,12 +1,12 @@
 import json
 import logging
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.models.database import get_db
-from app.core.jwt_auth import get_current_active_user
+from app.core.jwt_auth import get_current_active_user, TokenManager
 from app.crud import crud_custom_agent
 from app.services.websocket_manager import workflow_ws_manager
 from app.services.workflow_service import (
@@ -45,10 +45,58 @@ def get_professions(
     return sorted(list(unique_professions))
 
 @router.websocket("/ws")
-async def workflow_websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
+async def workflow_websocket_endpoint(
+    websocket: WebSocket,
+    token: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
     """工作流 WebSocket 端點 - 接受連線並將訊息分派給工作流管理器"""
-    user_id = 1  # TODO: 實施適當的身份驗證
-    await workflow_ws_manager.connect(websocket, user_id)
+    await websocket.accept()
+    
+    if not token:
+        logger.warning("WebSocket 認證失敗: 缺少 token")
+        await websocket.send_json({
+            "status": "error",
+            "response": "認證失敗: 缺少 token"
+        })
+        await websocket.close(code=3000)
+        return
+        
+    try:
+        payload = TokenManager.decode_token(token)
+        if not TokenManager.verify_token_type(payload, "access"):
+            logger.warning("WebSocket 認證失敗: 無效的 token 類型")
+            await websocket.send_json({
+                "status": "error",
+                "response": "認證失敗: 無效的 token 類型"
+            })
+            await websocket.close(code=3000)
+            return
+            
+        user_id_str = payload.get("sub")
+        if not user_id_str:
+            logger.warning("WebSocket 認證失敗: token 中無 sub 資訊")
+            await websocket.send_json({
+                "status": "error",
+                "response": "認證失敗: token 中缺少用戶資訊"
+            })
+            await websocket.close(code=3000)
+            return
+            
+        user_id = int(user_id_str)
+    except Exception as e:
+        logger.error(f"WebSocket 認證驗證失敗: {e}")
+        await websocket.send_json({
+            "status": "error",
+            "response": f"認證失敗: {str(e)}"
+        })
+        await websocket.close(code=3000)
+        return
+
+    # 將經認證的連線註冊至管理器中
+    workflow_ws_manager.active_connections.append(websocket)
+    workflow_ws_manager.user_connections[user_id] = websocket
+    logger.info(f"User {user_id} connected to Workflow WebSocket (authenticated)")
     
     try:
         while True:

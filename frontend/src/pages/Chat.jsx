@@ -127,11 +127,11 @@ function Chat() {
           const response = await api.get('/external-tags');
           payload = response.data;
           if (!payload) payload = null;
-        } catch (e) {
+        } catch {
           try {
             const response = await api.get('/tags');
             payload = response.data;
-          } catch (innerErr) {
+          } catch {
             payload = null;
           }
         }
@@ -438,7 +438,9 @@ function Chat() {
                 <ListItemText
                   primary={conv.title}
                   secondary={new Date(conv.updated_at).toLocaleDateString()}
-                  primaryTypographyProps={{ noWrap: true, fontSize: '0.9rem' }}
+                  slotProps={{
+                    primary: { noWrap: true, fontSize: '0.9rem' }
+                  }}
                 />
                 <IconButton
                   size="small"
@@ -451,10 +453,8 @@ function Chat() {
           </List>
         </Paper>
       </Box>
-
       {/* 中間分隔線（垂直） */}
       <Divider orientation="vertical" flexItem />
-
       {/* 主區域 */}
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {/* 主要內容區域 */}
@@ -563,7 +563,12 @@ function Chat() {
                           <Box>
                             <Typography variant="body2">{model}</Typography>
                             {detail && (detail.size || detail.family) && (
-                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  color: "text.secondary",
+                                  display: 'block'
+                                }}>
                                 {detail.family && `${detail.family}`}
                                 {detail.size && ` • ${detail.size}`}
                                 {detail.quantization && ` • ${detail.quantization}`}
@@ -613,7 +618,6 @@ function Chat() {
           </Box>
         </Paper>
       </Box>
-
       {/* Snackbar 通知 */}
       <Snackbar
         open={snackbar.open}

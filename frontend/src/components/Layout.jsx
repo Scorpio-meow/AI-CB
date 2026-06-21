@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -231,7 +231,6 @@ function Layout() {
           </Box>
         </Toolbar>
       </AppBar>
-
       {/* User Menu */}
       <Menu
         anchorEl={anchorEl}
@@ -257,7 +256,9 @@ function Layout() {
         }}
       >
         <MenuItem disabled>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {user?.username}
           </Typography>
         </MenuItem>
@@ -275,7 +276,6 @@ function Layout() {
           <ListItemText>登出</ListItemText>
         </MenuItem>
       </Menu>
-
       <Box component="main" sx={{ px: { xs: 2, sm: 3 }, pb: 3, mt: 2 }}>
         <AgentProvider>
           <Outlet />

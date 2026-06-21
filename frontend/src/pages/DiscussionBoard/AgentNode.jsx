@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Handle, Position } from 'reactflow';
+import { Handle, Position } from '@xyflow/react';
 import { Paper, Typography, Box, Divider, CircularProgress, Link } from '@mui/material'; // 引入 CircularProgress
 import { createMotionTransition, reduceMotionStyles } from '../../utils/motion';
 
