@@ -106,6 +106,26 @@ class RedisCache:
             logger.error(f"Redis SET 錯誤: {e}")
             return False
     
+    def get_raw(self, key: str) -> Optional[str]:
+        """直接讀取原始 key 值 (同步)"""
+        if not self.enabled or not self.client:
+            return None
+        try:
+            return self.client.get(key)
+        except Exception as e:
+            logger.error(f"Redis GET_RAW 錯誤: {e}")
+            return None
+
+    def set_raw(self, key: str, value: str, ttl: int = 3600) -> bool:
+        """直接寫入原始 key 值 (同步)"""
+        if not self.enabled or not self.client:
+            return False
+        try:
+            return bool(self.client.setex(key, ttl, value))
+        except Exception as e:
+            logger.error(f"Redis SET_RAW 錯誤: {e}")
+            return False
+
     def delete(self, query: str, user_id: Optional[int] = None,
               conversation_id: Optional[int] = None) -> bool:
         """刪除特定查詢的快取"""

@@ -37,10 +37,9 @@ async def save_text_file_async(basename: str, content: str) -> Path:
     filename = f"{ts}_{sanitize_filename(basename)}.md"
     path = OUTPUT_DIR / filename
     
-    # 使用 asyncio 寫入檔案
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(
-        None, 
+    # 使用 anyio 寫入檔案
+    import anyio
+    await anyio.to_thread.run_sync(
         lambda: path.write_text(content or "", encoding="utf-8")
     )
     return path
@@ -103,8 +102,8 @@ class WorkflowNode:
         # 並發控制鎖 - 防止競態條件
         self._lock = asyncio.Lock()
         
-        # 動態獲取 System Prompt
-        self._set_system_prompt()
+        # 延遲初始化 system_prompt，防止在 __init__ 中同步阻塞 DB 呼叫
+        self.system_prompt: Optional[str] = None
 
         if self.is_gate:
             logger.info(f"{self.log_prefix} 被指定為入口(gate)，將忽略其所有輸入連線。")
@@ -113,8 +112,8 @@ class WorkflowNode:
 
         logger.info(f"{self.log_prefix} 已初始化。輸入源: {self.input_ids}, 輸出目標: {self.output_ids}")
 
-    def _set_system_prompt(self):
-        """動態設定此節點的 system_prompt"""
+    def _load_system_prompt_sync(self) -> str:
+        """從資料庫查詢此節點的 system_prompt (同步，配合 anyio.to_thread.run_sync 使用)"""
         db = self.manager.db
         user_id = self.manager.user_id
         system_prompt = None
@@ -131,7 +130,7 @@ class WorkflowNode:
             system_prompt = get_default_prompt()
             logger.info(f"{self.log_prefix} 找不到對應的 prompt，使用 DEFAULT。")
 
-        self.system_prompt = system_prompt
+        return system_prompt
 
     async def check_and_run(self, sender_id: str):
         """檢查並運行節點 (帶並發控制)"""
@@ -172,6 +171,11 @@ class WorkflowNode:
             "message": f"{self.profession} 正在思考..."
         })
 
+        # 懶加載 system prompt，防止同步阻塞 DB
+        if self.system_prompt is None:
+            import anyio
+            self.system_prompt = await anyio.to_thread.run_sync(self._load_system_prompt_sync)
+
         input_parts = []
         for sender_id, content in self.received_inputs.items():
             sender_node = self.manager.nodes.get(sender_id)
@@ -182,8 +186,8 @@ class WorkflowNode:
         task_description = f"請基於以下全部內容，從你「{self.profession}」的角度出發，完成你的任務。\n\n{combined_input}"
 
         try:
-            # 直接接收純文本回應
-            raw_response = await self.manager.execute_llm_call(self.system_prompt, task_description)
+            # 啟用 Tool Calling 支援
+            raw_response = await self.manager.execute_llm_call(self.system_prompt, task_description, tools=True)
             self.output_content = raw_response if raw_response else "(內容生成失敗)"
             self.status = "COMPLETED"
             logger.info(f"{self.log_prefix} 執行成功。")
@@ -361,91 +365,57 @@ class DynamicWorkflowManager:
         except Exception as e:
             logger.error(f"Failed to send JSON via websocket: {e}")
 
-    async def execute_llm_call(self, system_prompt: str, task_description: str) -> str:
-        """獨立的 LLM 調用函數，使用連接池和精確錯誤處理。"""
+    async def execute_llm_call(
+        self,
+        system_prompt: str,
+        task_description: str,
+        tools: Optional[bool] = None
+    ) -> str:
+        """獨立的 LLM 調用函數，支援 Tool Calling 與策略 Provider 切換。"""
         logger.info(f"{self.log_prefix} 開始執行 `execute_llm_call`。")
         
         # 輸入驗證
         if not system_prompt or not task_description:
             raise ValueError("system_prompt 和 task_description 不能為空")
+            
+        from app.core.llm_provider import get_llm_provider
+        provider = get_llm_provider()
         
-        try:
-            client = await get_http_client()  # 使用連接池
-            url = f"{settings.LLM_API_BASE}/api/chat"
-            
-            # 構建 messages 列表
-            messages = [
-                {
-                    "role": "system",
-                    "content": system_prompt
-                }
-            ]
-            
-            # 添加工作流歷史上下文 (限制數量)
-            if self.master_history:
-                context_messages = self.master_history[-settings.WORKFLOW_MAX_CONTEXT:]
-                for entry in context_messages:
-                    role = entry.get("role", "")
-                    content = entry.get("content", "")
+        # 建立對話 messages (包含自訂歷史上下文，但過濾非標準 role，以相容 OpenAI / Ollama 規範)
+        messages = [
+            {"role": "system", "content": system_prompt}
+        ]
+        
+        if self.master_history:
+            context_messages = self.master_history[-settings.WORKFLOW_MAX_CONTEXT:]
+            for entry in context_messages:
+                role = entry.get("role", "")
+                content = entry.get("content", "")
+                
+                # 跳過 User 角色,避免與 task_description 重複
+                if role == "User":
+                    continue
                     
-                    # 跳過 User 角色,避免與 task_description 重複
-                    if role == "User":
-                        continue
-                        
-                    # 其他專業角色視為 assistant
-                    messages.append({
-                        "role": "assistant",
-                        "content": f"[{role}]\n{content}"
-                    })
-            
-            # 添加當前任務描述
-            messages.append({
-                "role": "user",
-                "content": task_description
-            })
-            
-            payload = {
-                "model": settings.MODEL_NAME,
-                "messages": messages,
-                "stream": False
-            }
-            
-            logger.info(f"{self.log_prefix} 調用 LLM API，messages 數量: {len(messages)}")
-            
-            # 使用連接池的客戶端
-            response = await client.post(url, json=payload)
-            response.raise_for_status()
-            data = response.json()
-            
-            response_text = data.get("message", {}).get("content", "").strip()
-            
-            if not response_text:
-                raise ValueError("LLM 返回空響應")
-            
-            logger.info(f"{self.log_prefix} LLM API 調用成功，響應長度: {len(response_text)} 字符。")
-            return response_text
-            
-        except httpx.TimeoutException as e:
-            error_msg = f"LLM API 請求超時 ({settings.LLM_TIMEOUT}s): {str(e)}"
-            logger.error(f"{self.log_prefix} {error_msg}")
-            raise TimeoutError(error_msg) from e
-            
-        except httpx.HTTPStatusError as e:
-            error_msg = f"LLM API HTTP 錯誤 {e.response.status_code}: {e.response.text[:200]}"
-            logger.error(f"{self.log_prefix} {error_msg}")
-            raise RuntimeError(error_msg) from e
-            
-        except httpx.RequestError as e:
-            error_msg = f"LLM API 網路請求失敗: {str(e)}"
-            logger.error(f"{self.log_prefix} {error_msg}")
-            raise ConnectionError(error_msg) from e
-            
-        except (KeyError, ValueError) as e:
-            error_msg = f"LLM API 響應格式錯誤: {str(e)}"
-            logger.error(f"{self.log_prefix} {error_msg}")
-            raise ValueError(error_msg) from e
-            
-        except Exception as e:
-            error_msg = f"LLM API 未預期錯誤 ({type(e).__name__}): {str(e)}"
-            logger.error(f"{self.log_prefix} {error_msg}")
-            raise RuntimeError(error_msg) from e
+                # 其它專業角色轉換為 assistant 角色，供對話生成上下文
+                messages.append({
+                    "role": "assistant",
+                    "content": f"[{role}]\n{content}"
+                })
+                
+        messages.append({
+            "role": "user",
+            "content": task_description
+        })
+        
+        # 呼叫 provider 執行
+        # 我們將使用 TOOL_SCHEMAS 提供所有的工具定義給 LLM
+        from app.tools.registry import TOOL_SCHEMAS
+        
+        # 只有在傳入了 tools 或開啟了 Tool Calling 支援時才傳入 TOOL_SCHEMAS
+        active_tools = TOOL_SCHEMAS if tools is not None else None
+        
+        return await provider.chat_with_tools(
+            messages=messages,
+            tools=active_tools,
+            max_iterations=5
+        )

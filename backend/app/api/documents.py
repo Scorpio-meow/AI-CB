@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.models.database import get_db
 from app.models import Document as DBDocument
 from app.core.rag_manager import get_rag_system
-from app.core.user_context import get_current_user_id, get_default_user_id
+from app.core.user_context import get_current_user_id, get_default_user_id, get_mcp_or_user_id
 from app.core.jwt_auth import get_current_admin_user
 from app.services.document_processor import DocumentProcessor
 from app.core.input_validator import InputValidator
@@ -335,3 +335,29 @@ async def rebuild_index(
     except Exception as e:
         logger.exception("索引重建失敗")
         raise HTTPException(status_code=500, detail="索引重建失敗: 內部錯誤，請聯繫系統管理員")
+
+@router.post("/search")
+async def search_documents_endpoint(
+    query: str,
+    top_k: int = 5,
+    user_id: int = Depends(get_mcp_or_user_id)
+):
+    """
+    RAG 混合搜尋端點。
+    允許使用者 (與 MCP Server 薄客戶端) 搜尋知識庫內容。
+    """
+    try:
+        rag_system = get_rag_system()
+        results = rag_system.smart_search(query)
+        sliced = results[:top_k]
+        formatted = []
+        for doc, score in sliced:
+            formatted.append({
+                "content": doc.page_content,
+                "metadata": doc.metadata,
+                "score": float(score)
+            })
+        return formatted
+    except Exception as e:
+        logger.exception("RAG 搜尋端點執行失敗")
+        raise HTTPException(status_code=500, detail=f"搜尋失敗: {str(e)}")

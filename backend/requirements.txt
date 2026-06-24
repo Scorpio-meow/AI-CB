@@ -30,3 +30,6 @@ cryptography
 redis
 pytest-asyncio
 sentence-transformers
+anyio
+mcp
+pytest-mock
