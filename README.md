@@ -1,4 +1,4 @@
-# AI-CB (AI ChatBot)
+# AskMiao
 
 <div align="center">
 
@@ -10,53 +10,53 @@
 [![Vite](https://img.shields.io/badge/Vite-7-646CFF?style=flat&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-[功能特色](#-功能特色) • [快速開始](#-快速開始) • [技術架構](#️-技術架構) • [API 文檔](#-api-文檔)
+[功能特色](#功能特色) • [快速開始](#快速開始) • [技術架構](#技術架構) • [API 文件](#api-文件)
 
 </div>
 
 ---
 
-## 📋 目錄
+## 目錄
 
-- [功能特色](#-功能特色)
-- [技術架構](#️-技術架構)
-- [快速開始](#-快速開始)
-- [環境配置](#-環境配置)
-- [API 文檔](#-api-文檔)
-- [開發指南](#-開發指南)
-- [部署](#-部署)
-- [常見問題](#-常見問題)
-- [貢獻](#-貢獻)
+- [功能特色](#功能特色)
+- [技術架構](#技術架構)
+- [快速開始](#快速開始)
+- [環境配置](#環境配置)
+- [API 文件](#api-文件)
+- [開發指南](#開發指南)
+- [部署](#部署)
+- [常見問題](#常見問題)
+- [貢獻](#貢獻)
 
 ---
 
-## 🌟 功能特色
+## 功能特色
 
-### 🤖 智能對話系統
+### 智能對話系統
 
 - **混合 RAG 檢索**：結合向量搜尋（FAISS）和 BM25 關鍵詞匹配
 - **智能重排序**：使用 Cross-Encoder 提升檢索結果相關性
 - **多模型支援**：動態切換不同 LLM 模型
-- **對話管理**：支援多對話並行，保留歷史記錄
+- **對話管理**：支援多對話同時進行，保留歷史記錄
 - **即時通訊**：基於 WebSocket 的實時對話
 
-### 🗣️ 討論看板（Discussion Board）
+### 討論看板（Discussion Board）
 
 - **多 Agent 協作**：以視覺化節點圖呈現多個 AI Agent 的討論流程
 - **React Flow 整合**：直觀的拖拉式節點介面
 - **即時串流**：Agent 回覆逐字即時顯示
 - **標籤系統**：依標籤分類與篩選討論主題
 
-### 🔒 安全與認證
+### 安全與認證
 
 - **JWT 雙 Token 機制**：Access Token（30 分鐘）+ Refresh Token（7 天）
 - **RSA 非對稱加密**：使用 RSA-2048 簽名，適用於微服務架構
 - **Token 黑名單**：Redis 實現的撤銷機制
-- **靜默刷新**：自動更新 Token，無感體驗
+- **背景刷新**：自動更新 Token，無感體驗
 - **角色權限控制**：基於 RBAC 的細粒度權限管理
 - **速率限制**：防止 API 濫用（60 次/分鐘）
 
-### 📚 知識庫管理
+### 知識庫管理
 
 - **多格式支援**：PDF、TXT、DOCX 文件處理
 - **流式上傳**：支援大文件（最大 10MB）
@@ -65,23 +65,23 @@
 - **混合索引**：FAISS + Whoosh 雙重索引
 - **多編碼支援**：自動檢測 UTF-8、GBK、Big5 等編碼
 
-### 🎯 Agent 工作流系統
+### Agent 工作流系統
 
 - **自定義 Agent**：創建專屬的 AI Agent
 - **可見性控制**：公開／私有設定
-- **權限隔離**：用戶僅能訪問自己的或公開的 Agent
+- **權限隔離**：使用者僅能存取自己的或公開的 Agent
 - **角色預設**：內建多種專業角色模板
 
-### 🎛️ 後台管理
+### 後台管理
 
-- **用戶管理**：完整的 CRUD 操作
-- **對話監控**：查看所有用戶對話記錄
+- **使用者管理**：完整的 CRUD 操作
+- **對話監控**：查看所有使用者對話紀錄
 - **系統統計**：使用量分析與性能指標
 - **向量庫監控**：索引狀態、重建統計、性能追蹤
 
 ---
 
-## 🏗️ 技術架構
+## 技術架構
 
 ### 後端技術棧
 
@@ -91,9 +91,9 @@
 | **ORM** | SQLAlchemy 2.0+ |
 | **AI/ML** | LangChain, Sentence-Transformers, FlagEmbedding, FAISS, Whoosh |
 | **LLM** | Ollama（本地部署）或任意 OpenAI 相容端點 |
-| **數據庫** | PostgreSQL 17.9（開發/生產）、Redis（緩存） |
+| **資料庫** | PostgreSQL 17.9（開發/生產）、Redis（快取） |
 | **安全** | cryptography, passlib, python-jose, argon2-cffi |
-| **文檔處理** | pypdf, python-docx, chardet, jieba |
+| **文件處理** | pypdf, python-docx, chardet, jieba |
 
 ### 前端技術棧
 
@@ -113,7 +113,7 @@
 
 ```mermaid
 flowchart TD
-    A["用戶查詢"] --> B["智能檢索策略選擇<br/>(向量搜尋 / BM25 / 混合搜尋)"]
+    A["使用者查詢"] --> B["智能檢索策略選擇<br/>(向量搜尋 / BM25 / 混合搜尋)"]
     B --> C["向量搜尋<br/>(FAISS)"]
     B --> D["BM25<br/>(Whoosh)"]
     B --> E["混合搜尋<br/>(融合)"]
@@ -140,25 +140,25 @@ flowchart TD
 
 ---
 
-## 🚀 快速開始
+## 快速開始
 
-### 📋 環境要求
+### 環境要求
 
 - **Python**：3.10 或更高版本
 - **Node.js**：18.0 或更高版本（或使用 Bun）
 - **Redis**：可選（推薦生產環境）
-- **數據庫**：PostgreSQL 17.9（開發/生產）
+- **資料庫**：PostgreSQL 17.9（開發/生產）
 
-### ⚡ 安裝步驟
+### 安裝步驟
 
 #### 1. 克隆倉庫
 
 ```bash
-git clone https://github.com/Scorpio-meow/AI-CB.git
-cd AI-CB
+git clone https://github.com/Scorpio-meow/AskMiao.git
+cd AskMiao
 ```
 
-#### 2. 後端設置
+#### 2. 後端設定
 
 ```bash
 # 進入後端目錄
@@ -170,7 +170,7 @@ python -m venv CBvenv
 # 或
 source CBvenv/bin/activate  # Linux/macOS
 
-# 安裝依賴
+# 安裝相依套件
 # 若需 GPU 加速，請先手動安裝 PyTorch：
 # pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu130
 pip install -r requirements.txt
@@ -178,7 +178,7 @@ pip install -r requirements.txt
 # 配置環境變數（複製並編輯 .env 文件）
 cp .env.example .env
 
-# 初始化數據庫
+# 初始化資料庫
 python init_db.py
 
 # （可選）若你有舊版 SQLite 資料，執行遷移到 PostgreSQL
@@ -188,18 +188,18 @@ python scripts/migrate_sqlite_to_postgres.py
 python -m uvicorn main:app --reload --host 0.0.0.0 --port 8001
 ```
 
-#### 3. 前端設置
+#### 3. 前端設定
 
 ```bash
 # 開啟新終端，進入前端目錄
 cd frontend
 
-# 安裝依賴（推薦 Bun）
+# 安裝相依套件（推薦 Bun）
 # Bun 安裝（Windows PowerShell）：
 # powershell -c "irm bun.sh/install.ps1 | iex"
 bun install
 
-# 啟動前端開發服務器
+# 啟動前端開發伺服器
 bun run dev
 
 # 或使用 npm
@@ -209,7 +209,7 @@ npm run dev
 
 > **備註**：本專案已在 `CBvenv` 的 PowerShell 激活腳本中加入 Bun 路徑（若安裝於 `~/.bun/bin`），啟動虛擬環境後 Bun 命令可以直接使用，否則請將 Bun 安裝目錄加入系統 PATH。
 
-#### 4. PostgreSQL 設置（必要）
+#### 4. PostgreSQL 設定（必要）
 
 ```bash
 # 使用 Docker 啟動 PostgreSQL 17.9
@@ -221,7 +221,7 @@ docker run -d --name chatbot-postgres \
   postgres:17.9
 ```
 
-#### 5. Redis 設置（可選，用於生產環境）
+#### 5. Redis 設定（可選，用於生產環境）
 
 ```bash
 # 使用 Docker（推薦）
@@ -232,11 +232,11 @@ wsl
 sudo service redis-server start
 ```
 
-### ✅ 驗證安裝
+### 驗證安裝
 
 - **後端**：http://localhost:8001
 - **前端**：http://localhost:5173（Vite 預設）
-- **API 文檔**：http://localhost:8001/docs
+- **API 文件**：http://localhost:8001/docs
 
 健康檢查：
 ```bash
@@ -246,7 +246,7 @@ curl http://localhost:8001/health
 
 ---
 
-## 🔧 環境配置
+## 環境配置
 
 ### 後端環境變數（`backend/.env`）
 
@@ -296,7 +296,7 @@ FINAL_THRESHOLD=0.15
 HYBRID_ALPHA=0.75
 NORMALIZATION=max
 
-# === RAG 系統 - 文檔處理 ===
+# === RAG 系統 - 文件處理 ===
 CHUNK_SIZE=300
 CHUNK_OVERLAP=100
 MAX_FILE_SIZE_MB=10
@@ -328,11 +328,11 @@ VITE_ENABLE_DEBUG=true
 
 ---
 
-## 📡 API 文檔
+## API 文件
 
 ### 認證相關
 
-#### 用戶註冊
+#### 使用者註冊
 ```http
 POST /api/auth/register
 Content-Type: application/json
@@ -344,7 +344,7 @@ Content-Type: application/json
 }
 ```
 
-#### 用戶登入
+#### 使用者登入
 ```http
 POST /api/auth/login
 Content-Type: application/json
@@ -436,28 +436,28 @@ Content-Type: application/json
 }
 ```
 
-完整 API 文檔請訪問：http://localhost:8001/docs
+完整 API 文件請造訪：http://localhost:8001/docs
 
 ---
 
-## 🛠️ 開發指南
+## 開發指南
 
-### 項目結構
+### 專案結構
 
 ```
-AI-CB/
+AskMiao/
 ├── backend/                 # 後端服務
-│   ├── app/                # 應用核心代碼
+│   ├── app/                # 應用核心程式碼
 │   │   ├── api/           # API 路由（auth, chat, documents, admin, custom_agent, tags, workflow）
 │   │   ├── core/          # 核心功能（安全、設定）
 │   │   ├── crud/          # 資料庫 CRUD 操作
-│   │   ├── models/        # SQLAlchemy 數據模型
+│   │   ├── models/        # SQLAlchemy 資料模型
 │   │   ├── rag/           # RAG 系統（contextual_rag.py）
 │   │   ├── schemas/       # Pydantic 請求/回應模式
 │   │   ├── services/      # 業務邏輯服務層
 │   │   ├── tasks/         # 後台排程任務
 │   │   └── middleware.py  # 速率限制等中介層
-│   ├── data/              # 數據存儲（向量索引、文檔）
+│   ├── data/              # 資料儲存（向量索引、文件）
 │   ├── keys/              # RSA 金鑰
 │   ├── logs/              # 日誌文件
 │   ├── scripts/           # 工具腳本
@@ -467,11 +467,11 @@ AI-CB/
 │   ├── tests/             # 測試套件
 │   ├── main.py            # 應用入口
 │   ├── init_db.py         # 資料庫初始化
-│   └── requirements.txt   # Python 依賴
+│   └── requirements.txt   # Python 相依套件
 │
 ├── frontend/               # 前端應用（Vite + React 19）
 │   ├── public/            # 靜態資源
-│   ├── src/               # 源代碼
+│   ├── src/               # 原始碼
 │   │   ├── components/   # 共用 React 組件（Layout, PrivateRoute, NetworkStatus）
 │   │   ├── contexts/     # Context API（認證、主題）
 │   │   ├── hooks/        # 自定義 Hooks
@@ -487,11 +487,9 @@ AI-CB/
 │   │   ├── services/     # API 服務（authService, customAgentService）
 │   │   └── utils/        # 工具函數
 │   ├── vite.config.js     # Vite 構建配置
-│   └── package.json       # Node.js 依賴
+│   └── package.json       # Node.js 相依套件
 │
-├── Security-Guidelines_Traditional-Chinese.md
-├── Security-Guidelines-Explanation_Traditional-Chinese.md
-└── README.md              # 本文檔
+└── README.md              # 本文件
 ```
 
 ### 開發流程
@@ -502,7 +500,7 @@ AI-CB/
    ```
 
 2. **開發功能**
-   - 後端：在 `backend/app/` 中添加代碼
+   - 後端：在 `backend/app/` 中添加程式碼
    - 前端：在 `frontend/src/` 中添加組件
 
 3. **測試**
@@ -518,14 +516,14 @@ AI-CB/
    npm test
    ```
 
-4. **提交代碼**
+4. **提交程式碼**
    ```bash
    git add .
    git commit -m "feat: add new feature"
    git push origin feature/your-feature-name
    ```
 
-### 代碼風格
+### 程式碼風格
 
 - **Python**：遵循 PEP 8
 - **JavaScript/JSX**：遵循 ESLint 規則（參考 `eslint.config.js`）
@@ -533,7 +531,7 @@ AI-CB/
 
 ---
 
-## 📦 部署
+## 部署
 
 ### Docker 部署
 
@@ -551,26 +549,26 @@ docker-compose down
 
 ### 生產環境配置
 
-1. **設置環境變數**
+1. **設定環境變數**
    - 更改 `ENVIRONMENT=production`
-   - 設置安全的 `JWT_SECRET_KEY` 和 `ADMIN_API_KEY`
-   - 配置 PostgreSQL 數據庫
+   - 設定安全的 `JWT_SECRET_KEY` 和 `ADMIN_API_KEY`
+   - 配置 PostgreSQL 資料庫
    - 啟用 Redis
    - 更新 `ALLOWED_ORIGINS` 為正式域名
 
 2. **使用 HTTPS**
    - 配置 SSL 證書
-   - 設置反向代理（Nginx）
+   - 設定反向代理（Nginx）
 
 3. **優化性能**
    - 使用 Gunicorn/Uvicorn workers
-   - 啟用數據庫連接池
+   - 啟用資料庫連線池
    - 配置 CDN
    - 前端執行 `bun run build` 構建靜態資源
 
 ---
 
-## ❓ 常見問題
+## 常見問題
 
 ### Q: 如何把舊版 SQLite（chatbot.db）資料遷移到 PostgreSQL？
 ```bash
@@ -595,7 +593,7 @@ python scripts/reset_faiss.py
 在 `backend/.env` 中修改 `LLM_API_BASE`，然後重啟後端服務。
 
 ### Q: 前端無法連接後端？
-確認 `frontend/vite.config.js` 中的 proxy 設置是否正確，預設應代理至 `http://127.0.0.1:8001`。
+確認 `frontend/vite.config.js` 中的 proxy 設定是否正確，預設應代理至 `http://127.0.0.1:8001`。
 
 ### Q: 模型下載速度慢？
 可設定 Hugging Face 鏡像站：
@@ -612,7 +610,7 @@ pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu13
 
 ---
 
-## 🤝 貢獻
+## 貢獻
 
 我們歡迎各種形式的貢獻！
 
@@ -622,25 +620,25 @@ pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu13
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
 5. 開啟一個 Pull Request
 
-請確保你的代碼：
+請確保你的程式碼：
 - 通過所有測試
-- 遵循代碼風格指南
-- 包含適當的文檔
+- 遵循程式碼風格指南
+- 包含適當的文件
 
 ---
 
-## 📞 聯繫方式
+## 聯繫方式
 
-- **項目主頁**：[GitHub](https://github.com/Scorpio-meow/AI-CB)
-- **問題反饋**：[Issues](https://github.com/Scorpio-meow/AI-CB/issues)
+- **專案首頁**：[GitHub](https://github.com/Scorpio-meow/AskMiao)
+- **問題反饋**：[Issues](https://github.com/Scorpio-meow/AskMiao/issues)
 - **郵件**：yao921024@gmail.com
 
 ---
 
 <div align="center">
 
-**感謝使用 AI-CB！**
+**感謝使用 AskMiao！**
 
-如果這個項目對你有幫助，請給我們一個 Star！
+如果這個專案對你有幫助，請給我們一個 Star！
 
 </div>
