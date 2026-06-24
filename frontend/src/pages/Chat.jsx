@@ -22,12 +22,10 @@ import {
   Snackbar,
   Tooltip
 } from '@mui/material';
-import { FaRobot } from "react-icons/fa";
 import { ExpandMore, ExpandLess, LightbulbOutlined } from '@mui/icons-material';
 import { Send as SendIcon, Delete as DeleteIcon, Add as AddIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import api from '../services/api';
 import ReactMarkdown from 'react-markdown';
-import DiscussionBoard from './DiscussionBoard/DiscussionBoard';
 import remarkGfm from 'remark-gfm';
 import { useChat } from '../hooks/useChat';
 
@@ -43,8 +41,6 @@ function Chat() {
   const [modelsLoading, setModelsLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
   const messagesEndRef = useRef(null);
-  const [viewMode, setViewMode] = useState('chat');
-  const discussionBoardRef = useRef(null);
   const messagesTopRef = useRef(null);
 
   // 使用對話自訂 Hook
@@ -249,7 +245,6 @@ function Chat() {
   }, []);
 
   const loadConversation = useCallback(async (conversation) => {
-    setViewMode('chat');
     await fetchConversation(conversation.id);
   }, [fetchConversation]);
 
@@ -292,10 +287,8 @@ function Chat() {
   }, [location, navigate, loadConversation]);
 
   useEffect(() => {
-    if (viewMode === 'chat') {
-      scrollToBottom();
-    }
-  }, [messages, viewMode, scrollToBottom]);
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
 
   // IntersectionObserver for auto-loading more messages when scrolling to top
   useEffect(() => {
@@ -327,7 +320,7 @@ function Chat() {
   }, [hasMoreMessages, loadingMore, loadMoreMessages]);
 
   const sendChatMessageCallback = useCallback(async () => {
-    if (!newMessage.trim() || viewMode !== 'chat') return;
+    if (!newMessage.trim()) return;
 
     const userMessage = {
       content: newMessage,
@@ -343,7 +336,7 @@ function Chat() {
     } catch {
       setMessages((prev) => prev.slice(0, -1));
     }
-  }, [newMessage, viewMode, sendChatMessage, selectedModel, setMessages]);
+  }, [newMessage, sendChatMessage, selectedModel, setMessages]);
 
   const deleteConversationCallback = useCallback(async (conversationId) => {
     await deleteConversation(conversationId);
@@ -367,27 +360,9 @@ function Chat() {
     }
   };
 
-  const handleStartWorkflow = () => {
-    if (discussionBoardRef.current) {
-      discussionBoardRef.current.startWorkflow();
-    }
-  };
-
   const handleSendMessage = () => {
-    if (viewMode === 'discussion') {
-      handleStartWorkflow();
-    } else {
-      sendChatMessageCallback();
-    }
+    sendChatMessageCallback();
   };
-
-  const handleWorkflowComplete = useCallback(async (conversationId) => {
-    setViewMode('chat');
-    if (conversationId) {
-      await loadConversations();
-      await loadConversation({ id: conversationId });
-    }
-  }, [loadConversation, loadConversations]);
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -401,22 +376,14 @@ function Chat() {
       {/* 側邊欄 */}
       <Box sx={{ width: 300, display: 'flex', flexDirection: 'column' }}>
         <Paper sx={{ height: '100%', borderRadius: 0 }}>
-          <Box sx={{ p: 2, display: "flex", columnGap: 1 }}>
+          <Box sx={{ p: 2 }}>
             <Button
               fullWidth
-              variant={viewMode === 'chat' ? 'contained' : 'outlined'}
+              variant="contained"
               startIcon={<AddIcon />}
               onClick={startNewConversation}
             >
               新對話
-            </Button>
-            <Button
-              fullWidth
-              variant={viewMode === 'discussion' ? 'contained' : 'outlined'}
-              startIcon={<FaRobot />}
-              onClick={() => setViewMode('discussion')}
-            >
-              AI討論
             </Button>
           </Box>
           <Divider />
@@ -425,12 +392,12 @@ function Chat() {
               <ListItem
                 key={conv.id}
                 sx={{
-                  borderLeft: currentConversation?.id === conv.id && viewMode === 'chat' ? 3 : 0,
+                  borderLeft: currentConversation?.id === conv.id ? 3 : 0,
                   borderColor: 'primary.main',
                   display: 'flex',
                   justifyContent: 'space-between',
                   cursor: 'pointer',
-                  bgcolor: currentConversation?.id === conv.id && viewMode === 'chat' ? 'action.selected' : 'transparent',
+                  bgcolor: currentConversation?.id === conv.id ? 'action.selected' : 'transparent',
                   '&:hover': { bgcolor: 'action.hover' }
                 }}
                 onClick={() => loadConversation(conv)}
@@ -459,134 +426,122 @@ function Chat() {
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {/* 主要內容區域 */}
         <Box sx={{ flex: 1, overflow: 'hidden' }}>
-          {viewMode === 'chat' ? (
-            <>
-              <Paper sx={{ p: 2, borderRadius: 0 }} elevation={1}>
-                <Typography variant="h6">{currentConversation?.title || '新對話'}</Typography>
-              </Paper>
-              {error && (<Alert severity="error" onClose={() => setError('')}>{error}</Alert>)}
-              <Box sx={{ height: 'calc(100% - 68px)', overflow: 'auto', p: 2 }}>
-                {hasMoreMessages && (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={loadMoreMessages}
-                      disabled={loadingMore}
-                      startIcon={loadingMore ? <CircularProgress size={16} /> : null}
-                    >
-                      {loadingMore ? '載入中...' : '載入更多訊息'}
-                    </Button>
-                  </Box>
-                )}
-                <div ref={messagesTopRef} style={{ height: '1px' }} />
+          <Paper sx={{ p: 2, borderRadius: 0 }} elevation={1}>
+            <Typography variant="h6">{currentConversation?.title || '新對話'}</Typography>
+          </Paper>
+          {error && (<Alert severity="error" onClose={() => setError('')}>{error}</Alert>)}
+          <Box sx={{ height: 'calc(100% - 68px)', overflow: 'auto', p: 2 }}>
+            {hasMoreMessages && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={loadMoreMessages}
+                  disabled={loadingMore}
+                  startIcon={loadingMore ? <CircularProgress size={16} /> : null}
+                >
+                  {loadingMore ? '載入中...' : '載入更多訊息'}
+                </Button>
+              </Box>
+            )}
+            <div ref={messagesTopRef} style={{ height: '1px' }} />
 
-                {messages.map((message, index) => {
-                  let thinkContent = null;
-                  let mainContent = message.content;
-                  const thinkMatch = typeof mainContent === 'string' ? mainContent.match(/<think>([\s\S]*?)<\/think>/i) : null;
-                  if (thinkMatch) {
-                    thinkContent = thinkMatch[1].trim();
-                    mainContent = mainContent.replace(thinkMatch[0], '').trim();
-                  }
-                  const thinkOpen = !!thinkOpenArr[index];
-                  const handleToggleThink = () => setThinkOpenArr(prev => ({ ...prev, [index]: !prev[index] }));
-                  return (
-                    <Box key={index} sx={{ display: 'flex', justifyContent: message.is_user ? 'flex-end' : 'flex-start', mb: 2 }}>
-                      <Paper sx={{ p: 2, maxWidth: '70%', backgroundColor: message.is_user ? 'primary.main' : 'grey.100', color: message.is_user ? 'white' : 'text.primary' }}>
-                        {thinkContent && (
-                          <Box sx={{ mb: 1, p: 1.5, backgroundColor: '#fffbe6', border: '1px solid #ffe58f', borderRadius: 1 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={handleToggleThink}>
-                              <LightbulbOutlined sx={{ color: '#ad8b00', mr: 1 }} fontSize="small" />
-                              <Typography variant="body2" sx={{ color: '#ad8b00', fontWeight: 500, flex: 1 }}>AI思考</Typography>
-                              {thinkOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
-                            </Box>
-                            {thinkOpen && (
-                              <Box sx={{ mt: 1 }}>
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{thinkContent}</ReactMarkdown>
-                              </Box>
-                            )}
+            {messages.map((message, index) => {
+              let thinkContent = null;
+              let mainContent = message.content;
+              const thinkMatch = typeof mainContent === 'string' ? mainContent.match(/<think>([\s\S]*?)<\/think>/i) : null;
+              if (thinkMatch) {
+                thinkContent = thinkMatch[1].trim();
+                mainContent = mainContent.replace(thinkMatch[0], '').trim();
+              }
+              const thinkOpen = !!thinkOpenArr[index];
+              const handleToggleThink = () => setThinkOpenArr(prev => ({ ...prev, [index]: !prev[index] }));
+              return (
+                <Box key={index} sx={{ display: 'flex', justifyContent: message.is_user ? 'flex-end' : 'flex-start', mb: 2 }}>
+                  <Paper sx={{ p: 2, maxWidth: '70%', backgroundColor: message.is_user ? 'primary.main' : 'grey.100', color: message.is_user ? 'white' : 'text.primary' }}>
+                    {thinkContent && (
+                      <Box sx={{ mb: 1, p: 1.5, backgroundColor: '#fffbe6', border: '1px solid #ffe58f', borderRadius: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={handleToggleThink}>
+                          <LightbulbOutlined sx={{ color: '#ad8b00', mr: 1 }} fontSize="small" />
+                          <Typography variant="body2" sx={{ color: '#ad8b00', fontWeight: 500, flex: 1 }}>AI思考</Typography>
+                          {thinkOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                        </Box>
+                        {thinkOpen && (
+                          <Box sx={{ mt: 1 }}>
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{thinkContent}</ReactMarkdown>
                           </Box>
                         )}
-                        {mainContent && (
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{preprocessContent(mainContent)}</ReactMarkdown>
-                        )}
-                        {!message.is_user && message.context_used && (
-                          <Box sx={{ mt: 1 }}><Chip label="使用了知識庫" size="small" variant="outlined" sx={{ fontSize: '0.7rem' }} /></Box>
-                        )}
-                      </Paper>
-                    </Box>
-                  );
-                })}
-                {loading && (
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2 }}>
-                    <Paper sx={{ p: 2, backgroundColor: 'grey.100' }}>
-                      <CircularProgress size={20} />
-                      <Typography variant="body2" sx={{ ml: 1, display: 'inline' }}>正在思考...</Typography>
-                    </Paper>
-                  </Box>
-                )}
-                <div ref={messagesEndRef} />
+                      </Box>
+                    )}
+                    {mainContent && (
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{preprocessContent(mainContent)}</ReactMarkdown>
+                    )}
+                    {!message.is_user && message.context_used && (
+                      <Box sx={{ mt: 1 }}><Chip label="使用了知識庫" size="small" variant="outlined" sx={{ fontSize: '0.7rem' }} /></Box>
+                    )}
+                  </Paper>
+                </Box>
+              );
+            })}
+            {loading && (
+              <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2 }}>
+                <Paper sx={{ p: 2, backgroundColor: 'grey.100' }}>
+                  <CircularProgress size={20} />
+                  <Typography variant="body2" sx={{ ml: 1, display: 'inline' }}>正在思考...</Typography>
+                </Paper>
               </Box>
-            </>
-          ) : (
-            <DiscussionBoard
-              ref={discussionBoardRef}
-              initialPrompt={newMessage}
-              onWorkflowComplete={handleWorkflowComplete}
-            />
-          )}
+            )}
+            <div ref={messagesEndRef} />
+          </Box>
         </Box>
 
         {/* 輸入區域 */}
         <Paper sx={{ p: 2, borderRadius: 0, borderTop: 1, borderColor: 'divider' }} elevation={2}>
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
-            {viewMode === 'chat' && (
-              <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'flex-end' }}>
-                <FormControl sx={{ minWidth: 180 }}>
-                  <InputLabel size="small">模型</InputLabel>
-                  <Select
-                    size="small"
-                    value={selectedModel || ''}
-                    onChange={(e) => {
-                      const newModel = e.target.value;
-                      setSelectedModel(newModel);
-                      setUserSelectedModel(true);
-                    }}
-                    label="模型"
-                    disabled={loading || modelsLoading}
-                  >
-                    {availableModels.map((model, index) => {
-                      const detail = modelDetails[index];
-                      return (
-                        <MenuItem key={model} value={model}>
-                          <Box>
-                            <Typography variant="body2">{model}</Typography>
-                            {detail && (detail.size || detail.family) && (
-                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                                {detail.family && `${detail.family}`}
-                                {detail.size && ` • ${detail.size}`}
-                                {detail.quantization && ` • ${detail.quantization}`}
-                              </Typography>
-                            )}
-                          </Box>
-                        </MenuItem>
-                      );
-                    })}
-                  </Select>
-                </FormControl>
-                <Tooltip title="刷新模型列表">
-                  <IconButton
-                    size="small"
-                    onClick={() => loadAvailableModels(true)}
-                    disabled={modelsLoading}
-                    sx={{ mb: 0.5 }}
-                  >
-                    <RefreshIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            )}
+            <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'flex-end' }}>
+              <FormControl sx={{ minWidth: 180 }}>
+                <InputLabel size="small">模型</InputLabel>
+                <Select
+                  size="small"
+                  value={selectedModel || ''}
+                  onChange={(e) => {
+                    const newModel = e.target.value;
+                    setSelectedModel(newModel);
+                    setUserSelectedModel(true);
+                  }}
+                  label="模型"
+                  disabled={loading || modelsLoading}
+                >
+                  {availableModels.map((model, index) => {
+                    const detail = modelDetails[index];
+                    return (
+                      <MenuItem key={model} value={model}>
+                        <Box>
+                          <Typography variant="body2">{model}</Typography>
+                          {detail && (detail.size || detail.family) && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                              {detail.family && `${detail.family}`}
+                              {detail.size && ` • ${detail.size}`}
+                              {detail.quantization && ` • ${detail.quantization}`}
+                            </Typography>
+                          )}
+                        </Box>
+                      </MenuItem>
+                    );
+                  })}
+                </Select>
+              </FormControl>
+              <Tooltip title="刷新模型列表">
+                <IconButton
+                  size="small"
+                  onClick={() => loadAvailableModels(true)}
+                  disabled={modelsLoading}
+                  sx={{ mb: 0.5 }}
+                >
+                  <RefreshIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
 
             <TextField
               fullWidth
@@ -596,11 +551,7 @@ function Chat() {
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyDown={handleKeyPress}
               disabled={loading}
-              placeholder={
-                viewMode === 'discussion'
-                  ? '在此輸入工作流的初始指令...'
-                  : '輸入你的問題...'
-              }
+              placeholder="輸入你的問題..."
             />
             <Button
               variant="contained"

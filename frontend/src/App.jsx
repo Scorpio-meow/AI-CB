@@ -9,7 +9,6 @@ import { MOTION_DURATION, MOTION_EASING } from './utils/motion';
 const Chat = lazy(() => import('./pages/Chat'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const Documents = lazy(() => import('./pages/Documents'));
-const CustomAgents = lazy(() => import('./pages/CustomAgents'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
@@ -105,10 +104,6 @@ const router = createBrowserRouter([
       {
         path: 'documents',
         element: <AdminRoute element={withSuspense(<Documents />)} />
-      },
-      {
-        path: 'custom-agents',
-        element: <PrivateRoute element={withSuspense(<CustomAgents />)} />
       },
       {
         path: 'profile',

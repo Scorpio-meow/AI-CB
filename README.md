@@ -478,13 +478,11 @@ AskMiao/
 │   │   ├── pages/        # 頁面組件
 │   │   │   ├── Chat.jsx
 │   │   │   ├── Documents.jsx
-│   │   │   ├── CustomAgents.jsx
 │   │   │   ├── AdminDashboard.jsx
 │   │   │   ├── ProfilePage.jsx
 │   │   │   ├── LoginPage.jsx
-│   │   │   ├── RegisterPage.jsx
-│   │   │   └── DiscussionBoard/  # 多 Agent 討論看板
-│   │   ├── services/     # API 服務（authService, customAgentService）
+│   │   │   └── RegisterPage.jsx
+│   │   ├── services/     # API 服務（authService, api）
 │   │   └── utils/        # 工具函數
 │   ├── vite.config.js     # Vite 構建配置
 │   └── package.json       # Node.js 相依套件

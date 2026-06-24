@@ -17,14 +17,12 @@ import {
   AdminPanelSettings,
   Chat,
   Description,
-  SupportAgent,
   AccountCircle,
   Person,
   Logout
 } from '@mui/icons-material';
 import { useNavigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { AgentProvider } from '../contexts/AgentContext';
 import { createMotionTransition, reduceMotionStyles } from '../utils/motion';
 
 function Layout() {
@@ -150,29 +148,7 @@ function Layout() {
               </Button>
             )}
 
-            <Button
-              color="inherit"
-              startIcon={<SupportAgent />}
-              onClick={() => navigate('/custom-agents')}
-              sx={{
-                minHeight: 44,
-                borderRadius: 999,
-                px: 1.75,
-                transition: createMotionTransition(['background-color', 'box-shadow', 'transform']),
-                '&:hover': {
-                  bgcolor: 'rgba(255,255,255,0.14)',
-                  boxShadow: '0 8px 18px rgba(15, 23, 42, 0.16)',
-                  transform: 'translateY(-1px)',
-                },
-                '&:focus-visible': {
-                  outline: '2px solid rgba(255,255,255,0.95)',
-                  outlineOffset: 2,
-                },
-                ...reduceMotionStyles,
-              }}
-            >
-              自訂Agent
-            </Button>
+
 
             {user?.is_admin && (
               <Button
@@ -277,9 +253,7 @@ function Layout() {
       </Menu>
 
       <Box component="main" sx={{ px: { xs: 2, sm: 3 }, pb: 3, mt: 2 }}>
-        <AgentProvider>
-          <Outlet />
-        </AgentProvider>
+        <Outlet />
       </Box>
     </Box>
   );
