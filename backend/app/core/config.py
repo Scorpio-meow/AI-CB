@@ -19,6 +19,15 @@ class Settings(BaseSettings):
     LLM_API_BASE: str = "http://localhost:5000"
     LLM_TIMEOUT: float = 120.0
     MODEL_NAME: str = "gemma4:26b"
+    AVAILABLE_MODELS: str = "gemma4:26b,gemma3:27b"
+
+    # === 外部雲端 LLM 配置 ===
+    AZURE_OPENAI_API_KEY: str = ""
+    AZURE_OPENAI_ENDPOINT: str = ""
+    AZURE_OPENAI_DEPLOYMENT_NAME: str = ""
+
+    ANTHROPIC_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
 
     # === 安全配置 ===
     ADMIN_API_KEY: str

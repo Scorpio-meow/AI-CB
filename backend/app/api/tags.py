@@ -33,10 +33,13 @@ async def get_tags():
         # Log the full exception on the server but do not expose details to the client.
         logger.exception("Failed to load models from LLM_API_BASE")
 
-    if not models:
-        models = fallback_models
-        if not default_model:
-            default_model = fallback_models[0] if fallback_models else None
+    # 合併 fallback 模型，確保配置的雲端模型能顯示在選單中
+    for model in fallback_models:
+        if model not in models:
+            models.append(model)
+
+    if not default_model:
+        default_model = fallback_models[0] if fallback_models else None
 
     if default_model and default_model not in models and models:
         default_model = models[0]
@@ -211,8 +214,21 @@ def get_external_tags():
     try:
         resp = requests.get(url, headers=headers, timeout=timeout)
         resp.raise_for_status()
-        # Return upstream JSON as-is
-        return JSONResponse(content=resp.json())
+        data = resp.json()
+        fallback_models = _load_fallback_models()
+        if isinstance(data, dict):
+            for key in ("models", "tags", "data", "items"):
+                if key in data and isinstance(data[key], list):
+                    existing_names = []
+                    for item in data[key]:
+                        if isinstance(item, str):
+                            existing_names.append(item)
+                        elif isinstance(item, dict) and "name" in item:
+                            existing_names.append(item["name"])
+                    for f_model in fallback_models:
+                        if f_model not in existing_names:
+                            data[key].append(f_model)
+        return JSONResponse(content=data)
     except Exception as exc:
         # Upstream failed — log the exception and return 502 with fallback models to keep UI usable.
         logger.exception("Failed to fetch external tags from %s", url)

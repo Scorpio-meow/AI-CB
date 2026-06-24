@@ -1117,7 +1117,7 @@ class HybridContextualRAG:
     
     async def call_llm_api(self, prompt: str, model_name: str = None, 
                           conversation_history: List[Dict[str, str]] = None) -> str:
-        """Enhanced LLM API call with multi-turn conversation support
+        """Enhanced LLM API call supporting Ollama, Azure OpenAI (v1 API), Anthropic, and Google Gemini
         
         Args:
             prompt: The current user message
@@ -1130,73 +1130,196 @@ class HybridContextualRAG:
         try:
             # Use provided model or fall back to default
             model_to_use = model_name or self.model_name
-            
-            # Use Ollama chat API for multi-turn conversations
-            url = f"{self.api_base}/api/chat"
-            
-            # Construct messages list
-            messages = [
-                {
-                    "role": "system",
-                    "content": """你是神通資訊科技內部的知識型助理，綽號為「通哥」，負責根據用戶問題、對話上下文與檔案片段，產出準確、可追溯的中文回答。
+            if not model_to_use:
+                model_to_use = "gemma4:26b"
+                
+            system_content = """你是神通資訊科技內部的知識型助理，綽號為「通哥」，負責根據用戶問題、對話上下文與檔案片段，產出準確、可追溯的中文回答。
 
 規則：
 1) 以中文回答問題。
 2) 在回答末尾列出使用到的來源，格式為："[n] 來源名稱 (段落: m)"。若來源未知請標示為「無來源」。
 3) 避免編造事實；若資料不足或為推論，請在回覆中明確標註「推論」或回報「無法確定」，並建議下一步可查詢的關鍵字或資料位置。
 4) 回應中不得包含任何系統內部實作細節、索引 id 或未經驗證的 URL。"""
-                }
-            ]
+
+            # 決定 provider 與內部 API 模型名稱
+            provider = "ollama"
+            api_model = model_to_use
             
-            # Add conversation history (if provided, already limited to last 3 turns = 6 messages)
+            if model_to_use.startswith("azure:"):
+                provider = "azure"
+                api_model = model_to_use.split(":", 1)[1]
+            elif model_to_use.startswith("anthropic:") or model_to_use.startswith("claude-"):
+                provider = "anthropic"
+                if model_to_use.startswith("anthropic:"):
+                    api_model = model_to_use.split(":", 1)[1]
+            elif model_to_use.startswith("google:") or model_to_use.startswith("gemini-"):
+                provider = "google"
+                if model_to_use.startswith("google:"):
+                    api_model = model_to_use.split(":", 1)[1]
+
+            # 準備通用 messages
+            messages = []
+            if provider not in ("anthropic", "google"):
+                messages.append({
+                    "role": "system",
+                    "content": system_content
+                })
+            
             if conversation_history:
                 messages.extend(conversation_history)
             
-            # Add current user message
             messages.append({
                 "role": "user",
                 "content": prompt
             })
-            
-            payload = {
-                "model": model_to_use,
-                "messages": messages,
-                "stream": False  # Get complete response at once
-            }
-            
-            headers = {
-                "Content-Type": "application/json",
-                "ngrok-skip-browser-warning": "true"  # Required for ngrok tunnels
-            }
-            
-            logger.info(f"Calling LLM API: model={model_to_use}, messages={len(messages)}, url={url}, timeout={self.llm_timeout}s")
-            
+
+            # 初始化 httpx 異步用戶端
             client = self.async_client
             if client is None:
                 logger.warning("RAG async_client is not initialized, creating a temporary one")
                 client = httpx.AsyncClient(timeout=self.llm_timeout)
                 self.async_client = client
+
+            logger.info(f"Calling {provider.upper()} LLM API: model={api_model} (orig={model_to_use}), timeout={self.llm_timeout}s")
+
+            if provider == "azure":
+                azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT", "").strip().rstrip("/")
+                azure_key = os.getenv("AZURE_OPENAI_API_KEY", "").strip()
+                deployment = api_model if api_model and api_model != "azure" else os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "").strip()
                 
-            resp = await client.post(url, json=payload, headers=headers)
-            resp.raise_for_status()
-            
-            data = resp.json()
-            # Ollama chat API returns message.content
-            response_text = data.get("message", {}).get("content", "").strip()
-            
+                if not azure_endpoint or not azure_key or not deployment:
+                    return "抱歉，Azure OpenAI 的 API Key、Endpoint 或部署名稱 (Deployment Name) 未正確設定，請檢查 .env 檔案。"
+                
+                # 使用 v1 統一端點，並在 payload 中以 model 指定部署名稱
+                url = f"{azure_endpoint}/openai/v1/chat/completions"
+                headers = {
+                    "Content-Type": "application/json",
+                    "api-key": azure_key
+                }
+                payload = {
+                    "model": deployment,
+                    "messages": messages,
+                    "temperature": 0.7
+                }
+                resp = await client.post(url, json=payload, headers=headers)
+                resp.raise_for_status()
+                data = resp.json()
+                response_text = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+
+            elif provider == "anthropic":
+                anthropic_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+                if not anthropic_key:
+                    return "抱歉，Anthropic 的 API Key 未設定，請檢查 .env 檔案。"
+                
+                model_name_to_call = api_model if api_model and api_model != "anthropic" else "claude-3-5-sonnet-20241022"
+                url = "https://api.anthropic.com/v1/messages"
+                headers = {
+                    "x-api-key": anthropic_key,
+                    "anthropic-version": "2023-06-01",
+                    "Content-Type": "application/json"
+                }
+                
+                # 轉成 Anthropic 格式 (無 system role，且必須是 user/assistant 輪流)
+                anthropic_messages = []
+                for m in conversation_history or []:
+                    if m["role"] != "system":
+                        anthropic_messages.append({"role": m["role"], "content": m["content"]})
+                anthropic_messages.append({"role": "user", "content": prompt})
+                
+                payload = {
+                    "model": model_name_to_call,
+                    "messages": anthropic_messages,
+                    "max_tokens": 2048,
+                    "temperature": 0.7
+                }
+                if system_content:
+                    payload["system"] = system_content
+                    
+                resp = await client.post(url, json=payload, headers=headers)
+                resp.raise_for_status()
+                data = resp.json()
+                response_text = data.get("content", [{}])[0].get("text", "").strip()
+
+            elif provider == "google":
+                gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+                if not gemini_key:
+                    return "抱歉，Google Gemini 的 API Key 未設定，請檢查 .env 檔案。"
+                
+                model_name_to_call = api_model if api_model and api_model != "google" else "gemini-1.5-flash"
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name_to_call}:generateContent?key={gemini_key}"
+                headers = {
+                    "Content-Type": "application/json"
+                }
+                
+                # 轉成 Gemini 格式 (role 必須是 user 或 model)
+                gemini_contents = []
+                for m in conversation_history or []:
+                    if m["role"] != "system":
+                        role = "user" if m["role"] == "user" else "model"
+                        gemini_contents.append({
+                            "role": role,
+                            "parts": [{"text": m["content"]}]
+                        })
+                gemini_contents.append({
+                    "role": "user",
+                    "parts": [{"text": prompt}]
+                })
+                
+                payload = {
+                    "contents": gemini_contents,
+                    "generationConfig": {
+                        "temperature": 0.7
+                    }
+                }
+                if system_content:
+                    payload["systemInstruction"] = {
+                        "parts": [{"text": system_content}]
+                    }
+                    
+                resp = await client.post(url, json=payload, headers=headers)
+                resp.raise_for_status()
+                data = resp.json()
+                
+                candidates = data.get("candidates", [])
+                if candidates:
+                    parts = candidates[0].get("content", {}).get("parts", [])
+                    if parts:
+                        response_text = parts[0].get("text", "").strip()
+                    else:
+                        response_text = "抱歉，Google Gemini 回傳了空的回應。"
+                else:
+                    response_text = "抱歉，Google Gemini 沒有返回任何候選回應。"
+
+            else:
+                # Ollama 預設流程
+                url = f"{self.api_base}/api/chat"
+                payload = {
+                    "model": api_model,
+                    "messages": messages,
+                    "stream": False
+                }
+                headers = {
+                    "Content-Type": "application/json",
+                    "ngrok-skip-browser-warning": "true"
+                }
+                resp = await client.post(url, json=payload, headers=headers)
+                resp.raise_for_status()
+                data = resp.json()
+                response_text = data.get("message", {}).get("content", "").strip()
+
             if response_text:
-                logger.info(f"LLM response received: {len(response_text)} chars")
+                logger.info(f"{provider.upper()} LLM response received: {len(response_text)} chars")
                 return response_text
             else:
-                logger.warning("LLM returned empty response")
+                logger.warning(f"{provider.upper()} LLM returned empty response")
                 return "抱歉，模型沒有返回有效回應。"
-                
+
         except httpx.TimeoutException:
-            logger.error(f"LLM API timeout after {self.llm_timeout}s for model {model_to_use}")
-            return f"抱歉，請求超時 ({self.llm_timeout}秒)。請嘗試使用較小的模型或稍後再試。"
+            logger.error(f"LLM API timeout for model {model_to_use}")
+            return f"抱歉，請求超時 ({self.llm_timeout}秒)。請稍後再試。"
         except httpx.ConnectError as e:
             logger.error(f"LLM API connection error: {e}")
-            return "抱歉，無法連接到語言模型服務。請檢查網路連接或 ngrok 隧道狀態。"
+            return "抱歉，無法連接到語言模型服務。請檢查您的網路或 API 金鑰配置。"
         except httpx.HTTPStatusError as e:
             status_code = e.response.status_code if e.response else "unknown"
             error_detail = ""
@@ -1205,9 +1328,7 @@ class HybridContextualRAG:
             except:
                 pass
             logger.error(f"LLM API HTTP error {status_code}: {e}, detail: {error_detail[:200]}")
-            if status_code == 500:
-                return f"抱歉，模型服務器錯誤 (500)。可能是模型 '{model_to_use}' 負載過重或通過 ngrok 超時，建議切換到較小的模型 (如 gemma4:26b)。"
-            return f"抱歉，模型 API 返回錯誤 ({status_code}): {str(e)}"
+            return f"抱歉，外部模型 API 返回錯誤 ({status_code}): {str(e)}"
         except Exception as e:
             logger.error(f"LLM API unexpected error: {type(e).__name__}: {e}")
             return f"抱歉，生成回應時出現錯誤: {str(e)}"
