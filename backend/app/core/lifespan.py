@@ -19,10 +19,14 @@ async def lifespan(app: FastAPI):
     # Initialize database tables
     await create_tables()
     
-    # Initialize global RAG system (singleton)
-    logger.info("Initializing global RAG system...")
-    rag_system = get_rag_system()
-    logger.info(f"RAG system initialized: {rag_system.get_vector_store_info()}")
+    # Initialize global RAG system (singleton) using to_thread
+    logger.info("Initializing global RAG system using to_thread...")
+    rag_system = await asyncio.to_thread(get_rag_system)
+    vector_store_info = await asyncio.to_thread(rag_system.get_vector_store_info)
+    logger.info(f"RAG system initialized: {vector_store_info}")
+    
+    # Initialize RAG httpx client
+    await rag_system.init_client()
     
     # Start background tasks
     uploads_watcher_task = asyncio.create_task(
@@ -71,5 +75,13 @@ async def lifespan(app: FastAPI):
         logger.info("Workflow HTTP client closed")
     except Exception as e:
         logger.warning(f"Failed to close workflow HTTP client: {e}")
+        
+    # Close global RAG httpx client
+    try:
+        rag_system = get_rag_system()
+        await rag_system.close_client()
+        logger.info("RAG HTTP client closed")
+    except Exception as e:
+        logger.warning(f"Failed to close RAG HTTP client: {e}")
     
     logger.info("ChatBot application shutdown complete")

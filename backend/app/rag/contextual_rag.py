@@ -4,6 +4,7 @@ import time
 import logging
 import re
 import shutil
+import httpx
 from datetime import datetime, timedelta
 import numpy as np
 import faiss
@@ -88,8 +89,7 @@ class HybridContextualRAG:
             self.api_base = os.getenv("LLM_API_BASE", "").strip()
             if not self.api_base:
                 logger.warning("Environment variable LLM_API_BASE is not set. Calls to external LLM API will fail.")
-            import requests
-            self.requests = requests
+            self.async_client = None
             import torch
             
             # Check if CPU is forced (for incompatible GPUs like MX250 with newer CUDA)
@@ -361,6 +361,19 @@ class HybridContextualRAG:
             if not hasattr(self, 'index') or self.index is None:
                 self.index = faiss.IndexFlatIP(self.embedding_dimension)
             raise
+        
+    async def init_client(self):
+        """建立 httpx.AsyncClient"""
+        if self.async_client is None:
+            self.async_client = httpx.AsyncClient(timeout=self.llm_timeout)
+            logger.info("RAG httpx.AsyncClient initialized")
+
+    async def close_client(self):
+        """關閉 httpx.AsyncClient"""
+        if self.async_client is not None:
+            await self.async_client.aclose()
+            self.async_client = None
+            logger.info("RAG httpx.AsyncClient closed")
         
     def _load_indices(self):
         """Load both FAISS and BM25 indices"""
@@ -1157,7 +1170,14 @@ class HybridContextualRAG:
             }
             
             logger.info(f"Calling LLM API: model={model_to_use}, messages={len(messages)}, url={url}, timeout={self.llm_timeout}s")
-            resp = self.requests.post(url, json=payload, headers=headers, timeout=self.llm_timeout)
+            
+            client = self.async_client
+            if client is None:
+                logger.warning("RAG async_client is not initialized, creating a temporary one")
+                client = httpx.AsyncClient(timeout=self.llm_timeout)
+                self.async_client = client
+                
+            resp = await client.post(url, json=payload, headers=headers)
             resp.raise_for_status()
             
             data = resp.json()
@@ -1171,13 +1191,13 @@ class HybridContextualRAG:
                 logger.warning("LLM returned empty response")
                 return "抱歉，模型沒有返回有效回應。"
                 
-        except self.requests.exceptions.Timeout:
+        except httpx.TimeoutException:
             logger.error(f"LLM API timeout after {self.llm_timeout}s for model {model_to_use}")
             return f"抱歉，請求超時 ({self.llm_timeout}秒)。請嘗試使用較小的模型或稍後再試。"
-        except self.requests.exceptions.ConnectionError as e:
+        except httpx.ConnectError as e:
             logger.error(f"LLM API connection error: {e}")
             return "抱歉，無法連接到語言模型服務。請檢查網路連接或 ngrok 隧道狀態。"
-        except self.requests.exceptions.HTTPError as e:
+        except httpx.HTTPStatusError as e:
             status_code = e.response.status_code if e.response else "unknown"
             error_detail = ""
             try:

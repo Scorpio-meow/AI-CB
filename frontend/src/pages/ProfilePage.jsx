@@ -2,7 +2,7 @@
  * 用戶資料頁面
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import {
   Container,
   Box,
@@ -108,7 +108,9 @@ const ProfilePage = () => {
             <PersonIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
             用戶資料
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             管理您的帳號資訊和安全設定
           </Typography>
         </Box>
@@ -143,7 +145,9 @@ const ProfilePage = () => {
             </Box>
 
             <Box sx={{ mb: 2 }}>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{
+                color: "text.secondary"
+              }}>
                 用戶名
               </Typography>
               <Typography variant="body1" sx={{ fontWeight: 500 }}>
@@ -152,7 +156,9 @@ const ProfilePage = () => {
             </Box>
 
             <Box sx={{ mb: 2 }}>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{
+                color: "text.secondary"
+              }}>
                 電子郵件
               </Typography>
               <Typography variant="body1" sx={{ fontWeight: 500 }}>
@@ -161,7 +167,9 @@ const ProfilePage = () => {
             </Box>
 
             <Box sx={{ mb: 2 }}>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{
+                color: "text.secondary"
+              }}>
                 角色
               </Typography>
               <Typography variant="body1" sx={{ fontWeight: 500 }}>
@@ -170,7 +178,9 @@ const ProfilePage = () => {
             </Box>
 
             <Box sx={{ mb: 2 }}>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{
+                color: "text.secondary"
+              }}>
                 帳號狀態
               </Typography>
               <Box sx={{ mt: 0.5 }}>
@@ -183,7 +193,9 @@ const ProfilePage = () => {
             </Box>
 
             <Box sx={{ mb: 2 }}>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{
+                color: "text.secondary"
+              }}>
                 註冊時間
               </Typography>
               <Typography variant="body1">
@@ -193,7 +205,9 @@ const ProfilePage = () => {
 
             {user.last_login && (
               <Box>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" sx={{
+                  color: "text.secondary"
+                }}>
                   最後登入
                 </Typography>
                 <Typography variant="body1">
