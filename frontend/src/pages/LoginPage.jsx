@@ -82,7 +82,9 @@ const LoginPage = () => {
               <Typography variant="h4" component="h1" gutterBottom>
                 ChatBot 登入
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
                 使用您的帳號登入系統
               </Typography>
             </Box>
@@ -118,17 +120,19 @@ const LoginPage = () => {
                 disabled={loading}
                 margin="normal"
                 autoComplete="current-password"
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowPassword(!showPassword)}
-                        edge="end"
-                      >
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  )
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => setShowPassword(!showPassword)}
+                          edge="end"
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    )
+                  }
                 }}
               />
 
@@ -153,7 +157,9 @@ const LoginPage = () => {
 
             {/* Links */}
             <Box sx={{ textAlign: 'center', mt: 2 }}>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
                 還沒有帳號?{' '}
                 <Link to="/register" style={{ textDecoration: 'none' }}>
                   <Typography
@@ -173,10 +179,11 @@ const LoginPage = () => {
         {/* Footer */}
         <Typography
           variant="body2"
-          color="text.secondary"
           align="center"
-          sx={{ mt: 3 }}
-        >
+          sx={{
+            color: "text.secondary",
+            mt: 3
+          }}>
           ChatBot © 2025 - Powered by JWT Authentication
         </Typography>
       </Box>

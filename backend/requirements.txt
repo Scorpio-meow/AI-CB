@@ -2,13 +2,10 @@
 fastapi
 uvicorn
 pydantic
-waitress
 sqlalchemy
 psycopg2-binary
 python-dotenv
-langchain_core
-langchain
-langchain-community
+langchain-core
 langchain-text-splitters
 transformers
 numpy
@@ -31,10 +28,5 @@ bcrypt
 email-validator
 cryptography
 redis
-aioredis
 pytest-asyncio
-PyJWT
 sentence-transformers
-FlagEmbedding
-huggingface_hub[hf_xet]
-hf_xet

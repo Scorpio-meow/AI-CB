@@ -35,10 +35,6 @@ const documentsCache = {
   data: null,
   timestamp: 0
 };
-const CACHE_TTL = 3 * 60 * 1000; // 3 分鐘
-
-// 請求去重標記
-let loadingPromise = null;
 
 const createUploadItem = (file) => ({
   file,
@@ -363,19 +359,37 @@ function Documents() {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" height="50vh">
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "50vh"
+        }}>
         <CircularProgress />
       </Box>
     );
   }
 
   return (
-    <Box p={3}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+    <Box sx={{
+      p: 3
+    }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 3
+        }}>
         <Typography variant="h4" component="h1">
           知識庫管理
         </Typography>
-        <Box display="flex" gap={2}>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 2
+          }}>
           <Button
             variant="outlined"
             startIcon={<RebuildIcon />}
@@ -393,33 +407,46 @@ function Documents() {
           </Button>
         </Box>
       </Box>
-
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setLocalError('')}>
           {error}
         </Alert>
       )}
-
       {success && (
         <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>
           {success}
         </Alert>
       )}
-
       <Paper>
-        <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            p: 2,
+            borderBottom: 1,
+            borderColor: 'divider'
+          }}>
           <Typography variant="h6">
             已上傳的文檔 ({documents.length})
           </Typography>
         </Box>
 
         {documents.length === 0 ? (
-          <Box p={4} textAlign="center">
+          <Box
+            sx={{
+              p: 4,
+              textAlign: "center"
+            }}>
             <DocumentIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
-            <Typography variant="h6" color="text.secondary" gutterBottom>
+            <Typography variant="h6" gutterBottom sx={{
+              color: "text.secondary"
+            }}>
               還沒有上傳任何文檔
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               開始上傳文檔來建立您的知識庫
             </Typography>
           </Box>
@@ -430,7 +457,12 @@ function Documents() {
                 <ListItem>
                   <ListItemText
                     primary={
-                      <Box display="flex" alignItems="center" gap={1}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1
+                        }}>
                         <DocumentIcon color="primary" />
                         <Typography variant="subtitle1">{doc.filename}</Typography>
                         <Chip
@@ -450,17 +482,34 @@ function Documents() {
                     }
                     secondary={
                       <React.Fragment>
-                        <Typography variant="body2" color="text.secondary" component="span" display="block">
+                        <Typography
+                          variant="body2"
+                          component="span"
+                          sx={{
+                            color: "text.secondary",
+                            display: "block"
+                          }}>
                           上傳時間: {new Date(doc.created_at).toLocaleString('zh-TW')}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary" component="span" display="block">
+                        <Typography
+                          variant="body2"
+                          component="span"
+                          sx={{
+                            color: "text.secondary",
+                            display: "block"
+                          }}>
                           文件類型: {doc.file_type}
                         </Typography>
                       </React.Fragment>
                     }
                   />
                   <ListItemSecondaryAction>
-                    <Box display="flex" alignItems="center" gap={1}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1
+                      }}>
                       {deletingStatus[doc.id] === 'deleting' && (
                         <Chip label="刪除中" size="small" color="warning" />
                       )}
@@ -487,7 +536,6 @@ function Documents() {
           </List>
         )}
       </Paper>
-
       {/* 上傳對話框 */}
       <Dialog
         open={uploadDialog}
@@ -508,7 +556,11 @@ function Documents() {
               multiple
               onChange={handleFileSelect}
             />
-            <Box display="flex" gap={1}>
+            <Box
+              sx={{
+                display: "flex",
+                gap: 1
+              }}>
               <label htmlFor="file-upload" style={{ flex: 1 }}>
                 <Button
                   variant="outlined"
@@ -534,7 +586,12 @@ function Documents() {
                   const item = uploadItems[idx] || { progress: 0, status: 'ready', detail: null };
                   return (
                     <Box key={idx} sx={{ mb: 1 }}>
-                      <Box display="flex" justifyContent="space-between" alignItems="center">
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center"
+                        }}>
                         <Box>
                           <Typography variant="body2">
                             <strong>文件名:</strong> {f.name}
@@ -546,7 +603,12 @@ function Documents() {
                             <strong>類型:</strong> {getFileTypeLabel(f.type)}
                           </Typography>
                         </Box>
-                        <Box display="flex" alignItems="center" gap={1}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1
+                          }}>
                           <Chip label={item.status} size="small" />
                           <IconButton size="small" onClick={() => removeFileAt(idx)}>
                             <DeleteIcon />
@@ -555,7 +617,13 @@ function Documents() {
                       </Box>
                       <Box sx={{ mt: 1 }}>
                         <LinearProgress variant="determinate" value={item.progress} />
-                        <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mt: 0.5 }}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            mt: 0.5
+                          }}>
                           <Typography variant="caption">{item.progress}%</Typography>
                           <Box>
                             {item.status === 'uploading' && (
@@ -573,7 +641,12 @@ function Documents() {
               </Paper>
             )}
 
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+                mt: 2
+              }}>
               支援的文件格式: .txt, .pdf, .docx
               <br />
               最大文件大小: 50MB
@@ -599,7 +672,6 @@ function Documents() {
           </Button>
         </DialogActions>
       </Dialog>
-
       {/* 移除檔案確認對話框 */}
       <Dialog
         open={confirmRemoveOpen}
@@ -616,7 +688,6 @@ function Documents() {
           <Button onClick={confirmRemoveSelectedFiles} variant="contained" color="error">確定移除</Button>
         </DialogActions>
       </Dialog>
-
       {/* 重建索引確認對話框 */}
       <Dialog
         open={rebuildDialog}
@@ -629,13 +700,19 @@ function Documents() {
           <Typography gutterBottom>
             此操作將重新建立所有文檔的向量索引和 BM25 索引。
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             • 適用於索引損壞或不一致時
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             • 處理時間取決於文檔數量
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             • 重建期間可能影響查詢性能
           </Typography>
           {rebuildLoading && (

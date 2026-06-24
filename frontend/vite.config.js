@@ -17,6 +17,15 @@ export default defineConfig(({ mode }) => {
         apply: 'build',
       }),
     ],
+    test: {
+      exclude: [
+        '**/node_modules/**',
+        '**/dist/**',
+        '**/build/**',
+        '**/~/**',
+        '**/.{git,cache,output,temp}/**',
+      ],
+    },
 
     server: {
       port: parseInt(env.PORT) || 3000,
@@ -40,17 +49,19 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'build',
       sourcemap: env.GENERATE_SOURCEMAP !== 'false',
-      rollupOptions: {
+      rolldownOptions: {
         output: {
-          manualChunks(id) {
-            if (id.includes('node_modules')) {
-              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
-                return 'vendor';
-              }
-              if (id.includes('@mui') || id.includes('@emotion')) {
-                return 'mui';
-              }
-            }
+          codeSplitting: {
+            groups: [
+              {
+                name: 'vendor',
+                test: /node_modules[\\/](react|react-dom|react-router-dom)/,
+              },
+              {
+                name: 'mui',
+                test: /node_modules[\\/](@mui|@emotion)/,
+              },
+            ],
           },
         },
       },

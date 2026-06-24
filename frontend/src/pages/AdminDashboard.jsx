@@ -228,7 +228,13 @@ function AdminDashboard() {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" height="50vh">
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "50vh"
+        }}>
         <CircularProgress />
       </Box>
     );
@@ -239,19 +245,21 @@ function AdminDashboard() {
       <Typography variant="h4" gutterBottom>
         管理後台
       </Typography>
-
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
           {error}
         </Alert>
       )}
-
       {/* 統計卡片 */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box display="flex" alignItems="center">
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center"
+                }}>
                 <PeopleIcon color="primary" sx={{ mr: 2 }} />
                 <Box>
                   <Typography variant="h6">{statistics?.users?.total || 0}</Typography>
@@ -265,7 +273,11 @@ function AdminDashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box display="flex" alignItems="center">
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center"
+                }}>
                 <ChatIcon color="primary" sx={{ mr: 2 }} />
                 <Box>
                   <Typography variant="h6">{statistics?.conversations?.total || 0}</Typography>
@@ -279,7 +291,11 @@ function AdminDashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box display="flex" alignItems="center">
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center"
+                }}>
                 <DocumentIcon color="primary" sx={{ mr: 2 }} />
                 <Box>
                   <Typography variant="h6">{statistics?.documents?.total || 0}</Typography>
@@ -293,7 +309,11 @@ function AdminDashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box display="flex" alignItems="center">
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center"
+                }}>
                 <TrendingUpIcon color="primary" sx={{ mr: 2 }} />
                 <Box>
                   <Typography variant="h6">{statistics?.messages?.recent_7_days || 0}</Typography>
@@ -304,7 +324,6 @@ function AdminDashboard() {
           </Card>
         </Grid>
       </Grid>
-
       {/* 用戶管理 */}
       <Paper sx={{ p: 3, mb: 4 }}>
         <Typography variant="h6" gutterBottom>用戶管理</Typography>
@@ -366,7 +385,6 @@ function AdminDashboard() {
           </Table>
         </TableContainer>
       </Paper>
-
       {/* 文件管理 */}
       <Paper sx={{ p: 3 }}>
         <Typography variant="h6" gutterBottom>文件管理</Typography>
@@ -413,7 +431,6 @@ function AdminDashboard() {
           </Table>
         </TableContainer>
       </Paper>
-
       {/* 編輯用戶對話框 */}
       <Dialog
         open={editUserDialog}

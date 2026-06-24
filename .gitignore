@@ -19,3 +19,5 @@ frontend/bun.lock
 backend/.env
 frontend/.env
 .env
+.agents
+.venv
