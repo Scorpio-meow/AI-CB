@@ -1,6 +1,8 @@
 from typing import List, Dict, Any, Optional, Tuple
 import os
 import time
+from app.core.llm_client import call_llm
+import httpx
 import logging
 import re
 import shutil
@@ -1114,13 +1116,8 @@ class HybridContextualRAG:
         Returns:
             The model's response text
         """
+        model_to_use = model_name or self.model_name
         try:
-            # Use provided model or fall back to default
-            model_to_use = model_name or self.model_name
-            
-            # Use Ollama chat API for multi-turn conversations
-            url = f"{self.api_base}/api/chat"
-            
             # Construct messages list
             messages = [
                 {
@@ -1145,24 +1142,7 @@ class HybridContextualRAG:
                 "content": prompt
             })
             
-            payload = {
-                "model": model_to_use,
-                "messages": messages,
-                "stream": False  # Get complete response at once
-            }
-            
-            headers = {
-                "Content-Type": "application/json",
-                "ngrok-skip-browser-warning": "true"  # Required for ngrok tunnels
-            }
-            
-            logger.info(f"Calling LLM API: model={model_to_use}, messages={len(messages)}, url={url}, timeout={self.llm_timeout}s")
-            resp = self.requests.post(url, json=payload, headers=headers, timeout=self.llm_timeout)
-            resp.raise_for_status()
-            
-            data = resp.json()
-            # Ollama chat API returns message.content
-            response_text = data.get("message", {}).get("content", "").strip()
+            response_text = await call_llm(messages, model_name=model_to_use, timeout=self.llm_timeout)
             
             if response_text:
                 logger.info(f"LLM response received: {len(response_text)} chars")
@@ -1171,13 +1151,13 @@ class HybridContextualRAG:
                 logger.warning("LLM returned empty response")
                 return "抱歉，模型沒有返回有效回應。"
                 
-        except self.requests.exceptions.Timeout:
+        except httpx.TimeoutException:
             logger.error(f"LLM API timeout after {self.llm_timeout}s for model {model_to_use}")
             return f"抱歉，請求超時 ({self.llm_timeout}秒)。請嘗試使用較小的模型或稍後再試。"
-        except self.requests.exceptions.ConnectionError as e:
-            logger.error(f"LLM API connection error: {e}")
-            return "抱歉，無法連接到語言模型服務。請檢查網路連接或 ngrok 隧道狀態。"
-        except self.requests.exceptions.HTTPError as e:
+        except httpx.RequestError as e:
+            logger.error(f"LLM API network error: {e}")
+            return "抱歉，無法連接到語言模型服務。請檢查網路連接。"
+        except httpx.HTTPStatusError as e:
             status_code = e.response.status_code if e.response else "unknown"
             error_detail = ""
             try:
@@ -1186,7 +1166,7 @@ class HybridContextualRAG:
                 pass
             logger.error(f"LLM API HTTP error {status_code}: {e}, detail: {error_detail[:200]}")
             if status_code == 500:
-                return f"抱歉，模型服務器錯誤 (500)。可能是模型 '{model_to_use}' 負載過重或通過 ngrok 超時，建議切換到較小的模型 (如 gemma4:26b)。"
+                return f"抱歉，模型服務器錯誤 (500)。可能是模型 '{model_to_use}' 負載過重，建議切換到較小的模型。"
             return f"抱歉，模型 API 返回錯誤 ({status_code}): {str(e)}"
         except Exception as e:
             logger.error(f"LLM API unexpected error: {type(e).__name__}: {e}")

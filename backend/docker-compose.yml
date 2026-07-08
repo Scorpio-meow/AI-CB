@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: postgres
       TZ: Asia/Taipei
     ports:
-      - "7690:5432"
+      - "10107:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -28,7 +28,7 @@ services:
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     ports:
-      - "7967:6379"
+      - "10106:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -46,3 +46,8 @@ volumes:
 networks:
   ai-cb-net:
     driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.201.0/24
+          gateway: 192.168.201.1

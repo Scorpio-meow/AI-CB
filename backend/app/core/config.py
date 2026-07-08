@@ -20,6 +20,23 @@ class Settings(BaseSettings):
     LLM_TIMEOUT: float = 120.0
     MODEL_NAME: str = "gemma4:26b"
 
+    # === Azure OpenAI 配置 ===
+    AZURE_OPENAI_API_KEY: Optional[str] = None
+    AZURE_OPENAI_ENDPOINT: Optional[str] = None
+    AZURE_OPENAI_DEPLOYMENT: Optional[str] = None
+
+    # === OpenAI 配置 ===
+    OPENAI_API_KEY: Optional[str] = None
+    OPENAI_API_BASE: str = "https://api.openai.com/v1"
+
+    # === Anthropic Claude 配置 ===
+    ANTHROPIC_API_KEY: Optional[str] = None
+    ANTHROPIC_API_BASE: str = "https://api.anthropic.com"
+
+    # === Google Gemini 配置 ===
+    GEMINI_API_KEY: Optional[str] = None
+    GEMINI_API_BASE: str = "https://generativelanguage.googleapis.com"
+
     # === 安全配置 ===
     ADMIN_API_KEY: str
     JWT_SECRET_KEY: str

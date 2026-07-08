@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.crud import crud_custom_agent
 from app.crud.workflow_crud import save_workflow_history
+from app.core.llm_client import call_llm
 
 logger = logging.getLogger(__name__)
 
@@ -370,9 +371,6 @@ class DynamicWorkflowManager:
             raise ValueError("system_prompt 和 task_description 不能為空")
         
         try:
-            client = await get_http_client()  # 使用連接池
-            url = f"{settings.LLM_API_BASE}/api/chat"
-            
             # 構建 messages 列表
             messages = [
                 {
@@ -404,20 +402,9 @@ class DynamicWorkflowManager:
                 "content": task_description
             })
             
-            payload = {
-                "model": settings.MODEL_NAME,
-                "messages": messages,
-                "stream": False
-            }
-            
             logger.info(f"{self.log_prefix} 調用 LLM API，messages 數量: {len(messages)}")
             
-            # 使用連接池的客戶端
-            response = await client.post(url, json=payload)
-            response.raise_for_status()
-            data = response.json()
-            
-            response_text = data.get("message", {}).get("content", "").strip()
+            response_text = await call_llm(messages)
             
             if not response_text:
                 raise ValueError("LLM 返回空響應")

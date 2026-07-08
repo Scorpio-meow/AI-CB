@@ -7,6 +7,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from typing import Optional
 
 import requests
+from app.core.llm_client import get_available_models
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -15,6 +16,13 @@ router = APIRouter()
 @router.get("/tags")
 async def get_tags():
     """Return available LLM models by querying LLM_API_BASE `/api/tags` with env-based fallbacks."""
+
+    configured_models = get_available_models()
+    if configured_models:
+        default_model = os.getenv("MODEL_NAME") or os.getenv("AZURE_OPENAI_DEPLOYMENT") or configured_models[0]
+        if default_model not in configured_models:
+            default_model = configured_models[0]
+        return {"tags": configured_models, "default": default_model}
 
     fallback_models = _load_fallback_models()
     configured_default = os.getenv("MODEL_NAME")
@@ -45,10 +53,10 @@ async def get_tags():
 
 
 def _load_fallback_models() -> list[str]:
-    available = os.getenv("AVAILABLE_MODELS", "gemma4:26b,gemma3:27b")
+    available = os.getenv("AVAILABLE_MODELS", "gemma4:26b,qwen3.6:27b,glm-5.2,laguna-xs-2.1")
     models = [m.strip() for m in available.split(",") if m.strip()]
     if not models:
-        models = ["gemma4:26b", "gemma3:27b"]
+        models = ["gemma4:26b", "qwen3.6:27b", "glm-5.2", "laguna-xs-2.1"]
     return models
 
 
@@ -188,6 +196,13 @@ def get_external_tags():
     Uses EXTERNAL_TAGS_URL or constructs from LLM_API_BASE. Adds the ngrok header
     when appropriate. Returns 502 with a fallback models list if upstream fails.
     """
+    configured_models = get_available_models()
+    if configured_models:
+        default_model = os.getenv("MODEL_NAME") or os.getenv("AZURE_OPENAI_DEPLOYMENT") or configured_models[0]
+        if default_model not in configured_models:
+            default_model = configured_models[0]
+        return JSONResponse(content={"tags": configured_models, "default": default_model})
+
     custom_url = os.getenv("EXTERNAL_TAGS_URL", "").strip()
     base = os.getenv("LLM_API_BASE", "").strip()
 

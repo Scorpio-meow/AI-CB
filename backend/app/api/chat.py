@@ -39,7 +39,18 @@ manager = ConnectionManager()
 @router.get("/models")
 async def get_available_models():
     """獲取可用的模型列表"""
-    available_models_str = os.getenv("AVAILABLE_MODELS", "gemma4:26b,gemma3:27b")
+    from app.core.llm_client import get_available_models as get_configured_models
+    configured_models = get_configured_models()
+    if configured_models:
+        default_model = os.getenv("MODEL_NAME") or os.getenv("AZURE_OPENAI_DEPLOYMENT") or configured_models[0]
+        if default_model not in configured_models:
+            default_model = configured_models[0]
+        return {
+            "models": configured_models,
+            "default": default_model
+        }
+        
+    available_models_str = os.getenv("AVAILABLE_MODELS", "gemma4:26b,qwen3.6:27b,glm-5.2,laguna-xs-2.1")
     models = [model.strip() for model in available_models_str.split(",")]
     default_model = os.getenv("MODEL_NAME", "gemma4:26b")
     
