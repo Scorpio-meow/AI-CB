@@ -10,12 +10,12 @@ services:
       POSTGRES_PASSWORD: postgres
       TZ: Asia/Taipei
     ports:
-      - "10107:5432"
+      - "7690:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d chatbot"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d chatbot" ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -26,13 +26,13 @@ services:
   redis:
     image: redis:latest
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    command: [ "redis-server", "--appendonly", "yes" ]
     ports:
-      - "10106:6379"
+      - "7967:6379"
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 3s
       retries: 10
