@@ -1,0 +1,32 @@
+# AskMiao (AI ChatBot)
+
+[繁體中文](llms.txt) | [English](llms_en.txt)
+
+> 基於增強型混合 RAG（檢索增強生成）技術的智慧對話與多 Agent 協作系統。
+
+## 專案架構與核心檔案地圖
+
+- [backend/main.py](backend/main.py): FastAPI 後端應用程式進入點與 API 路由註冊
+- [backend/app/core/security_logging.py](backend/app/core/security_logging.py): 安全日誌系統、物件遞迴脫敏與正則表達式敏感欄位遮罩
+- [backend/app/core/jwt_auth.py](backend/app/core/jwt_auth.py): RSA-2048 JWT 簽署、令牌驗證與 Redis 黑名單撤銷處理
+- [backend/app/rag/contextual_rag.py](backend/app/rag/contextual_rag.py): 混合 RAG 檢索器（FAISS 向量搜尋 + Whoosh BM25 關鍵字搜尋 + Cross-Encoder 重排序）
+- [backend/app/api/auth.py](backend/app/api/auth.py): 身份認證 RESTful API 端點（註冊、登入、刷新、個人資料、登出）
+- [backend/app/api/chat.py](backend/app/api/chat.py): 對話與 RAG 檢索 API 端點
+- [backend/app/services/workflow_service.py](backend/app/services/workflow_service.py): 多 Agent 協作工作流與 WebSocket 即時狀態分發
+- [frontend/src/App.jsx](frontend/src/App.jsx): React 前端主要路由與頂層元件配置
+- [frontend/src/pages/DiscussionBoard.jsx](frontend/src/pages/DiscussionBoard.jsx): 多 Agent 討論看板與 React Flow 視覺化節點介面
+
+## 核心設計概念與架構約束
+
+1. **混合 RAG 管道 (Hybrid RAG Pipeline)**：結合 FAISS 密集向量檢索與 Whoosh BM25 稀疏文字檢索，並經由 `bge-reranker-base` 進行加權重排序，確保高相關性上下文導入 LLM。
+2. **雙 Token 認證機制 (Dual-Token Auth)**：Access Token（30 分鐘有效）配合 HttpOnly Cookie 之 Refresh Token（7 天有效），支援 Redis JTI 黑名單撤銷。
+3. **多 Agent 協作工作流 (Multi-Agent Workflow)**：採用 React Flow 節點圖與 WebSocket 雙向串流實現多 Agent 即時討論與結論收斂。
+4. **全系統安全脫敏約束 (Security Invariants)**：全系統日誌必須實施物件層級與字串正則雙層脫敏遮罩，所有密碼與權限 Token 在日誌中必須呈現為 `[REDACTED]`。
+5. **前端技術與套件規範**：前端使用 React 19 與 Vite 7 建構，套件管理優先使用 Bun。
+
+## 詳細文件導覽
+
+- [API 參考手冊](docs/api.md): 完整 RESTful 端點、請求回應 JSON 規格與 WebSocket 協定說明
+- [架構與設計文件](docs/architecture.md): 系統模組架構圖、RAG 流程圖、雙 Token 生命週期與安全設計
+- [架構決策紀錄 (ADR)](docs/adr/README.md): 專案架構演進與重大決策紀錄
+- [版本變更紀錄](CHANGELOG.md): 專案版本發行歷史

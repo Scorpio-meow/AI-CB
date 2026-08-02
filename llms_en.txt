@@ -1,0 +1,32 @@
+# AskMiao (AI ChatBot)
+
+[Traditional Chinese](llms.txt) | [English](llms_en.txt)
+
+> An intelligent conversational and multi-Agent collaboration system powered by Contextual Hybrid RAG (Retrieval-Augmented Generation) technology.
+
+## Core File Map & System Architecture
+
+- [backend/main.py](backend/main.py): FastAPI entry point and route registration
+- [backend/app/core/security_logging.py](backend/app/core/security_logging.py): Security logging system, recursive object masking, and regex redaction
+- [backend/app/core/jwt_auth.py](backend/app/core/jwt_auth.py): RSA-2048 JWT signing, token verification, and Redis blacklist revocation
+- [backend/app/rag/contextual_rag.py](backend/app/rag/contextual_rag.py): Contextual Hybrid RAG retriever (FAISS vector search + Whoosh BM25 keyword search + Cross-Encoder re-ranking)
+- [backend/app/api/auth.py](backend/app/api/auth.py): Authentication RESTful API endpoints (register, login, refresh, profile, logout)
+- [backend/app/api/chat.py](backend/app/api/chat.py): Chat and RAG query endpoints
+- [backend/app/services/workflow_service.py](backend/app/services/workflow_service.py): Multi-Agent collaboration workflow & WebSocket real-time broadcast service
+- [frontend/src/App.jsx](frontend/src/App.jsx): React top-level routing and layout setup
+- [frontend/src/pages/DiscussionBoard.jsx](frontend/src/pages/DiscussionBoard.jsx): Multi-Agent discussion board with React Flow interactive graph
+
+## Key Architectural Concepts & Invariants
+
+1. **Contextual Hybrid RAG Pipeline**: Combines FAISS dense vector search with Whoosh BM25 sparse keyword search, re-ranked dynamically via `bge-reranker-base` to feed high-precision contexts to LLM.
+2. **Dual-Token Security Architecture**: Access Tokens (30-min expiration) paired with HttpOnly Refresh Cookies (7-day expiration) backed by Redis JTI blacklist revocation.
+3. **Multi-Agent Collaboration Workflow**: Uses React Flow graph and WebSockets to orchestrate turn-taking and consensus across multiple specialized AI Agents.
+4. **System-Wide Security Redaction**: Mandatory two-layer masking (object-level and string regex filter). Passwords and bearer tokens MUST appear as `[REDACTED]` in logs.
+5. **Frontend Toolchain & Guidelines**: Built on React 19 + Vite 7. Bun is preferred for package management and script execution.
+
+## Documentation Index
+
+- [API Reference](docs/api_en.md): RESTful endpoints, JSON request/response schemas, and WebSocket specs
+- [Architecture & Design](docs/architecture_en.md): High-level system modules, RAG pipeline, dual-token lifecycle, and security design
+- [Architecture Decision Records (ADR)](docs/adr/README_en.md): Project architecture evolution and design trade-offs
+- [Changelog](CHANGELOG_en.md): Version release history
