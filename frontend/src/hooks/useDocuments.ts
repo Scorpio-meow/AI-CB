@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
 import { documentService } from '../services/api';
-
 export interface DocumentInfo {
   id: number;
   filename: string;
@@ -10,12 +9,10 @@ export interface DocumentInfo {
   created_at: string;
   is_processed: boolean;
 }
-
 export function useDocuments() {
   const [documents, setDocuments] = useState<DocumentInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const fetchDocuments = useCallback(async (): Promise<DocumentInfo[]> => {
     setLoading(true);
     setError(null);
@@ -31,7 +28,6 @@ export function useDocuments() {
       setLoading(false);
     }
   }, []);
-
   const uploadDocument = useCallback(async (file: File): Promise<any> => {
     setLoading(true);
     setError(null);
@@ -47,7 +43,6 @@ export function useDocuments() {
       setLoading(false);
     }
   }, [fetchDocuments]);
-
   const uploadDocuments = useCallback(async (files: File[]): Promise<any> => {
     setLoading(true);
     setError(null);
@@ -63,7 +58,6 @@ export function useDocuments() {
       setLoading(false);
     }
   }, [fetchDocuments]);
-
   const deleteDocument = useCallback(async (documentId: number): Promise<boolean> => {
     setLoading(true);
     setError(null);
@@ -78,7 +72,6 @@ export function useDocuments() {
       setLoading(false);
     }
   }, []);
-
   return {
     documents,
     loading,

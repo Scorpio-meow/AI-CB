@@ -26,8 +26,6 @@ import {
 import { Add, Edit, Delete, Public, Lock } from '@mui/icons-material';
 import { useCustomAgents } from '../hooks/useCustomAgents';
 import { useAgents } from '../contexts/useAgents';
-
-// Agent 表單的初始狀態
 const initialFormState = {
   id: null,
   name: '',
@@ -35,9 +33,8 @@ const initialFormState = {
   expertise: '',
   prompt: '',
   tools: '',
-  is_public: true  // 默認為公開
+  is_public: true
 };
-
 function CustomAgents() {
   const {
     agents,
@@ -47,43 +44,33 @@ function CustomAgents() {
     updateAgent,
     removeAgent
   } = useAgents();
-
   const { createAgent, updateAgent: apiUpdateAgent, deleteAgent: apiDeleteAgent } = useCustomAgents();
-
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState(initialFormState);
   const [formError, setFormError] = useState(null);
-
-  // --- Dialog and Form Handlers ---
   const handleOpenDialog = (agent = null) => {
     setFormError(null);
     if (agent) {
-      // 編輯模式：載入 agent 資料，確保 tools 是字串
       setFormData({
         ...agent,
         tools: agent.tools ? agent.tools.join(', ') : '',
         is_public: agent.is_public !== undefined ? agent.is_public : true
       });
     } else {
-      // 新增模式：重設為初始表單
       setFormData(initialFormState);
     }
     setIsDialogOpen(true);
   };
-
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
   };
-
   const handleFormChange = (event) => {
     const { name, value } = event.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
-
   const handleSwitchChange = (event) => {
     setFormData(prev => ({ ...prev, is_public: event.target.checked }));
   };
-
   const handleFormSubmit = async () => {
     try {
       setFormError(null);
@@ -92,9 +79,7 @@ function CustomAgents() {
         tools: formData.tools.split(',').map(t => t.trim()).filter(t => t),
         is_public: formData.is_public
       };
-
       if (formData.id) {
-        // 更新模式
         const updatedAgentData = await apiUpdateAgent(formData.id, submissionData);
         if (updatedAgentData) {
           updateAgent(updatedAgentData);
@@ -102,7 +87,6 @@ function CustomAgents() {
           throw new Error('更新失敗');
         }
       } else {
-        // 新增模式
         const newAgentData = await createAgent(submissionData);
         if (newAgentData) {
           addAgent(newAgentData);
@@ -110,15 +94,12 @@ function CustomAgents() {
           throw new Error('新增失敗');
         }
       }
-
       handleCloseDialog();
     } catch (err) {
       setFormError('儲存失敗：' + (err.response?.data?.detail || err.message || '請檢查資料是否正確'));
       console.error(err);
     }
   };
-
-  // --- CRUD Handlers ---
   const handleDelete = async (id) => {
     if (window.confirm('確定要刪除這個 Agent 嗎？')) {
       try {
@@ -134,12 +115,9 @@ function CustomAgents() {
       }
     }
   };
-
-  // --- Rendering ---
   if (loading) {
     return <CircularProgress />;
   }
-
   return (
     <Container maxWidth="lg">
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -148,9 +126,7 @@ function CustomAgents() {
           新增 Agent
         </Button>
       </Box>
-
       {contextError && <Alert severity="error" sx={{ mb: 2 }}>{contextError}</Alert>}
-
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
@@ -200,8 +176,7 @@ function CustomAgents() {
           </TableBody>
         </Table>
       </TableContainer>
-
-      {/* 新增/編輯用的 Dialog */}
+      { }
       <Dialog
         open={isDialogOpen}
         onClose={handleCloseDialog}
@@ -285,5 +260,4 @@ function CustomAgents() {
     </Container>
   );
 }
-
 export default CustomAgents;

@@ -5,7 +5,6 @@ import CssBaseline from '@mui/material/CssBaseline';
 import Layout from './components/Layout';
 import { PrivateRoute, AdminRoute, PublicRoute } from './components/PrivateRoute';
 import { MOTION_DURATION, MOTION_EASING } from './utils/motion';
-
 const Chat = lazy(() => import('./pages/Chat'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const Documents = lazy(() => import('./pages/Documents'));
@@ -13,11 +12,9 @@ const CustomAgents = lazy(() => import('./pages/CustomAgents'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
-
 function withSuspense(element) {
   return <Suspense fallback={null}>{element}</Suspense>;
 }
-
 const theme = createTheme({
   palette: {
     mode: 'light',
@@ -80,10 +77,7 @@ const theme = createTheme({
     },
   },
 });
-
-
 const router = createBrowserRouter([
-  // 公開路由 (未登入才能訪問)
   {
     path: '/login',
     element: <PublicRoute element={withSuspense(<LoginPage />)} />,
@@ -92,10 +86,9 @@ const router = createBrowserRouter([
     path: '/register',
     element: <PublicRoute element={withSuspense(<RegisterPage />)} />,
   },
-  // 受保護路由 (需要登入)
   {
     path: '/',
-    element: <Layout />, // Layout 包裹所有頁面
+    element: <Layout />,
     children: [
       { index: true, element: <Navigate to="/chat" replace /> },
       {
@@ -121,7 +114,6 @@ const router = createBrowserRouter([
     ],
   },
 ]);
-
 function App() {
   return (
     <ThemeProvider theme={theme}>
@@ -136,5 +128,4 @@ function App() {
     </ThemeProvider>
   );
 }
-
 export default App;

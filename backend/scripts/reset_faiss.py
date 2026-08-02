@@ -1,26 +1,17 @@
-"""
-重置 FAISS 和 BM25 索引的腳本
-用於修復索引損壞或維度不匹配問題
-"""
+
 import sys
 import os
 import shutil
 from pathlib import Path
-
-# 添加 backend 目錄到 Python 路徑
 backend_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_dir))
-
-
 def reset_indexes():
-    """重置所有索引 (直接刪除索引檔案)"""
     print("=" * 60)
     print("🔧 開始重置 RAG 索引...")
     print("=" * 60)
     
     data_dir = backend_dir / "data"
     
-    # 要刪除的索引檔案
     index_files = [
         data_dir / "faiss_index.bin",
         data_dir / "documents.pkl",
@@ -38,7 +29,6 @@ def reset_indexes():
         print("❌ 操作已取消")
         return
     
-    # 刪除檔案
     print("\n🗑️  刪除索引檔案...")
     for f in index_files:
         if f.exists():
@@ -49,7 +39,6 @@ def reset_indexes():
         shutil.rmtree(bm25_dir)
         print("   ✓ 已刪除 bm25_index/")
     
-    # 重新初始化 RAG 以建立新的空索引
     print("\n🔄 重新初始化 RAG 系統...")
     try:
         from app.core.rag_manager import get_rag_system
@@ -74,7 +63,5 @@ def reset_indexes():
     print("\n" + "=" * 60)
     print("🏁 重置流程完成")
     print("=" * 60)
-
-
 if __name__ == "__main__":
     reset_indexes()

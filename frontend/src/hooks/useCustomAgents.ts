@@ -1,12 +1,10 @@
 import { useState, useCallback } from 'react';
 import * as customAgentService from '../services/customAgentService';
 import { CustomAgent } from '../services/customAgentService';
-
 export function useCustomAgents() {
   const [agents, setAgents] = useState<CustomAgent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const fetchAgents = useCallback(async (force: boolean = false): Promise<CustomAgent[]> => {
     setLoading(true);
     setError(null);
@@ -26,7 +24,6 @@ export function useCustomAgents() {
       setLoading(false);
     }
   }, []);
-
   const createAgent = useCallback(async (agentData: Partial<CustomAgent>): Promise<CustomAgent | null> => {
     setLoading(true);
     setError(null);
@@ -44,7 +41,6 @@ export function useCustomAgents() {
       setLoading(false);
     }
   }, []);
-
   const updateAgent = useCallback(async (id: number, agentData: Partial<CustomAgent>): Promise<CustomAgent | null> => {
     setLoading(true);
     setError(null);
@@ -62,7 +58,6 @@ export function useCustomAgents() {
       setLoading(false);
     }
   }, []);
-
   const deleteAgent = useCallback(async (id: number): Promise<boolean> => {
     setLoading(true);
     setError(null);
@@ -77,7 +72,6 @@ export function useCustomAgents() {
       setLoading(false);
     }
   }, []);
-
   return {
     agents,
     setAgents,

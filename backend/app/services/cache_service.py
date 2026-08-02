@@ -1,7 +1,4 @@
-"""
-Redis 快取服務 - 用於加速 RAG 檢索結果
-支援查詢結果快取、自動過期、批次清理
-"""
+
 import redis
 import json
 import hashlib
@@ -9,25 +6,19 @@ import logging
 from typing import Optional, Dict, Any, List
 from datetime import timedelta
 import os
-
 logger = logging.getLogger(__name__)
-
 class RedisCache:
-    """Redis 快取管理器"""
     
     def __init__(self):
-        # Redis 連線配置
         self.host = os.getenv("REDIS_HOST", "localhost")
         self.port = int(os.getenv("REDIS_PORT", "7967"))
         self.db = int(os.getenv("REDIS_DB", "0"))
         self.password = os.getenv("REDIS_PASSWORD", None)
         self.enabled = os.getenv("ENABLE_REDIS_CACHE", "false").lower() == "true"
         
-        # 快取配置
-        self.default_ttl = int(os.getenv("CACHE_TTL_SECONDS", "300"))  # 5分鐘
+        self.default_ttl = int(os.getenv("CACHE_TTL_SECONDS", "300"))
         self.prefix = "chatbot:rag:"
         
-        # Redis 客戶端
         self.client = None
         
         if self.enabled:
@@ -41,7 +32,6 @@ class RedisCache:
                     socket_connect_timeout=5,
                     socket_timeout=5
                 )
-                # 測試連線
                 self.client.ping()
                 logger.info(f"Redis 快取已啟用: {self.host}:{self.port}/{self.db}")
             except Exception as e:
@@ -53,11 +43,8 @@ class RedisCache:
     
     def _make_cache_key(self, query: str, user_id: Optional[int] = None, 
                        conversation_id: Optional[int] = None) -> str:
-        """生成快取鍵 (基於查詢內容雜湊)"""
-        # 標準化查詢文本
         normalized = query.strip().lower()
         
-        # 生成雜湊 (包含用戶和對話上下文)
         hash_input = f"{normalized}:{user_id}:{conversation_id}"
         hash_value = hashlib.sha256(hash_input.encode()).hexdigest()[:16]
         
@@ -65,7 +52,6 @@ class RedisCache:
     
     def get(self, query: str, user_id: Optional[int] = None, 
            conversation_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
-        """獲取快取的查詢結果"""
         if not self.enabled or not self.client:
             return None
         
@@ -89,7 +75,6 @@ class RedisCache:
            user_id: Optional[int] = None, 
            conversation_id: Optional[int] = None,
            ttl: Optional[int] = None) -> bool:
-        """儲存查詢結果到快取"""
         if not self.enabled or not self.client:
             return False
         
@@ -108,7 +93,6 @@ class RedisCache:
     
     def delete(self, query: str, user_id: Optional[int] = None,
               conversation_id: Optional[int] = None) -> bool:
-        """刪除特定查詢的快取"""
         if not self.enabled or not self.client:
             return False
         
@@ -123,7 +107,6 @@ class RedisCache:
             return False
     
     def clear_all(self) -> int:
-        """清空所有 RAG 快取"""
         if not self.enabled or not self.client:
             return 0
         
@@ -143,7 +126,6 @@ class RedisCache:
             return 0
     
     def get_stats(self) -> Dict[str, Any]:
-        """獲取快取統計資訊"""
         if not self.enabled or not self.client:
             return {
                 "enabled": False,
@@ -175,7 +157,6 @@ class RedisCache:
             }
     
     def _calculate_hit_rate(self, info: Dict) -> float:
-        """計算快取命中率"""
         hits = info.get("keyspace_hits", 0)
         misses = info.get("keyspace_misses", 0)
         total = hits + misses
@@ -186,7 +167,6 @@ class RedisCache:
         return round((hits / total) * 100, 2)
     
     def invalidate_pattern(self, pattern: str) -> int:
-        """按模式批次刪除快取"""
         if not self.enabled or not self.client:
             return 0
         
@@ -204,12 +184,8 @@ class RedisCache:
         except Exception as e:
             logger.error(f"Redis INVALIDATE 錯誤: {e}")
             return 0
-
-# 全域快取實例
 _cache_instance = None
-
 def get_cache() -> RedisCache:
-    """獲取全域快取實例 (單例模式)"""
     global _cache_instance
     if _cache_instance is None:
         _cache_instance = RedisCache()

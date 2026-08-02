@@ -1,36 +1,60 @@
-"""
-Security logging and monitoring utilities
-"""
+
 import logging
 import json
 from datetime import datetime
 from typing import Optional, Dict, Any
 from fastapi import Request
 import os
-
-# Configure security logger
 security_logger = logging.getLogger("security")
 security_logger.setLevel(logging.INFO)
-
-# Create security log file handler
 log_dir = "logs"
 os.makedirs(log_dir, exist_ok=True)
 security_log_file = os.path.join(log_dir, "security.log")
-
 file_handler = logging.FileHandler(security_log_file, encoding='utf-8')
 file_handler.setLevel(logging.INFO)
-
-# Create formatter
 formatter = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 file_handler.setFormatter(formatter)
 security_logger.addHandler(file_handler)
-
-
+SENSITIVE_KEYS = {
+    "password",
+    "pass",
+    "passwd",
+    "secret",
+    "token",
+    "access_token",
+    "refresh_token",
+    "api_key",
+    "apikey",
+    "authorization",
+    "auth",
+    "cred",
+    "credentials",
+    "private_key",
+    "ssn",
+    "card_number",
+    "credit_card",
+    "cookie",
+}
+def sanitize_sensitive_data(data: Any) -> Any:
+    if isinstance(data, dict):
+        sanitized = {}
+        for key, value in data.items():
+            key_str = str(key)
+            key_lower = key_str.lower()
+            if any(s in key_lower for s in SENSITIVE_KEYS):
+                sanitized[key_str] = "[REDACTED]"
+            else:
+                sanitized[key_str] = sanitize_sensitive_data(value)
+        return sanitized
+    elif isinstance(data, list):
+        return [sanitize_sensitive_data(item) for item in data]
+    elif isinstance(data, tuple):
+        return tuple(sanitize_sensitive_data(item) for item in data)
+    return data
 class SecurityEvent:
-    """安全事件類型"""
     LOGIN_ATTEMPT = "login_attempt"
     LOGIN_SUCCESS = "login_success"
     LOGIN_FAILURE = "login_failure"
@@ -43,8 +67,6 @@ class SecurityEvent:
     DATA_ACCESS = "data_access"
     DATA_MODIFICATION = "data_modification"
     DATA_DELETION = "data_deletion"
-
-
 def log_security_event(
     event_type: str,
     request: Optional[Request] = None,
@@ -52,16 +74,6 @@ def log_security_event(
     details: Optional[Dict[str, Any]] = None,
     severity: str = "INFO"
 ):
-    """
-    記錄安全事件
-    
-    Args:
-        event_type: 事件類型（使用 SecurityEvent 類別的常量）
-        request: FastAPI 請求對象（可選）
-        user_id: 用戶 ID（可選）
-        details: 額外的事件詳情（可選）
-        severity: 嚴重程度 (INFO, WARNING, ERROR, CRITICAL)
-    """
     log_entry = {
         "timestamp": datetime.utcnow().isoformat(),
         "event_type": event_type,
@@ -80,8 +92,8 @@ def log_security_event(
     if details:
         log_entry["details"] = details
     
-    # Log to security logger
-    log_message = json.dumps(log_entry, ensure_ascii=False)
+    sanitized_entry = sanitize_sensitive_data(log_entry)
+    log_message = json.dumps(sanitized_entry, ensure_ascii=False)
     
     if severity == "CRITICAL":
         security_logger.critical(log_message)
@@ -91,8 +103,6 @@ def log_security_event(
         security_logger.warning(log_message)
     else:
         security_logger.info(log_message)
-
-
 def log_file_upload(
     request: Request,
     user_id: int,
@@ -101,7 +111,6 @@ def log_file_upload(
     status: str,
     details: Optional[str] = None
 ):
-    """記錄檔案上傳事件"""
     log_security_event(
         event_type=SecurityEvent.FILE_UPLOAD if status == "success" else SecurityEvent.FILE_UPLOAD_REJECTED,
         request=request,
@@ -114,15 +123,12 @@ def log_file_upload(
         },
         severity="INFO" if status == "success" else "WARNING"
     )
-
-
 def log_admin_action(
     request: Request,
     action: str,
     target: Optional[str] = None,
     details: Optional[Dict[str, Any]] = None
 ):
-    """記錄管理員操作"""
     log_security_event(
         event_type=SecurityEvent.ADMIN_ACTION,
         request=request,
@@ -131,16 +137,13 @@ def log_admin_action(
             "target": target,
             **(details or {})
         },
-        severity="WARNING"  # 管理員操作應該被特別關注
+        severity="WARNING"
     )
-
-
 def log_unauthorized_access(
     request: Request,
     reason: str,
     attempted_resource: Optional[str] = None
 ):
-    """記錄未授權訪問嘗試"""
     log_security_event(
         event_type=SecurityEvent.UNAUTHORIZED_ACCESS,
         request=request,
@@ -150,14 +153,11 @@ def log_unauthorized_access(
         },
         severity="ERROR"
     )
-
-
 def log_suspicious_activity(
     request: Request,
     activity: str,
     details: Optional[Dict[str, Any]] = None
 ):
-    """記錄可疑活動"""
     log_security_event(
         event_type=SecurityEvent.SUSPICIOUS_ACTIVITY,
         request=request,
@@ -167,17 +167,14 @@ def log_suspicious_activity(
         },
         severity="CRITICAL"
     )
-
-
 def log_data_operation(
-    operation: str,  # "access", "modify", "delete"
+    operation: str,
     request: Request,
     user_id: int,
     resource_type: str,
     resource_id: Optional[int] = None,
     details: Optional[Dict[str, Any]] = None
 ):
-    """記錄數據操作"""
     event_types = {
         "access": SecurityEvent.DATA_ACCESS,
         "modify": SecurityEvent.DATA_MODIFICATION,

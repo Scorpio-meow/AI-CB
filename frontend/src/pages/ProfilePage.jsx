@@ -1,6 +1,3 @@
-/**
- * 用戶資料頁面
- */
 
 import { useState, useEffect, useCallback } from 'react';
 import {
@@ -26,43 +23,34 @@ import {
   AdminPanelSettings as AdminIcon
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
-
 const ProfilePage = () => {
   const { user, loading, logout, changePassword } = useAuth();
   const [localLoading, setLocalLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-
-  // 修改密碼對話框
   const [passwordDialog, setPasswordDialog] = useState(false);
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
-
   const handleChangePassword = async () => {
     if (!passwordData.currentPassword || !passwordData.newPassword) {
       setError('請填寫所有密碼欄位');
       return;
     }
-
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       setError('兩次密碼輸入不一致');
       return;
     }
-
     setLocalLoading(true);
     setError('');
-
     const result = await changePassword(
       passwordData.currentPassword,
       passwordData.newPassword,
       passwordData.confirmPassword
     );
-
     setLocalLoading(false);
-
     if (result.success) {
       setSuccess('密碼修改成功');
       setPasswordDialog(false);
@@ -75,12 +63,10 @@ const ProfilePage = () => {
       setError(result.error || '修改密碼失敗');
     }
   };
-
   const handleLogout = async () => {
     await logout();
     window.location.href = '/login';
   };
-
   if (loading) {
     return (
       <Container>
@@ -90,7 +76,6 @@ const ProfilePage = () => {
       </Container>
     );
   }
-
   if (!user) {
     return (
       <Container>
@@ -98,11 +83,10 @@ const ProfilePage = () => {
       </Container>
     );
   }
-
   return (
     <Container maxWidth="md">
       <Box sx={{ py: 4 }}>
-        {/* Header */}
+        { }
         <Box sx={{ mb: 4 }}>
           <Typography variant="h4" gutterBottom>
             <PersonIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
@@ -112,8 +96,7 @@ const ProfilePage = () => {
             管理您的帳號資訊和安全設定
           </Typography>
         </Box>
-
-        {/* Messages */}
+        { }
         {error && (
           <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
             {error}
@@ -124,8 +107,7 @@ const ProfilePage = () => {
             {success}
           </Alert>
         )}
-
-        {/* Profile Card */}
+        { }
         <Card elevation={2} sx={{ mb: 3 }}>
           <CardContent sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
@@ -141,7 +123,6 @@ const ProfilePage = () => {
                 />
               )}
             </Box>
-
             <Box sx={{ mb: 2 }}>
               <Typography variant="caption" color="text.secondary">
                 用戶名
@@ -150,7 +131,6 @@ const ProfilePage = () => {
                 {user.username}
               </Typography>
             </Box>
-
             <Box sx={{ mb: 2 }}>
               <Typography variant="caption" color="text.secondary">
                 電子郵件
@@ -159,7 +139,6 @@ const ProfilePage = () => {
                 {user.email}
               </Typography>
             </Box>
-
             <Box sx={{ mb: 2 }}>
               <Typography variant="caption" color="text.secondary">
                 角色
@@ -168,7 +147,6 @@ const ProfilePage = () => {
                 {user.role}
               </Typography>
             </Box>
-
             <Box sx={{ mb: 2 }}>
               <Typography variant="caption" color="text.secondary">
                 帳號狀態
@@ -181,7 +159,6 @@ const ProfilePage = () => {
                 )}
               </Box>
             </Box>
-
             <Box sx={{ mb: 2 }}>
               <Typography variant="caption" color="text.secondary">
                 註冊時間
@@ -190,7 +167,6 @@ const ProfilePage = () => {
                 {new Date(user.created_at).toLocaleString('zh-TW')}
               </Typography>
             </Box>
-
             {user.last_login && (
               <Box>
                 <Typography variant="caption" color="text.secondary">
@@ -203,17 +179,14 @@ const ProfilePage = () => {
             )}
           </CardContent>
         </Card>
-
-        {/* Security Card */}
+        { }
         <Card elevation={2} sx={{ mb: 3 }}>
           <CardContent sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
               <LockIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
               安全設定
             </Typography>
-
             <Divider sx={{ my: 2 }} />
-
             <Button
               variant="outlined"
               startIcon={<LockIcon />}
@@ -224,8 +197,7 @@ const ProfilePage = () => {
             </Button>
           </CardContent>
         </Card>
-
-        {/* Logout Button */}
+        { }
         <Button
           variant="contained"
           color="error"
@@ -235,8 +207,7 @@ const ProfilePage = () => {
         >
           登出
         </Button>
-
-        {/* Change Password Dialog */}
+        { }
         <Dialog
           open={passwordDialog}
           onClose={() => setPasswordDialog(false)}
@@ -294,5 +265,4 @@ const ProfilePage = () => {
     </Container>
   );
 };
-
 export default ProfilePage;

@@ -31,46 +31,32 @@ import {
   TrendingUp as TrendingUpIcon
 } from '@mui/icons-material';
 import api from '../services/api';
-
-// 記憶體快取（3分鐘 TTL）
 const cache = {
   statistics: { data: null, timestamp: 0 },
   users: { data: null, timestamp: 0 },
   documents: { data: null, timestamp: 0 }
 };
-const CACHE_TTL = 3 * 60 * 1000; // 3 分鐘
-
-// 請求去重標記
+const CACHE_TTL = 3 * 60 * 1000;
 let loadingPromise = null;
-
 function AdminDashboard() {
   const [statistics, setStatistics] = useState(null);
   const [users, setUsers] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  // 編輯用戶對話框
   const [editUserDialog, setEditUserDialog] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-
-  // AbortController refs
   const abortControllerRef = useRef(null);
   const isMountedRef = useRef(true);
-
   const loadData = useCallback(async (force = false) => {
-    // 請求去重：如果已有進行中的請求，直接返回該 Promise
     if (loadingPromise && !force) {
       return loadingPromise;
     }
-
-    // 檢查快取（僅在非強制刷新時）
     const now = Date.now();
     if (!force) {
       const statsValid = cache.statistics.data && (now - cache.statistics.timestamp) < CACHE_TTL;
       const usersValid = cache.users.data && (now - cache.users.timestamp) < CACHE_TTL;
       const docsValid = cache.documents.data && (now - cache.documents.timestamp) < CACHE_TTL;
-
       if (statsValid && usersValid && docsValid) {
         setStatistics(cache.statistics.data);
         setUsers(cache.users.data);
@@ -79,23 +65,17 @@ function AdminDashboard() {
         return;
       }
     }
-
     setLoading(true);
     setError('');
-
-    // 取消之前的請求
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-
-    // 創建新的 AbortController
     abortControllerRef.current = new AbortController();
     const timeoutId = setTimeout(() => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-    }, 45000); // 45 秒超時，給 DevTunnels 更多時間
-
+    }, 45000);
     loadingPromise = (async () => {
       try {
         const [statsResponse, usersResponse, docsResponse] = await Promise.all([
@@ -103,25 +83,17 @@ function AdminDashboard() {
           api.get('/admin/users', { signal: abortControllerRef.current.signal }),
           api.get('/admin/documents', { signal: abortControllerRef.current.signal })
         ]);
-
-        // 只有當組件還在時才更新狀態
         if (!isMountedRef.current) return;
-
-        // 更新快取
         const timestamp = Date.now();
         cache.statistics = { data: statsResponse.data, timestamp };
         cache.users = { data: usersResponse.data, timestamp };
         cache.documents = { data: docsResponse.data, timestamp };
-
         setStatistics(statsResponse.data);
         setUsers(usersResponse.data);
         setDocuments(docsResponse.data);
       } catch (err) {
         if (!isMountedRef.current) return;
-
-        // 只有真正的超時才顯示超時錯誤
         if (err.name === 'AbortError' || err.name === 'CanceledError') {
-          // 不顯示錯誤，讓使用者可以重試
           if (import.meta.env.DEV) console.debug('Admin data loading was cancelled', err);
         } else {
           setError('載入數據失敗：' + (err.response?.data?.detail || err.message || '未知錯誤'));
@@ -133,35 +105,24 @@ function AdminDashboard() {
         loadingPromise = null;
       }
     })();
-
     return loadingPromise;
   }, []);
-
   useEffect(() => {
     isMountedRef.current = true;
     queueMicrotask(() => {
       loadData();
     });
-
-    // Cleanup on unmount
     return () => {
       isMountedRef.current = false;
-      // 不要在組件卸載時取消請求，讓請求自然完成
-      // if (abortControllerRef.current) {
-      //   abortControllerRef.current.abort();
-      // }
     };
   }, [loadData]);
-
   const handleEditUser = (user) => {
     setEditingUser({ ...user });
     setEditUserDialog(true);
   };
-
   const handleSaveUser = async () => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 秒超時
-
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
     try {
       await api.put(`/admin/users/${editingUser.id}`, {
         username: editingUser.username,
@@ -169,9 +130,8 @@ function AdminDashboard() {
         is_active: editingUser.is_active,
         is_admin: editingUser.is_admin
       }, { signal: controller.signal });
-
       setEditUserDialog(false);
-      loadData(true); // 強制刷新
+      loadData(true);
     } catch (err) {
       if (err.name === 'AbortError' || err.name === 'CanceledError') {
         setError('更新用戶超時，請稍後再試');
@@ -183,15 +143,13 @@ function AdminDashboard() {
       clearTimeout(timeoutId);
     }
   };
-
   const handleDeleteUser = async (userId) => {
     if (window.confirm('確定要刪除此用戶嗎？此操作不可逆！')) {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 秒超時
-
+      const timeoutId = setTimeout(() => controller.abort(), 45000);
       try {
         await api.delete(`/admin/users/${userId}`, { signal: controller.signal });
-        loadData(true); // 強制刷新
+        loadData(true);
       } catch (err) {
         if (err.name === 'AbortError' || err.name === 'CanceledError') {
           setError('刪除用戶超時，請稍後再試');
@@ -204,15 +162,13 @@ function AdminDashboard() {
       }
     }
   };
-
   const handleDeleteDocument = async (docId) => {
     if (window.confirm('確定要刪除此文件嗎？')) {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 秒超時
-
+      const timeoutId = setTimeout(() => controller.abort(), 45000);
       try {
         await api.delete(`/documents/${docId}`, { signal: controller.signal });
-        loadData(true); // 強制刷新
+        loadData(true);
       } catch (err) {
         if (err.name === 'AbortError' || err.name === 'CanceledError') {
           setError('刪除文件超時，請稍後再試');
@@ -225,7 +181,6 @@ function AdminDashboard() {
       }
     }
   };
-
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="50vh">
@@ -233,20 +188,17 @@ function AdminDashboard() {
       </Box>
     );
   }
-
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom>
         管理後台
       </Typography>
-
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
           {error}
         </Alert>
       )}
-
-      {/* 統計卡片 */}
+      { }
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card>
@@ -261,7 +213,6 @@ function AdminDashboard() {
             </CardContent>
           </Card>
         </Grid>
-
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
@@ -275,7 +226,6 @@ function AdminDashboard() {
             </CardContent>
           </Card>
         </Grid>
-
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
@@ -289,7 +239,6 @@ function AdminDashboard() {
             </CardContent>
           </Card>
         </Grid>
-
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
@@ -304,8 +253,7 @@ function AdminDashboard() {
           </Card>
         </Grid>
       </Grid>
-
-      {/* 用戶管理 */}
+      { }
       <Paper sx={{ p: 3, mb: 4 }}>
         <Typography variant="h6" gutterBottom>用戶管理</Typography>
         <TableContainer>
@@ -366,8 +314,7 @@ function AdminDashboard() {
           </Table>
         </TableContainer>
       </Paper>
-
-      {/* 文件管理 */}
+      { }
       <Paper sx={{ p: 3 }}>
         <Typography variant="h6" gutterBottom>文件管理</Typography>
         <TableContainer>
@@ -413,8 +360,7 @@ function AdminDashboard() {
           </Table>
         </TableContainer>
       </Paper>
-
-      {/* 編輯用戶對話框 */}
+      { }
       <Dialog
         open={editUserDialog}
         onClose={() => setEditUserDialog(false)}
@@ -468,5 +414,4 @@ function AdminDashboard() {
     </Box>
   );
 }
-
 export default AdminDashboard;

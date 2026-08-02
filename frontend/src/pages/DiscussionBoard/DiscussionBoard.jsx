@@ -1,4 +1,3 @@
-// src/components/DiscussionBoard/DiscussionBoard.js
 
 import React, { useState, useCallback, useRef, useEffect, useMemo, useImperativeHandle } from 'react';
 import ReactFlow, {
@@ -14,17 +13,14 @@ import 'reactflow/dist/style.css';
 import { Box, Paper, Typography, Menu, MenuItem, Chip, Button, Alert, CircularProgress } from '@mui/material';
 import { DoneAll } from '@mui/icons-material';
 import AgentNode from './AgentNode';
-import Sidebar from './Sidebar'; // Corrected typo from Siderbar
-
+import Sidebar from './Sidebar';
 let idCounter = 0;
 const getUniqueId = () => `dndnode_${idCounter++}`;
-
 const stripDevTunnelPort = (host) => {
   if (!host) return host;
   if (!host.includes('devtunnels.ms')) return host;
   return host.replace(/:\d+$/, '');
 };
-
 const parseHostFromUrl = (rawUrl, fallbackProtocol) => {
   if (!rawUrl) return { host: null, protocol: fallbackProtocol };
   try {
@@ -42,7 +38,6 @@ const parseHostFromUrl = (rawUrl, fallbackProtocol) => {
     };
   }
 };
-
 const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete }, ref) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges] = useEdgesState([]);
@@ -53,13 +48,10 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
   const socketRef = useRef(null);
   const reactFlowWrapper = useRef(null);
   const [wsStatus, setWsStatus] = useState('disconnected');
-
   const [isFinished, setIsFinished] = useState(false);
   const [finalConversationId, setFinalConversationId] = useState(null);
-  const [infoMessage, setInfoMessage] = useState(''); // State for info messages
-
+  const [infoMessage, setInfoMessage] = useState('');
   const nodeTypes = useMemo(() => ({ agent: AgentNode }), []);
-
   const logCurrentProcess = (action) => {
     setWorkflowProcess(currentProcess => {
       console.log(`--- 🔄 狀態更新後 (${action}) ---`);
@@ -68,13 +60,11 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
       return currentProcess;
     });
   };
-
   const onDrop = useCallback((event) => {
     event.preventDefault();
     const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
     const { nodeType, label, profession } = JSON.parse(event.dataTransfer.getData('application/reactflow'));
     if (typeof nodeType === 'undefined' || !nodeType) return;
-
     const position = reactFlowInstance.project({ x: event.clientX - reactFlowBounds.left, y: event.clientY - reactFlowBounds.top });
     const newNodeId = getUniqueId();
     const newNode = {
@@ -84,7 +74,6 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
       data: { originalLabel: label, label: label, profession: profession },
     };
     setNodes((nds) => nds.concat(newNode));
-
     const newAgentData = {
       ID: newNodeId,
       profession: profession,
@@ -94,9 +83,7 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
     };
     setWorkflowProcess(current => [...current, newAgentData]);
     logCurrentProcess("Agent 加入");
-
   }, [reactFlowInstance, setNodes]);
-
   const onConnect = useCallback((params) => {
     setEdges((eds) => addEdge(params, eds));
     setWorkflowProcess(currentProcess => {
@@ -119,7 +106,6 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
     });
     logCurrentProcess("連接 Agent");
   }, [setEdges]);
-
   const onNodeClick = useCallback((event, node) => {
     setEntryPointId(node.id);
     setWorkflowProcess(currentProcess =>
@@ -127,7 +113,6 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
     );
     logCurrentProcess("設定入口");
   }, []);
-
   const handleEdgesChange = useCallback((changes) => {
     setEdges((eds) => applyEdgeChanges(changes, eds));
     changes.forEach(change => {
@@ -154,7 +139,6 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
       }
     });
   }, [edges, setEdges]);
-
   const handleDeleteNode = () => {
     if (!contextMenu.node) return;
     const nodeIdToDelete = contextMenu.node.id;
@@ -175,17 +159,13 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
     handleCloseContextMenu();
     logCurrentProcess("刪除 Agent");
   };
-
   useEffect(() => {
-    // build ws url based on current location to support different hosts and wss in production
     let isMounted = true;
     let reconnectAttempts = 0;
     const maxReconnectAttempts = 6;
     let reconnectTimer = null;
-    let hasConnected = false; // 追蹤是否已成功連接過
-
+    let hasConnected = false;
     const connect = () => {
-      // 防止在已有連接且狀態正常時重複連接
       if (socketRef.current &&
         (socketRef.current.readyState === WebSocket.OPEN ||
           socketRef.current.readyState === WebSocket.CONNECTING)) {
@@ -194,39 +174,28 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
         }
         return;
       }
-
       try {
         const envWs = import.meta.env.VITE_WS_URL;
         const envApi = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE;
-
         let websocketURL;
-
-        // 優先使用完整的 VITE_WS_URL（包含完整路徑）
         if (envWs) {
-          // 直接使用完整的 WebSocket URL
           websocketURL = envWs;
           if (import.meta.env.DEV) {
             console.log('使用環境變數 VITE_WS_URL:', websocketURL);
           }
         } else {
-          // Fallback: 根據當前環境構建 URL
           const fallbackProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
           let protocol = fallbackProtocol;
           let host = null;
           const isLocalDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
           if (isLocalDevelopment) {
-            // 本地開發環境: 直接使用後端端口
             protocol = 'ws:';
             host = '127.0.0.1:8001';
-
-            // 如果有 API base 配置，從中提取 host
             if (envApi) {
               const parsed = parseHostFromUrl(envApi, fallbackProtocol);
               host = parsed.host;
             }
           } else if (window.location.hostname.includes('devtunnels.ms')) {
-            // DevTunnels 環境
             if (envApi) {
               const parsed = parseHostFromUrl(envApi, fallbackProtocol);
               host = parsed.host;
@@ -234,7 +203,6 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
               host = stripDevTunnelPort(window.location.hostname);
             }
           } else {
-            // 其他生產環境
             if (envApi) {
               const parsed = parseHostFromUrl(envApi, fallbackProtocol);
               host = parsed.host;
@@ -242,15 +210,12 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
               host = stripDevTunnelPort(window.location.host);
             }
           }
-
           host = stripDevTunnelPort(host);
           websocketURL = `${protocol}//${host}/api/workflow/ws`;
           if (import.meta.env.DEV) {
             console.log('構建 WebSocket URL:', websocketURL);
           }
         }
-
-        // close existing socket if any
         if (socketRef.current) {
           try {
             socketRef.current.onopen = null;
@@ -259,12 +224,9 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
             socketRef.current.onmessage = null;
             socketRef.current.close();
           } catch {
-            // ignore close errors during reconnection
           }
         }
-
         socketRef.current = new WebSocket(websocketURL);
-
         socketRef.current.onopen = () => {
           if (import.meta.env.DEV) {
             console.log('WebSocket 連線已建立');
@@ -273,19 +235,15 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
           reconnectAttempts = 0;
           setWsStatus('connected');
         };
-
         socketRef.current.onclose = (ev) => {
           if (import.meta.env.DEV) {
             console.log('WebSocket 連線已關閉', ev);
           }
           setWsStatus('disconnected');
-
-          // 只有在已成功連接過且組件仍掛載時才嘗試重連
           if (!isMounted || !hasConnected) return;
-
           if (reconnectAttempts < maxReconnectAttempts) {
             reconnectAttempts += 1;
-            const backoff = 1000 * Math.min(5, reconnectAttempts); // linear backoff up to 5s
+            const backoff = 1000 * Math.min(5, reconnectAttempts);
             if (import.meta.env.DEV) {
               console.log(`嘗試重連 WebSocket (#${reconnectAttempts})，${backoff}ms 後重試`);
             }
@@ -294,13 +252,10 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
             console.warn('已達到最大重連次數，停止重連');
           }
         };
-
         socketRef.current.onerror = (error) => {
           console.error('WebSocket 錯誤:', error);
           setWsStatus('error');
-          // onerror may be followed by onclose which triggers reconnect
         };
-
         socketRef.current.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
@@ -309,7 +264,6 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
               setInfoMessage('');
               setIsFinished(true);
               setFinalConversationId(data.conversation_id);
-              // 暫存最終下載連結於 socket 物件，避免全域狀態污染
               if (socketRef.current) {
                 socketRef.current.lastFinalDownloadUrl = data.final_download_url || null;
               }
@@ -347,9 +301,7 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
         socketRef.current = null;
       }
     };
-
     connect();
-
     return () => {
       isMounted = false;
       if (reconnectTimer) clearTimeout(reconnectTimer);
@@ -357,12 +309,10 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
         try {
           socketRef.current.close();
         } catch {
-          // ignore close errors during unmount
         }
       }
     };
   }, [setNodes]);
-
   const handleStartWorkflow = () => {
     if (!entryPointId) {
       alert("請先左鍵點擊一個 AI 角色，將其設定為主要進入端口！");
@@ -372,39 +322,32 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
       alert("請在下方的對話框輸入您的初始指令！");
       return;
     }
-
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       setInfoMessage('');
       setIsFinished(false);
       setFinalConversationId(null);
       setNodes(nds => nds.map(node => ({ ...node, data: { ...node.data, response: null, status: undefined } })));
-
       const payload = {
         agents: workflowProcess,
         initialPrompt: initialPrompt
       };
-
       socketRef.current.send(JSON.stringify({ type: "start_workflow", payload: payload }));
       DiscussionBoard.displayName = 'DiscussionBoard';
     } else {
       alert("WebSocket 尚未連接，請稍後再試。");
     }
   };
-
   const handleFinalize = () => {
     if (onWorkflowComplete && finalConversationId) {
       onWorkflowComplete(finalConversationId);
     }
     DiscussionBoardWrapper.displayName = 'DiscussionBoardWrapper';
-
   };
-
   useImperativeHandle(ref, () => ({ startWorkflow: handleStartWorkflow }));
   const onDragOver = useCallback((event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }, []);
   const onNodeContextMenu = useCallback((event, node) => { event.preventDefault(); setContextMenu({ anchorEl: event.currentTarget, node: node }); }, []);
   const handleCloseContextMenu = () => setContextMenu({ anchorEl: null, node: null });
   useEffect(() => { setNodes((nds) => nds.map((node) => ({ ...node, data: { ...node.data, isEntryPoint: node.id === entryPointId } }))); }, [entryPointId, setNodes]);
-
   return (
     <Box sx={{ height: '100%', display: 'flex' }}>
       <Sidebar />
@@ -476,13 +419,9 @@ const DiscussionBoard = React.forwardRef(({ initialPrompt, onWorkflowComplete },
     </Box>
   );
 });
-
-
-
 const DiscussionBoardWrapper = React.forwardRef((props, ref) => (
   <ReactFlowProvider>
     <DiscussionBoard {...props} ref={ref} />
   </ReactFlowProvider>
 ));
-
 export default DiscussionBoardWrapper;

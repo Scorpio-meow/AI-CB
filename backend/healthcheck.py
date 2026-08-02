@@ -1,17 +1,9 @@
-#!/usr/bin/env python3
-"""
-健康檢查腳本 - 用於 Docker 容器健康檢查
-"""
-
 import sys
 import requests
 import json
 from datetime import datetime
-
 def check_health():
-    """檢查應用程式健康狀態"""
     try:
-        # Require either BASE_URL or both HOST and PORT to be set in the environment; no defaults.
         import os
         base_url = os.getenv('BASE_URL')
         host = os.getenv('HOST')
@@ -22,14 +14,12 @@ def check_health():
             base = f"http://{host}:{port}"
         else:
             raise RuntimeError("healthcheck requires BASE_URL or both HOST and PORT environment variables to be set.")
-        # 檢查基本 API 端點
         response = requests.get(f"{base}/", timeout=5)
         
         if response.status_code != 200:
             print(f"ERROR: API 返回狀態碼 {response.status_code}")
             return False
             
-        # 檢查資料庫連接
         try:
             db_response = requests.get(f"{base}/api/admin/stats", timeout=5)
             if db_response.status_code != 200:
@@ -46,9 +36,8 @@ def check_health():
     except Exception as e:
         print(f"ERROR: 健康檢查失敗: {e}")
         return False
-
 if __name__ == "__main__":
     if check_health():
-        sys.exit(0)  # 成功
+        sys.exit(0)
     else:
-        sys.exit(1)  # 失敗
+        sys.exit(1)

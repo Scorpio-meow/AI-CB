@@ -1,6 +1,5 @@
 import { createContext } from 'react';
 import { CustomAgent } from '../services/customAgentService';
-
 export interface AgentContextType {
   agents: CustomAgent[];
   loading: boolean;
@@ -10,5 +9,4 @@ export interface AgentContextType {
   updateAgent: (updatedAgent: CustomAgent) => void;
   removeAgent: (agentId: number) => void;
 }
-
 export const AgentContext = createContext<AgentContextType | undefined>(undefined);

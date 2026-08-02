@@ -1,29 +1,24 @@
 import api, { User } from './api';
-
 const TOKEN_KEY = 'access_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
 const USER_KEY = 'user_info';
-
 export interface Tokens {
   access_token: string;
   refresh_token: string;
   token_type: string;
 }
-
 export interface RegisterLoginResult {
   success: boolean;
   user?: User;
   tokens?: Tokens;
   error?: string;
 }
-
 const withTimeout = async <T>(
   promiseCreator: (signal: AbortSignal) => Promise<T>,
   timeoutMs: number = 45000
 ): Promise<T> => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
   try {
     const result = await promiseCreator(controller.signal);
     clearTimeout(timeoutId);
@@ -38,7 +33,6 @@ const withTimeout = async <T>(
     throw error;
   }
 };
-
 class AuthService {
   async register(username: string, email: string, password: string): Promise<RegisterLoginResult> {
     try {
@@ -50,20 +44,15 @@ class AuthService {
         }, { signal }),
         45000
       );
-
       const { user, tokens } = response.data;
       this.saveTokens(tokens);
       this.saveUser(user);
-
       return { success: true, user, tokens };
     } catch (error: any) {
       console.error('註冊失敗:', error);
-
       let errorMessage = error.isTimeout ? error.message : '註冊失敗';
-
       if (!error.isTimeout && error.response?.data?.detail) {
         const detail = error.response.data.detail;
-
         if (Array.isArray(detail)) {
           errorMessage = detail.map((err: any) => err.msg || err).join(', ');
         } else if (typeof detail === 'string') {
@@ -72,14 +61,12 @@ class AuthService {
           errorMessage = detail.msg || JSON.stringify(detail);
         }
       }
-
       return {
         success: false,
         error: errorMessage
       };
     }
   }
-
   async login(username: string, password: string): Promise<RegisterLoginResult> {
     try {
       const response = await withTimeout(
@@ -89,20 +76,15 @@ class AuthService {
         }, { signal }),
         45000
       );
-
       const { user, tokens } = response.data;
       this.saveTokens(tokens);
       this.saveUser(user);
-
       return { success: true, user, tokens };
     } catch (error: any) {
       console.error('登入失敗:', error);
-
       let errorMessage = error.isTimeout ? error.message : '登入失敗';
-
       if (!error.isTimeout && error.response?.data?.detail) {
         const detail = error.response.data.detail;
-
         if (Array.isArray(detail)) {
           errorMessage = detail.map((err: any) => err.msg || err).join(', ');
         } else if (typeof detail === 'string') {
@@ -111,14 +93,12 @@ class AuthService {
           errorMessage = detail.msg || JSON.stringify(detail);
         }
       }
-
       return {
         success: false,
         error: errorMessage
       };
     }
   }
-
   async logout(): Promise<void> {
     try {
       await withTimeout(
@@ -131,30 +111,24 @@ class AuthService {
       this.clearAuth();
     }
   }
-
   async refreshAccessToken(): Promise<string> {
     try {
       const refreshToken = this.getRefreshToken();
-
       if (!refreshToken) {
         throw new Error('無刷新令牌');
       }
-
       const response = await withTimeout(
         (signal) => api.post<{ access_token: string; refresh_token: string }>('/auth/refresh', {
           refresh_token: refreshToken
         }, { signal }),
         45000
       );
-
       const { access_token, refresh_token } = response.data;
-
       this.saveTokens({
         access_token,
         refresh_token,
         token_type: 'bearer'
       });
-
       return access_token;
     } catch (error) {
       console.error('刷新令牌失敗:', error);
@@ -162,7 +136,6 @@ class AuthService {
       throw error;
     }
   }
-
   async getCurrentUser(): Promise<User> {
     try {
       const response = await withTimeout(
@@ -179,7 +152,6 @@ class AuthService {
       throw error;
     }
   }
-
   async updateProfile(data: Partial<User>): Promise<{ success: boolean; user?: User; error?: string }> {
     try {
       const response = await withTimeout(
@@ -198,7 +170,6 @@ class AuthService {
       };
     }
   }
-
   async changePassword(currentPassword: string, newPassword: string, confirmPassword: string): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
       const response = await withTimeout(
@@ -209,7 +180,6 @@ class AuthService {
         }, { signal }),
         45000
       );
-
       return { success: true, message: response.data.message };
     } catch (error: any) {
       console.error('修改密碼失敗:', error);
@@ -220,7 +190,6 @@ class AuthService {
       };
     }
   }
-
   async validateToken(): Promise<boolean> {
     try {
       const response = await withTimeout(
@@ -232,7 +201,6 @@ class AuthService {
       return false;
     }
   }
-
   saveTokens(tokens: Tokens) {
     if (tokens.access_token) {
       localStorage.setItem(TOKEN_KEY, tokens.access_token);
@@ -241,19 +209,15 @@ class AuthService {
       localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh_token);
     }
   }
-
   saveUser(user: User) {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
   }
-
   getAccessToken(): string | null {
     return localStorage.getItem(TOKEN_KEY);
   }
-
   getRefreshToken(): string | null {
     return localStorage.getItem(REFRESH_TOKEN_KEY);
   }
-
   getUser(): User | null {
     const userStr = localStorage.getItem(USER_KEY);
     try {
@@ -262,22 +226,18 @@ class AuthService {
       return null;
     }
   }
-
   isAuthenticated(): boolean {
     return !!this.getAccessToken();
   }
-
   isAdmin(): boolean {
     const user = this.getUser();
     return user?.is_admin === true;
   }
-
   clearAuth() {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
   }
 }
-
 const authService = new AuthService();
 export default authService;

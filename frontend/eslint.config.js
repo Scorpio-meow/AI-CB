@@ -3,7 +3,6 @@ import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import react from 'eslint-plugin-react';
-
 export default [
   { ignores: ['build/**', 'node_modules/**', '.bun/**', '~/**'] },
   {

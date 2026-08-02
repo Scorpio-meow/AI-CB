@@ -26,32 +26,26 @@ import { useNavigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { AgentProvider } from '../contexts/AgentContext';
 import { createMotionTransition, reduceMotionStyles } from '../utils/motion';
-
 function Layout() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
-
   const handleMenuOpen = (event) => {
     setAnchorEl(event.currentTarget);
   };
-
   const handleMenuClose = () => {
     setAnchorEl(null);
   };
-
   const handleProfile = () => {
     handleMenuClose();
     navigate('/profile');
   };
-
   const handleLogout = async () => {
     handleMenuClose();
     await logout();
     navigate('/login');
   };
-
   return (
     <Box sx={{ flexGrow: 1, minHeight: '100vh', bgcolor: 'grey.50' }}>
       <AppBar
@@ -90,7 +84,6 @@ function Layout() {
           >
             ChatBot 系統
           </Typography>
-
           <Box
             sx={{
               display: 'flex',
@@ -123,7 +116,6 @@ function Layout() {
             >
               聊天
             </Button>
-
             {user?.is_admin && (
               <Button
                 color="inherit"
@@ -149,7 +141,6 @@ function Layout() {
                 知識庫
               </Button>
             )}
-
             <Button
               color="inherit"
               startIcon={<SupportAgent />}
@@ -173,7 +164,6 @@ function Layout() {
             >
               自訂Agent
             </Button>
-
             {user?.is_admin && (
               <Button
                 color="inherit"
@@ -199,8 +189,7 @@ function Layout() {
                 管理後台
               </Button>
             )}
-
-            {/* User Menu */}
+            { }
             <IconButton
               onClick={handleMenuOpen}
               size="small"
@@ -231,8 +220,7 @@ function Layout() {
           </Box>
         </Toolbar>
       </AppBar>
-
-      {/* User Menu */}
+      { }
       <Menu
         anchorEl={anchorEl}
         id="account-menu"
@@ -275,7 +263,6 @@ function Layout() {
           <ListItemText>登出</ListItemText>
         </MenuItem>
       </Menu>
-
       <Box component="main" sx={{ px: { xs: 2, sm: 3 }, pb: 3, mt: 2 }}>
         <AgentProvider>
           <Outlet />
@@ -284,5 +271,4 @@ function Layout() {
     </Box>
   );
 }
-
 export default Layout;

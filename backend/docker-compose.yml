@@ -1,5 +1,4 @@
 name: ai-cb-local
-
 services:
   postgres:
     image: postgres:17.9
@@ -22,7 +21,6 @@ services:
       start_period: 20s
     networks:
       - ai-cb-net
-
   redis:
     image: redis:latest
     restart: unless-stopped
@@ -38,11 +36,9 @@ services:
       retries: 10
     networks:
       - ai-cb-net
-
 volumes:
   postgres_data:
   redis_data:
-
 networks:
   ai-cb-net:
     driver: bridge

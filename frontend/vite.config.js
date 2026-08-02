@@ -3,13 +3,10 @@ import react from '@vitejs/plugin-react';
 import viteCompression from 'vite-plugin-compression';
 import path from 'path';
 import { fileURLToPath } from 'url';
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, '');
-
   return {
     plugins: [
       react(),
@@ -17,7 +14,6 @@ export default defineConfig(({ mode }) => {
         apply: 'build',
       }),
     ],
-
     server: {
       port: parseInt(env.PORT) || 3000,
       host: true,
@@ -31,12 +27,10 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-
     preview: {
       port: 3000,
       host: true,
     },
-
     build: {
       outDir: 'build',
       sourcemap: env.GENERATE_SOURCEMAP !== 'false',
@@ -50,7 +44,6 @@ export default defineConfig(({ mode }) => {
       },
       chunkSizeWarningLimit: 1000,
     },
-
     resolve: {
       extensions: ['.mjs', '.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
@@ -62,11 +55,9 @@ export default defineConfig(({ mode }) => {
         '@contexts': path.resolve(__dirname, './src/contexts'),
       },
     },
-
     define: {
       'process.env.NODE_ENV': JSON.stringify(mode),
     },
-
     optimizeDeps: {
       include: [
         'react',

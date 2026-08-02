@@ -30,7 +30,6 @@ import ReactMarkdown from 'react-markdown';
 import DiscussionBoard from './DiscussionBoard/DiscussionBoard';
 import remarkGfm from 'remark-gfm';
 import { useChat } from '../hooks/useChat';
-
 function Chat() {
   const [thinkOpenArr, setThinkOpenArr] = useState({});
   const location = useLocation();
@@ -46,8 +45,6 @@ function Chat() {
   const [viewMode, setViewMode] = useState('chat');
   const discussionBoardRef = useRef(null);
   const messagesTopRef = useRef(null);
-
-  // 使用對話自訂 Hook
   const {
     loading,
     loadingMore,
@@ -65,28 +62,21 @@ function Chat() {
     deleteConversation,
     startNewConversation
   } = useChat();
-
   const selectedModelRef = useRef(selectedModel);
   const userSelectedModelRef = useRef(userSelectedModel);
-
   useEffect(() => {
     selectedModelRef.current = selectedModel;
   }, [selectedModel]);
-
   useEffect(() => {
     userSelectedModelRef.current = userSelectedModel;
   }, [userSelectedModel]);
-
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
-
-  // 載入可用模型
   const loadAvailableModels = useCallback(async (force = false) => {
     if (!force && window.__tagsLoading) {
       return;
     }
-
     if (!force) {
       const cached = localStorage.getItem('cached_tags');
       const cacheTime = localStorage.getItem('cached_tags_time');
@@ -97,10 +87,8 @@ function Chat() {
             const cachedData = JSON.parse(cached);
             const cachedModels = cachedData.models || [];
             const cachedDetails = cachedData.details || [];
-
             setAvailableModels(cachedModels);
             setModelDetails(cachedDetails);
-
             const currentSelectedModel = selectedModelRef.current;
             if (!currentSelectedModel && cachedData.default) {
               setSelectedModel(cachedData.default);
@@ -114,14 +102,12 @@ function Chat() {
         }
       }
     }
-
     window.__tagsLoading = true;
     setModelsLoading(true);
     try {
       const externalTagsUrl = import.meta.env.VITE_TAGS_URL;
       const backendProxyWhenExternal = externalTagsUrl ? '/api/external-tags' : null;
       let payload;
-
       if (backendProxyWhenExternal) {
         try {
           const response = await api.get('/external-tags');
@@ -139,20 +125,16 @@ function Chat() {
         const response = await api.get('/tags');
         payload = response.data;
       }
-
       let models = [];
       let details = [];
       let defaultModel = null;
-
       const normalizeModels = (items) => {
         if (!Array.isArray(items)) return { models: [], details: [] };
         const modelsList = [];
         const detailsList = [];
-
         items.forEach((item) => {
           let modelName = '';
           let modelDetail = null;
-
           if (typeof item === 'string') {
             modelName = item.trim();
           } else if (item && typeof item === 'object') {
@@ -168,16 +150,13 @@ function Chat() {
               };
             }
           }
-
           if (modelName) {
             modelsList.push(modelName);
             detailsList.push(modelDetail);
           }
         });
-
         return { models: modelsList, details: detailsList };
       };
-
       if (Array.isArray(payload)) {
         const result = normalizeModels(payload);
         models = result.models;
@@ -201,34 +180,26 @@ function Chat() {
         models = result.models;
         details = result.details;
       }
-
       if (!models || models.length === 0) {
         models = ['gemma4:26b', 'gemma3:27b'];
         details = [];
       }
-
       setAvailableModels(models);
       setModelDetails(details);
-
       try {
         localStorage.setItem('cached_tags', JSON.stringify({ models, details, default: defaultModel }));
         localStorage.setItem('cached_tags_time', Date.now().toString());
       } catch (e) {
         console.warn('緩存 tags 失敗', e);
       }
-
       const currentSelectedModel = selectedModelRef.current;
       const currentUserSelectedModel = userSelectedModelRef.current;
-
       if (currentUserSelectedModel && currentSelectedModel && models.includes(currentSelectedModel)) {
-        // keep user selection
       } else if (currentSelectedModel && models.includes(currentSelectedModel)) {
-        // keep current
       } else {
         const newModel = defaultModel || models[0];
         setSelectedModel(newModel);
       }
-
       if (force) {
         setSnackbar({ open: true, message: `已更新模型列表 (${models.length} 個模型)`, severity: 'success' });
       }
@@ -247,41 +218,34 @@ function Chat() {
       setModelsLoading(false);
     }
   }, []);
-
   const loadConversation = useCallback(async (conversation) => {
     setViewMode('chat');
     await fetchConversation(conversation.id);
   }, [fetchConversation]);
-
   const loadConversations = useCallback(async () => {
     return await fetchConversations();
   }, [fetchConversations]);
-
   useEffect(() => {
     queueMicrotask(() => {
       loadAvailableModels();
     });
   }, [loadAvailableModels]);
-
   useEffect(() => {
     const defaultInterval = 5 * 60 * 1000;
     const configuredInterval = import.meta.env.VITE_MODEL_POLL_INTERVAL_MS
       ? parseInt(import.meta.env.VITE_MODEL_POLL_INTERVAL_MS, 10)
       : defaultInterval;
     const intervalMs = isNaN(configuredInterval) ? defaultInterval : configuredInterval;
-
     const id = setInterval(() => {
       loadAvailableModels(false);
     }, intervalMs);
     return () => clearInterval(id);
   }, [loadAvailableModels]);
-
   useEffect(() => {
     queueMicrotask(() => {
       loadConversations();
     });
   }, [loadConversations]);
-
   useEffect(() => {
     if (location.state?.conversationId) {
       queueMicrotask(() => {
@@ -290,18 +254,14 @@ function Chat() {
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location, navigate, loadConversation]);
-
   useEffect(() => {
     if (viewMode === 'chat') {
       scrollToBottom();
     }
   }, [messages, viewMode, scrollToBottom]);
-
-  // IntersectionObserver for auto-loading more messages when scrolling to top
   useEffect(() => {
     const element = messagesTopRef.current;
     if (!element || !hasMoreMessages || loadingMore) return;
-
     const observer = new IntersectionObserver(
       (entries) => {
         const [entry] = entries;
@@ -315,9 +275,7 @@ function Chat() {
         threshold: 0.1
       }
     );
-
     observer.observe(element);
-
     return () => {
       if (element) {
         observer.unobserve(element);
@@ -325,10 +283,8 @@ function Chat() {
       observer.disconnect();
     };
   }, [hasMoreMessages, loadingMore, loadMoreMessages]);
-
   const sendChatMessageCallback = useCallback(async () => {
     if (!newMessage.trim() || viewMode !== 'chat') return;
-
     const userMessage = {
       content: newMessage,
       is_user: true,
@@ -337,19 +293,15 @@ function Chat() {
     setMessages((prev) => [...prev, userMessage]);
     const messageToSend = newMessage;
     setNewMessage('');
-
     try {
       await sendChatMessage(messageToSend, selectedModel);
     } catch {
       setMessages((prev) => prev.slice(0, -1));
     }
   }, [newMessage, viewMode, sendChatMessage, selectedModel, setMessages]);
-
   const deleteConversationCallback = useCallback(async (conversationId) => {
     await deleteConversation(conversationId);
   }, [deleteConversation]);
-
-  // Simple preprocessing
   const preprocessContent = (content) => {
     if (!content || typeof content !== 'string') return '';
     const withBreaks = content.replace(/<br\s*\/?/gi, '\n\n');
@@ -366,13 +318,11 @@ function Chat() {
       return stripped;
     }
   };
-
   const handleStartWorkflow = () => {
     if (discussionBoardRef.current) {
       discussionBoardRef.current.startWorkflow();
     }
   };
-
   const handleSendMessage = () => {
     if (viewMode === 'discussion') {
       handleStartWorkflow();
@@ -380,7 +330,6 @@ function Chat() {
       sendChatMessageCallback();
     }
   };
-
   const handleWorkflowComplete = useCallback(async (conversationId) => {
     setViewMode('chat');
     if (conversationId) {
@@ -388,17 +337,15 @@ function Chat() {
       await loadConversation({ id: conversationId });
     }
   }, [loadConversation, loadConversations]);
-
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
-
   return (
     <Box sx={{ height: '100vh', display: 'flex' }}>
-      {/* 側邊欄 */}
+      { }
       <Box sx={{ width: 300, display: 'flex', flexDirection: 'column' }}>
         <Paper sx={{ height: '100%', borderRadius: 0 }}>
           <Box sx={{ p: 2, display: "flex", columnGap: 1 }}>
@@ -451,13 +398,11 @@ function Chat() {
           </List>
         </Paper>
       </Box>
-
-      {/* 中間分隔線（垂直） */}
+      { }
       <Divider orientation="vertical" flexItem />
-
-      {/* 主區域 */}
+      { }
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {/* 主要內容區域 */}
+        { }
         <Box sx={{ flex: 1, overflow: 'hidden' }}>
           {viewMode === 'chat' ? (
             <>
@@ -480,7 +425,6 @@ function Chat() {
                   </Box>
                 )}
                 <div ref={messagesTopRef} style={{ height: '1px' }} />
-
                 {messages.map((message, index) => {
                   let thinkContent = null;
                   let mainContent = message.content;
@@ -537,8 +481,7 @@ function Chat() {
             />
           )}
         </Box>
-
-        {/* 輸入區域 */}
+        { }
         <Paper sx={{ p: 2, borderRadius: 0, borderTop: 1, borderColor: 'divider' }} elevation={2}>
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
             {viewMode === 'chat' && (
@@ -587,7 +530,6 @@ function Chat() {
                 </Tooltip>
               </Box>
             )}
-
             <TextField
               fullWidth
               multiline
@@ -613,8 +555,7 @@ function Chat() {
           </Box>
         </Paper>
       </Box>
-
-      {/* Snackbar 通知 */}
+      { }
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
@@ -632,5 +573,4 @@ function Chat() {
     </Box>
   );
 }
-
 export default Chat;

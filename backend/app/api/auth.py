@@ -1,18 +1,10 @@
-"""
-認證 API 端點
-提供用戶註冊、登入、令牌刷新、資料管理等功能
-支援 HttpOnly Cookie 和 Token 黑名單
-"""
-
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
 from typing import List
 import logging
 import os
-
 logger = logging.getLogger(__name__)
-
 from app.models.database import get_db
 from app.schemas.auth import (
     UserRegister, UserLogin, Token, TokenRefresh,
@@ -32,25 +24,18 @@ from app.core.jwt_auth import (
     PasswordManager, revoke_token
 )
 from app.core.security_logging import log_security_event
-
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 security = HTTPBearer()
-
-
 def _get_cookie_secure() -> bool:
     override = os.getenv("COOKIE_SECURE")
     if override is not None and override != "":
         return override.strip().lower() in {"1", "true", "yes", "y"}
     return os.getenv("ENVIRONMENT", "development").strip().lower() == "production"
-
-
 def _get_cookie_samesite() -> str:
     override = os.getenv("COOKIE_SAMESITE")
     if override:
         return override.strip().lower()
     return "lax"
-
-
 def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
     response.set_cookie(
         key="refresh_token",
@@ -61,8 +46,6 @@ def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
         max_age=7 * 24 * 60 * 60,
         path="/api/auth",
     )
-
-
 @router.post("/register", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     user_data: UserRegister,
@@ -70,19 +53,8 @@ async def register(
     response: Response,
     db: Session = Depends(get_db)
 ):
-    """
-    用戶註冊
-    
-    - **username**: 用戶名(3-50 字符,只允許字母、數字、下劃線、連字符)
-    - **email**: 電子郵件地址
-    - **password**: 密碼 (至少 8 字符,包含大小寫字母和數字)
-    
-    返回用戶資料和 JWT tokens (refresh_token 存儲在 HttpOnly Cookie)
-    """
-    # 1. 清理用戶名
     username = sanitize_username(user_data.username)
     
-    # 2. 檢查用戶名是否已存在
     if get_user_by_username(db, username):
         log_security_event("REGISTER_FAILED", request=request, details={"username": username, "reason": "用戶名已存在"})
         raise HTTPException(
@@ -90,7 +62,6 @@ async def register(
             detail="用戶名已被使用"
         )
     
-    # 3. 檢查電子郵件是否已存在
     if get_user_by_email(db, user_data.email):
         log_security_event("REGISTER_FAILED", request=request, details={"email": user_data.email, "reason": "電子郵件已存在"})
         raise HTTPException(
@@ -98,7 +69,6 @@ async def register(
             detail="電子郵件已被使用"
         )
     
-    # 4. 驗證密碼強度
     is_valid, error_msg = validate_password_strength(user_data.password)
     if not is_valid:
         log_security_event("REGISTER_FAILED", request=request, details={"username": username, "reason": error_msg})
@@ -107,7 +77,6 @@ async def register(
             detail=error_msg
         )
     
-    # 5. 創建用戶
     try:
         new_user = create_user(
             db=db,
@@ -118,7 +87,6 @@ async def register(
             is_admin=False
         )
         
-        # 6. 生成 JWT tokens
         tokens = create_token_pair({
             "user_id": new_user.id,
             "username": new_user.username,
@@ -127,10 +95,8 @@ async def register(
             "is_admin": new_user.is_admin
         })
         
-        # 7. 將 refresh_token 存儲在 HttpOnly Cookie 中
         _set_refresh_cookie(response, tokens["refresh_token"])
         
-        # 8. 記錄成功註冊
         log_security_event("USER_REGISTERED", request=request, user_id=new_user.id, details={
             "username": new_user.username
         })
@@ -140,13 +106,12 @@ async def register(
             tokens=Token(
                 access_token=tokens["access_token"],
                 token_type=tokens["token_type"],
-                refresh_token=""  # 不在響應體中返回
+                refresh_token=""
             ),
             message="註冊成功"
         )
         
     except Exception as e:
-        # Log the exception and avoid returning sensitive details to the client
         logger = logging.getLogger(__name__)
         logger.exception("用戶註冊失敗")
         log_security_event("REGISTER_ERROR", request=request, details={"error": "internal_error"})
@@ -154,8 +119,6 @@ async def register(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="註冊失敗: 內部錯誤，請聯繫系統管理員"
         )
-
-
 @router.post("/login", response_model=LoginResponse)
 async def login(
     credentials: UserLogin,
@@ -163,15 +126,6 @@ async def login(
     response: Response,
     db: Session = Depends(get_db)
 ):
-    """
-    用戶登入
-    
-    - **username**: 用戶名或電子郵件
-    - **password**: 密碼
-    
-    返回用戶資料和 JWT tokens (refresh_token 存儲在 HttpOnly Cookie)
-    """
-    # 1. 驗證用戶憑證
     user = authenticate_user(db, credentials.username, credentials.password)
     
     if not user:
@@ -185,10 +139,8 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # 2. 更新最後登入時間
     update_user_last_login(db, user.id)
     
-    # 3. 生成 JWT tokens
     tokens = create_token_pair({
         "user_id": user.id,
         "username": user.username,
@@ -197,39 +149,28 @@ async def login(
         "is_admin": user.is_admin
     })
     
-    # 4. 將 refresh_token 存儲在 HttpOnly Cookie 中
     _set_refresh_cookie(response, tokens["refresh_token"])
     
-    # 5. 記錄成功登入
     log_security_event("USER_LOGIN", request=request, user_id=user.id, details={
         "username": user.username
     })
     
-    # 6. 返回時不包含 refresh_token（已在 Cookie 中）
     return LoginResponse(
         user=UserProfile.model_validate(user),
         tokens=Token(
             access_token=tokens["access_token"],
             token_type=tokens["token_type"],
-            refresh_token=""  # 不在響應體中返回
+            refresh_token=""
         ),
         message="登入成功"
     )
-
-
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
     request: Request,
     response: Response,
     db: Session = Depends(get_db)
 ):
-    """
-    刷新 Access Token
-    
-    從 HttpOnly Cookie 中讀取 Refresh Token 並生成新的 Access Token
-    """
     try:
-        # 從 Cookie 中獲取 refresh_token
         refresh_token_value = request.cookies.get("refresh_token")
         
         if not refresh_token_value:
@@ -238,10 +179,8 @@ async def refresh_token(
                 detail="未找到刷新令牌"
             )
         
-        # 驗證 refresh token 並獲取 payload
         payload = verify_refresh_token(refresh_token_value)
         
-        # 從 payload 獲取用戶 ID 並從資料庫取得用戶
         user_id = payload.get("user_id")
         if not user_id:
             raise HTTPException(
@@ -256,7 +195,6 @@ async def refresh_token(
                 detail="無效的刷新令牌"
             )
         
-        # 生成新的 token pair
         tokens = create_token_pair({
             "user_id": user.id,
             "username": user.username,
@@ -265,7 +203,6 @@ async def refresh_token(
             "is_admin": user.is_admin
         })
         
-        # 更新 Cookie 中的 refresh_token（刷新過期時間）
         _set_refresh_cookie(response, tokens["refresh_token"])
         
         log_security_event("TOKEN_REFRESHED", request=request, user_id=user.id)
@@ -273,7 +210,7 @@ async def refresh_token(
         return Token(
             access_token=tokens["access_token"],
             token_type=tokens["token_type"],
-            refresh_token=""  # 不在響應體中返回
+            refresh_token=""
         )
         
     except HTTPException:
@@ -284,18 +221,11 @@ async def refresh_token(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="刷新令牌失敗"
         )
-
-
 @router.get("/me", response_model=UserProfile)
 async def get_current_user_profile(
     user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """
-    獲取當前用戶資料
-    
-    需要有效的 Access Token
-    """
     user = get_user_by_id(db, user["user_id"])
     
     if not user:
@@ -305,8 +235,6 @@ async def get_current_user_profile(
         )
     
     return UserProfile.model_validate(user)
-
-
 @router.put("/me", response_model=UserProfile)
 async def update_current_user_profile(
     user_update: UserUpdate,
@@ -314,13 +242,6 @@ async def update_current_user_profile(
     user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """
-    更新當前用戶資料
-    
-    可更新：
-    - 電子郵件
-    - 密碼（需要提供當前密碼）
-    """
     user_obj = get_user_by_id(db, user["user_id"])
     
     if not user_obj:
@@ -329,9 +250,7 @@ async def update_current_user_profile(
             detail="用戶不存在"
         )
     
-    # 更新電子郵件
     if user_update.email:
-        # 檢查新郵件是否已被使用
         existing_user = get_user_by_email(db, user_update.email)
         if existing_user and existing_user.id != user_obj.id:
             raise HTTPException(
@@ -341,9 +260,7 @@ async def update_current_user_profile(
         update_user_email(db, user_obj.id, user_update.email)
         log_security_event("USER_EMAIL_UPDATED", request=request, user_id=user_obj.id)
     
-    # 更新密碼
     if user_update.new_password:
-        # 驗證當前密碼
         if not user_update.current_password:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -360,7 +277,6 @@ async def update_current_user_profile(
                 detail="當前密碼錯誤"
             )
         
-        # 驗證新密碼強度
         is_valid, error_msg = validate_password_strength(user_update.new_password)
         if not is_valid:
             raise HTTPException(
@@ -371,11 +287,8 @@ async def update_current_user_profile(
         update_user_password(db, user_obj.id, user_update.new_password)
         log_security_event("PASSWORD_CHANGED", request=request, user_id=user_obj.id)
     
-    # 刷新用戶數據
     user_obj = get_user_by_id(db, user_obj.id)
     return UserProfile.model_validate(user_obj)
-
-
 @router.post("/change-password", response_model=MessageResponse)
 async def change_password(
     password_data: PasswordChange,
@@ -383,11 +296,6 @@ async def change_password(
     user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """
-    修改密碼
-    
-    需要提供當前密碼和新密碼
-    """
     user_obj = get_user_by_id(db, user["user_id"])
     
     if not user_obj:
@@ -396,7 +304,6 @@ async def change_password(
             detail="用戶不存在"
         )
     
-    # 驗證當前密碼
     pwd_mgr = PasswordManager()
     if not pwd_mgr.verify_password(password_data.current_password, user_obj.hashed_password):
         log_security_event("PASSWORD_CHANGE_FAILED", request=request, user_id=user_obj.id, details={
@@ -407,7 +314,6 @@ async def change_password(
             detail="當前密碼錯誤"
         )
     
-    # 驗證新密碼強度
     is_valid, error_msg = validate_password_strength(password_data.new_password)
     if not is_valid:
         raise HTTPException(
@@ -415,38 +321,26 @@ async def change_password(
             detail=error_msg
         )
     
-    # 更新密碼
     update_user_password(db, user_obj.id, password_data.new_password)
     log_security_event("PASSWORD_CHANGED", request=request, user_id=user_obj.id)
     
     return MessageResponse(message="密碼修改成功")
-
-
 @router.post("/logout", response_model=MessageResponse)
 async def logout(
     request: Request,
     response: Response,
     user: dict = Depends(get_current_active_user)
 ):
-    """
-    用戶登出
-    
-    將 access_token 加入黑名單並清除 refresh_token Cookie
-    """
     try:
-        # 獲取當前的 access_token
         auth_header = request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
             access_token = auth_header.split(" ")[1]
-            # 將 access_token 加入黑名單
             revoke_token(access_token)
         
-        # 獲取並撤銷 refresh_token
         refresh_token_value = request.cookies.get("refresh_token")
         if refresh_token_value:
             revoke_token(refresh_token_value)
         
-        # 清除 refresh_token Cookie
         response.delete_cookie(
             key="refresh_token",
             path="/api/auth"
@@ -462,18 +356,10 @@ async def logout(
         log_security_event("LOGOUT_ERROR", request=request, user_id=user.get("user_id"), details={
             "error": str(e)
         })
-        # 即使發生錯誤也清除 Cookie
         response.delete_cookie(key="refresh_token", path="/api/auth")
         return MessageResponse(message="登出成功")
-
-
 @router.post("/validate-token", response_model=MessageResponse)
 async def validate_token(
     user: dict = Depends(get_current_active_user)
 ):
-    """
-    驗證令牌是否有效
-    
-    用於前端檢查令牌有效性
-    """
     return MessageResponse(message="令牌有效")

@@ -1,8 +1,3 @@
-"""
-JWT 認證核心模組
-提供完整的 JWT Token 生成、驗證和密碼加密功能
-支援 RSA 非對稱加密和 Token 黑名單
-"""
 
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
@@ -15,101 +10,47 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 import os
 from dotenv import load_dotenv
-
 load_dotenv()
-
 logger = logging.getLogger(__name__)
-
-# JWT 配置
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-this-in-production")
-ALGORITHM = os.getenv("JWT_ALGORITHM", "RS256")  # 改用 RSA 算法
+ALGORITHM = os.getenv("JWT_ALGORITHM", "RS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
-
-# 導入 RSA 金鑰管理器和 Token 黑名單
 try:
     from app.core.rsa_keys import rsa_manager
     USE_RSA = True
-    # 獲取 RSA 金鑰
     RSA_PRIVATE_KEY = rsa_manager.get_private_key_pem()
     RSA_PUBLIC_KEY = rsa_manager.get_public_key_pem()
     print("使用 RSA 非對稱加密進行 JWT 簽名")
 except Exception as e:
-    # 安全加固：拒絕降級到不安全的算法
     import os
     if os.getenv("ENVIRONMENT") == "production":
-        # 生產環境必須使用 RSA
         print(f"生產環境 RSA 金鑰載入失敗: {e}")
         raise RuntimeError("生產環境必須使用 RSA 金鑰進行 JWT 簽名") from e
     else:
-        # 開發環境允許降級，但發出警告
         USE_RSA = False
         RSA_PRIVATE_KEY = None
         RSA_PUBLIC_KEY = None
         ALGORITHM = "HS256"
         print(f"開發環境 RSA 金鑰載入失敗，暫時使用 HS256: {e}")
         print(f"警告：請盡快修復 RSA 金鑰配置！")
-
 try:
     from app.core.redis_client import TokenBlacklist
     USE_BLACKLIST = True
 except Exception as e:
     USE_BLACKLIST = False
     print(f"Token 黑名單功能不可用: {e}")
-
-# 密碼加密配置
-# 預設採用 Argon2id；legacy bcrypt 只保留驗證相容，不再用於新雜湊。
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
-
-# HTTP Bearer Token 認證
 security = HTTPBearer()
-
-
 def _normalize_legacy_bcrypt_password(password: str, max_bytes: int = 72) -> str:
-    """
-    將密碼安全地截斷到 legacy bcrypt 可接受的 UTF-8 byte 上限。
-
-    legacy bcrypt 只會處理前 72 bytes；若直接用字元長度切片，遇到多位元組字元時
-    仍可能超過限制並在舊雜湊驗證階段拋出錯誤。
-    """
     encoded_password = password.encode("utf-8")
-
     if len(encoded_password) <= max_bytes:
         return password
-
     return encoded_password[:max_bytes].decode("utf-8", errors="ignore")
-
-
 class PasswordManager:
-    """密碼管理器 - 處理密碼加密和驗證"""
     
     @staticmethod
     def hash_password(password: str) -> str:
-        """
-        加密密碼
-        
-        Args:
-            password: 明文密碼
-            
-        Returns:
-            加密後的密碼哈希
-        """
-        # Argon2id 為新預設；不再截斷密碼長度。
-        return pwd_context.hash(password)
-    
-    @staticmethod
-    def verify_password(plain_password: str, hashed_password: str) -> bool:
-        """
-        驗證密碼
-        
-        Args:
-            plain_password: 明文密碼
-            hashed_password: 加密後的密碼哈希
-            
-        Returns:
-            驗證結果
-        """
-        # 既有 bcrypt 雜湊仍需相容：直接使用 bcrypt 套件驗證 legacy 哈希。
         if hashed_password.startswith("$2"):
             plain_password = _normalize_legacy_bcrypt_password(plain_password)
             try:
@@ -119,37 +60,17 @@ class PasswordManager:
                 )
             except ValueError:
                 return False
-
         return pwd_context.verify(plain_password, hashed_password)
-
     @staticmethod
     def needs_rehash(hashed_password: str) -> bool:
-        """
-        判斷密碼雜湊是否需要升級。
-
-        目前 bcrypt 舊雜湊會被視為需要升級到 Argon2id。
-        """
         return hashed_password.startswith("$2") or pwd_context.needs_update(hashed_password)
-
-
 class TokenManager:
-    """JWT Token 管理器"""
     
     @staticmethod
     def create_access_token(
         data: Dict[str, Any],
         expires_delta: Optional[timedelta] = None
     ) -> str:
-        """
-        創建訪問令牌 (Access Token)
-        
-        Args:
-            data: 要編碼到 token 中的數據 (通常包含 user_id, username, role 等)
-            expires_delta: 自定義過期時間
-            
-        Returns:
-            JWT access token
-        """
         to_encode = data.copy()
         
         if expires_delta:
@@ -163,7 +84,6 @@ class TokenManager:
             "iat": datetime.utcnow()
         })
         
-        # 使用 RSA 或 HS256
         if USE_RSA:
             encoded_jwt = jwt.encode(to_encode, RSA_PRIVATE_KEY, algorithm="RS256")
         else:
@@ -175,16 +95,6 @@ class TokenManager:
         data: Dict[str, Any],
         expires_delta: Optional[timedelta] = None
     ) -> str:
-        """
-        創建刷新令牌 (Refresh Token)
-        
-        Args:
-            data: 要編碼到 token 中的數據
-            expires_delta: 自定義過期時間
-            
-        Returns:
-            JWT refresh token
-        """
         to_encode = data.copy()
         
         if expires_delta:
@@ -198,7 +108,6 @@ class TokenManager:
             "iat": datetime.utcnow()
         })
         
-        # 使用 RSA 或 HS256
         if USE_RSA:
             encoded_jwt = jwt.encode(to_encode, RSA_PRIVATE_KEY, algorithm="RS256")
         else:
@@ -207,19 +116,6 @@ class TokenManager:
     
     @staticmethod
     def decode_token(token: str) -> Dict[str, Any]:
-        """
-        解碼並驗證 JWT token
-        
-        Args:
-            token: JWT token 字符串
-            
-        Returns:
-            解碼後的 payload
-            
-        Raises:
-            HTTPException: 如果 token 無效或過期
-        """
-        # 檢查 Token 黑名單
         if USE_BLACKLIST and TokenBlacklist.is_blacklisted(token):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -228,10 +124,7 @@ class TokenManager:
             )
         
         try:
-            # 使用 RSA 公鑰或 HS256 密鑰
-            # 🔒 安全加固：明確指定允許的算法，防止算法混淆攻擊
             if USE_RSA:
-                # 對於 RSA，嚴格只允許 RS256
                 payload = jwt.decode(
                     token, 
                     RSA_PUBLIC_KEY, 
@@ -239,7 +132,6 @@ class TokenManager:
                     options={"verify_signature": True, "verify_exp": True}
                 )
             else:
-                # 對於對稱加密，嚴格只允許 HS256
                 payload = jwt.decode(
                     token, 
                     SECRET_KEY, 
@@ -257,42 +149,14 @@ class TokenManager:
     
     @staticmethod
     def verify_token_type(payload: Dict[str, Any], expected_type: str) -> bool:
-        """
-        驗證 token 類型
-        
-        Args:
-            payload: token payload
-            expected_type: 期望的 token 類型 ('access' 或 'refresh')
-            
-        Returns:
-            是否匹配
-        """
         return payload.get("type") == expected_type
-
-
-# === 依賴注入函數 ===
-
 async def get_current_user_from_token(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(lambda: None)  # 將在實際使用時注入正確的 db session
+    db: Session = Depends(lambda: None)
 ) -> Dict[str, Any]:
-    """
-    從 HTTP Authorization Bearer Token 中獲取當前用戶
-    
-    Args:
-        credentials: HTTP Bearer 認證憑證
-        db: 數據庫 session (可選,用於額外的用戶驗證)
-        
-    Returns:
-        用戶信息字典
-        
-    Raises:
-        HTTPException: 如果 token 無效
-    """
     token = credentials.credentials
     payload = TokenManager.decode_token(token)
     
-    # 驗證是否為 access token
     if not TokenManager.verify_token_type(payload, "access"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -300,7 +164,6 @@ async def get_current_user_from_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # 提取用戶信息
     user_id = payload.get("sub")
     if user_id is None:
         raise HTTPException(
@@ -316,38 +179,13 @@ async def get_current_user_from_token(
         "role": payload.get("role", "user"),
         "is_admin": payload.get("is_admin", False)
     }
-
-
 async def get_current_active_user(
     current_user: Dict[str, Any] = Depends(get_current_user_from_token)
 ) -> Dict[str, Any]:
-    """
-    獲取當前活躍用戶 (可在此添加額外的活躍狀態檢查)
-    
-    Args:
-        current_user: 當前用戶信息
-        
-    Returns:
-        用戶信息字典
-    """
     return current_user
-
-
 async def get_current_admin_user(
     current_user: Dict[str, Any] = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
-    """
-    獲取當前管理員用戶 (僅管理員可通過)
-    
-    Args:
-        current_user: 當前用戶信息
-        
-    Returns:
-        管理員用戶信息
-        
-    Raises:
-        HTTPException: 如果用戶不是管理員
-    """
     if not current_user.get("is_admin", False):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -355,19 +193,7 @@ async def get_current_admin_user(
         )
     
     return current_user
-
-
 def create_token_pair(user_data: Dict[str, Any]) -> Dict[str, str]:
-    """
-    創建 access token 和 refresh token 對
-    
-    Args:
-        user_data: 用戶數據 (必須包含 user_id)
-        
-    Returns:
-        包含 access_token 和 refresh_token 的字典
-    """
-    # 準備 token payload
     token_data = {
         "sub": str(user_data["user_id"]),
         "username": user_data.get("username"),
@@ -384,21 +210,7 @@ def create_token_pair(user_data: Dict[str, Any]) -> Dict[str, str]:
         "refresh_token": refresh_token,
         "token_type": "bearer"
     }
-
-
 def verify_refresh_token(token: str) -> Dict[str, Any]:
-    """
-    驗證 refresh token 並返回 payload
-    
-    Args:
-        token: refresh token
-        
-    Returns:
-        token payload
-        
-    Raises:
-        HTTPException: 如果 token 無效或類型不正確
-    """
     payload = TokenManager.decode_token(token)
     
     if not TokenManager.verify_token_type(payload, "refresh"):
@@ -408,20 +220,7 @@ def verify_refresh_token(token: str) -> Dict[str, Any]:
         )
     
     return payload
-
-
-# === 安全工具函數 ===
-
 def validate_password_strength(password: str) -> tuple[bool, str]:
-    """
-    驗證密碼強度
-    
-    Args:
-        password: 待驗證的密碼
-        
-    Returns:
-        (是否有效, 錯誤消息)
-    """
     if len(password) < 8:
         return False, "密碼長度至少需要 8 個字符"
     
@@ -435,49 +234,24 @@ def validate_password_strength(password: str) -> tuple[bool, str]:
         return False, "密碼必須包含至少一個數字"
     
     return True, ""
-
-
 def sanitize_username(username: str) -> str:
-    """
-    清理用戶名 (移除特殊字符)
-    
-    Args:
-        username: 原始用戶名
-        
-    Returns:
-        清理後的用戶名
-    """
     import re
-    # 只允許字母、數字、下劃線和連字符
     return re.sub(r'[^\w\-]', '', username)
-
-
 def revoke_token(token: str, expires_in: int = None):
-    """
-    撤銷 Token (加入黑名單)
-    
-    Args:
-        token: JWT token
-        expires_in: 過期時間（秒），如果為 None 則自動從 token 中提取
-    """
     if not USE_BLACKLIST:
         print("Token 黑名單功能未啟用")
         return False
     
     try:
-        # 如果沒有指定過期時間，從 token 中提取
         if expires_in is None:
             payload = TokenManager.decode_token(token)
             exp = payload.get("exp")
             if exp:
-                # 計算剩餘時間
                 expires_in = max(int(exp - datetime.utcnow().timestamp()), 0)
             else:
-                # 預設 1 天
                 expires_in = 86400
         
         return TokenBlacklist.add_token(token, expires_in)
     except Exception as e:
         print(f"撤銷 Token 失敗: {e}")
         return False
-

@@ -1,56 +1,35 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 import os
 from typing import Optional
-from pypdf import PdfReader  # 使用新的 pypdf 替代 PyPDF2
+from pypdf import PdfReader
 from docx import Document as DocxDocument
 import logging
 import hashlib
-
 logger = logging.getLogger(__name__)
-
 class DocumentProcessor:
-    """文檔處理器，支援 TXT、PDF 和 DOCX 格式，並增強安全性"""
     
-    # 檔案頭部 magic numbers 用於驗證
     FILE_SIGNATURES = {
         'application/pdf': [b'%PDF'],
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document': [
-            b'PK\x03\x04',  # ZIP 格式（DOCX 是壓縮檔）
+            b'PK\x03\x04',
         ],
-        'text/plain': []  # 文本文件沒有特定的 magic number
+        'text/plain': []
     }
     
     @staticmethod
     def validate_file_header(file_path: str, content_type: str) -> bool:
-        """
-        驗證檔案頭部以確保檔案類型真實性
-        
-        Args:
-            file_path: 檔案路徑
-            content_type: 聲稱的 MIME 類型
-            
-        Returns:
-            bool: 驗證是否通過
-            
-        Raises:
-            ValueError: 如果驗證失敗
-        """
         if content_type not in DocumentProcessor.FILE_SIGNATURES:
             raise ValueError(f"不支援的檔案類型: {content_type}")
         
         signatures = DocumentProcessor.FILE_SIGNATURES[content_type]
         
-        # 文本文件跳過頭部檢查
         if not signatures:
             return True
         
         try:
             with open(file_path, 'rb') as f:
-                header = f.read(512)  # 讀取前 512 bytes
+                header = f.read(512)
                 
-            # 檢查是否匹配任何已知的 magic number
             for signature in signatures:
                 if header.startswith(signature):
                     return True
@@ -67,15 +46,6 @@ class DocumentProcessor:
     
     @staticmethod
     def calculate_file_hash(file_path: str) -> str:
-        """
-        計算檔案的 SHA256 雜湊值
-        
-        Args:
-            file_path: 檔案路徑
-            
-        Returns:
-            str: SHA256 雜湊值
-        """
         sha256_hash = hashlib.sha256()
         with open(file_path, "rb") as f:
             for byte_block in iter(lambda: f.read(4096), b""):
@@ -84,15 +54,11 @@ class DocumentProcessor:
     
     @staticmethod
     def extract_text_from_file(file_path: str, content_type: str) -> Optional[str]:
-        """從文件中提取文本內容，增強安全性，docx 副檔名自動容錯"""
         try:
-            # docx 副檔名自動容錯
             ext = os.path.splitext(file_path)[1].lower()
             if ext == ".docx" and content_type != "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
                 content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            # 安全檢查：驗證檔案頭部
             DocumentProcessor.validate_file_header(file_path, content_type)
-            # 安全檢查：檔案大小（在這裡再次確認）
             file_size = os.path.getsize(file_path)
             max_size = int(os.getenv("MAX_FILE_SIZE_MB", "10")) * 1024 * 1024
             if file_size > max_size:
@@ -112,9 +78,7 @@ class DocumentProcessor:
     
     @staticmethod
     def _extract_from_txt(file_path: str) -> str:
-        """從 TXT 文件提取文本"""
         try:
-            # 嘗試不同的編碼
             encodings = ['utf-8', 'utf-8-sig', 'big5', 'gb2312', 'gbk']
             
             for encoding in encodings:
@@ -126,7 +90,6 @@ class DocumentProcessor:
                 except UnicodeDecodeError:
                     continue
             
-            # 如果所有編碼都失敗，使用錯誤處理
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
             logger.warning("使用 UTF-8 with errors='ignore' 讀取 TXT 文件")
@@ -138,14 +101,12 @@ class DocumentProcessor:
     
     @staticmethod
     def _extract_from_pdf(file_path: str) -> str:
-        """從 PDF 文件提取文本"""
         try:
             text_content = []
             
             with open(file_path, 'rb') as file:
-                pdf_reader = PdfReader(file)  # 使用新的 PdfReader
+                pdf_reader = PdfReader(file)
                 
-                # 檢查 PDF 是否被加密
                 if pdf_reader.is_encrypted:
                     logger.warning("PDF 文件被加密，嘗試空密碼解密")
                     try:
@@ -153,7 +114,6 @@ class DocumentProcessor:
                     except:
                         raise ValueError("PDF 文件被密碼保護，無法讀取")
                 
-                # 提取每一頁的文本
                 for page_num, page in enumerate(pdf_reader.pages):
                     try:
                         page_text = page.extract_text()
@@ -176,17 +136,14 @@ class DocumentProcessor:
     
     @staticmethod
     def _extract_from_docx(file_path: str) -> str:
-        """從 DOCX 文件提取文本"""
         try:
             doc = DocxDocument(file_path)
             text_content = []
             
-            # 提取段落文本
             for paragraph in doc.paragraphs:
                 if paragraph.text.strip():
                     text_content.append(paragraph.text)
             
-            # 提取表格文本
             for table in doc.tables:
                 for row in table.rows:
                     row_text = []
@@ -209,7 +166,6 @@ class DocumentProcessor:
     
     @staticmethod
     def validate_file_type(content_type: str, file_path: str = None) -> bool:
-        """驗證文件類型是否支援，docx 副檔名自動容錯"""
         supported_types = [
             "text/plain",
             "application/pdf",
@@ -217,7 +173,6 @@ class DocumentProcessor:
         ]
         if content_type in supported_types:
             return True
-        # docx 副檔名自動容錯
         if file_path:
             ext = os.path.splitext(file_path)[1].lower()
             if ext == ".docx":
@@ -226,7 +181,6 @@ class DocumentProcessor:
     
     @staticmethod
     def get_file_info(file_path: str, content_type: str) -> dict:
-        """獲取文件基本信息"""
         try:
             stat = os.stat(file_path)
             return {

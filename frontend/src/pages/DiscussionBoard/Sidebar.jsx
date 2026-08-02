@@ -1,18 +1,14 @@
-// src/pages/DiscussionBoard/Sidebar.js
 
 import { Box, Paper, Typography, List, ListItem, ListItemText, ListItemIcon, CircularProgress, Alert } from '@mui/material';
 import { DragIndicator } from '@mui/icons-material';
 import { useAgents } from '../../contexts/useAgents';
-
 const Sidebar = () => {
   const { agents, loading, error } = useAgents();
-
   const onDragStart = (event, nodeType, label, profession) => {
     const data = JSON.stringify({ nodeType, label, profession });
     event.dataTransfer.setData('application/reactflow', data);
     event.dataTransfer.effectAllowed = 'move';
   };
-
   return (
     <Paper sx={{ width: 250, height: '100%', p: 2, borderRight: 1, borderColor: 'divider', display: 'flex', flexDirection: 'column' }} elevation={2}>
       <Typography variant="h6" gutterBottom>
@@ -21,7 +17,6 @@ const Sidebar = () => {
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         請將角色拖拽到右側畫布中
       </Typography>
-
       {loading ? (
         <CircularProgress />
       ) : error ? (
@@ -58,5 +53,4 @@ const Sidebar = () => {
     </Paper>
   );
 };
-
 export default Sidebar;

@@ -1,6 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
 import api, { chatService, Conversation, Message } from '../services/api';
-
 export function useChat() {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -10,17 +9,14 @@ export function useChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [messagesOffset, setMessagesOffset] = useState(0);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
-
   const loadConversationAbortRef = useRef<AbortController | null>(null);
   const loadConversationsAbortRef = useRef<AbortController | null>(null);
-
   const fetchConversations = useCallback(async (): Promise<Conversation[]> => {
     if (loadConversationsAbortRef.current) {
       loadConversationsAbortRef.current.abort();
     }
     const abortController = new AbortController();
     loadConversationsAbortRef.current = abortController;
-    
     setLoading(true);
     setError(null);
     try {
@@ -41,24 +37,19 @@ export function useChat() {
       loadConversationsAbortRef.current = null;
     }
   }, []);
-
   const fetchConversation = useCallback(async (conversationId: number): Promise<Conversation | null> => {
     if (loadConversationAbortRef.current) {
       loadConversationAbortRef.current.abort();
     }
     const abortController = new AbortController();
     loadConversationAbortRef.current = abortController;
-
     setLoading(true);
     setError(null);
     try {
-      // Fetch conversation metadata
       const convResp = await api.get<Conversation>(`/chat/conversations/${conversationId}`, {
         signal: abortController.signal
       });
       setCurrentConversation(convResp.data);
-
-      // Fetch messages (first page)
       const msgsResp = await api.get<Message[]>(`/chat/conversations/${conversationId}/messages?limit=100&offset=0`, {
         signal: abortController.signal
       });
@@ -66,7 +57,6 @@ export function useChat() {
       setMessages(fetchedMessages);
       setMessagesOffset(fetchedMessages.length);
       setHasMoreMessages(fetchedMessages.length === 100);
-
       return convResp.data;
     } catch (err: any) {
       if (err.name === 'CanceledError' || err.name === 'AbortError') {
@@ -80,10 +70,8 @@ export function useChat() {
       loadConversationAbortRef.current = null;
     }
   }, []);
-
   const loadMoreMessages = useCallback(async () => {
     if (!currentConversation || loadingMore || !hasMoreMessages) return;
-
     setLoadingMore(true);
     const abortController = new AbortController();
     try {
@@ -105,19 +93,13 @@ export function useChat() {
       setLoadingMore(false);
     }
   }, [currentConversation, loadingMore, hasMoreMessages, messagesOffset]);
-
   const sendChatMessage = useCallback(async (content: string, selectedModel: string) => {
     if (!content.trim()) return;
-
     setLoading(true);
     setError(null);
     try {
       const response = await chatService.sendMessage(content, currentConversation?.id || null, selectedModel);
-      
-      // 新增機器人回應到訊息列表
       setMessages(prev => [...prev, response.message]);
-
-      // 若建立了新對話，刷新對話清單並設定目前的對話
       if (!currentConversation || response.conversation_id !== currentConversation.id) {
         const freshConvs = await fetchConversations();
         const found = freshConvs.find(c => c.id === response.conversation_id);
@@ -133,7 +115,6 @@ export function useChat() {
       setLoading(false);
     }
   }, [currentConversation, fetchConversations]);
-
   const deleteConversation = useCallback(async (conversationId: number): Promise<boolean> => {
     setLoading(true);
     setError(null);
@@ -154,14 +135,12 @@ export function useChat() {
       setLoading(false);
     }
   }, [currentConversation]);
-
   const startNewConversation = useCallback(() => {
     setCurrentConversation(null);
     setMessages([]);
     setMessagesOffset(0);
     setHasMoreMessages(false);
   }, []);
-
   return {
     loading,
     loadingMore,

@@ -1,12 +1,10 @@
 import { useState, useCallback } from 'react';
 import authService, { Tokens, RegisterLoginResult } from '../services/authService';
 import { User } from '../services/api';
-
 export function useAuth() {
   const [user, setUser] = useState<User | null>(() => authService.getUser());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const login = useCallback(async (username: string, password: string): Promise<RegisterLoginResult> => {
     setLoading(true);
     setError(null);
@@ -26,7 +24,6 @@ export function useAuth() {
       setLoading(false);
     }
   }, []);
-
   const register = useCallback(async (username: string, email: string, password: string): Promise<RegisterLoginResult> => {
     setLoading(true);
     setError(null);
@@ -46,7 +43,6 @@ export function useAuth() {
       setLoading(false);
     }
   }, []);
-
   const logout = useCallback(async (): Promise<void> => {
     setLoading(true);
     try {
@@ -58,7 +54,6 @@ export function useAuth() {
       setLoading(false);
     }
   }, []);
-
   const getCurrentUser = useCallback(async (): Promise<User | null> => {
     setLoading(true);
     setError(null);
@@ -73,7 +68,6 @@ export function useAuth() {
       setLoading(false);
     }
   }, []);
-
   const updateProfile = useCallback(async (data: Partial<User>) => {
     setLoading(true);
     setError(null);
@@ -93,7 +87,6 @@ export function useAuth() {
       setLoading(false);
     }
   }, []);
-
   const changePassword = useCallback(async (currentPassword: string, newPassword: string, confirmPassword: string) => {
     setLoading(true);
     setError(null);
@@ -111,7 +104,6 @@ export function useAuth() {
       setLoading(false);
     }
   }, []);
-
   return {
     user,
     loading,

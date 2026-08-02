@@ -1,6 +1,3 @@
-/**
- * 登入頁面
- */
 
 import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
@@ -19,23 +16,17 @@ import {
 } from '@mui/material';
 import { Visibility, VisibilityOff, Login as LoginIcon } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
-
 const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, loading, error: authError } = useAuth();
-
   const [formData, setFormData] = useState({
     username: '',
     password: ''
   });
-
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState('');
-
-  // 獲取登入前的路徑
   const from = location.state?.from?.pathname || '/';
-
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -43,26 +34,19 @@ const LoginPage = () => {
     });
     if (localError) setLocalError('');
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // 驗證
     if (!formData.username || !formData.password) {
       setLocalError('請輸入用戶名和密碼');
       return;
     }
-
     setLocalError('');
-
     const result = await login(formData.username, formData.password);
     if (result.success) {
       navigate(from, { replace: true });
     }
   };
-
   const error = localError || authError;
-
   return (
     <Container maxWidth="sm">
       <Box
@@ -76,7 +60,7 @@ const LoginPage = () => {
       >
         <Card elevation={3}>
           <CardContent sx={{ p: 4 }}>
-            {/* Logo / Title */}
+            { }
             <Box sx={{ textAlign: 'center', mb: 3 }}>
               <LoginIcon sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} />
               <Typography variant="h4" component="h1" gutterBottom>
@@ -86,15 +70,13 @@ const LoginPage = () => {
                 使用您的帳號登入系統
               </Typography>
             </Box>
-
-            {/* Error Alert */}
+            { }
             {error && (
               <Alert severity="error" sx={{ mb: 2 }}>
                 {error}
               </Alert>
             )}
-
-            {/* Login Form */}
+            { }
             <form onSubmit={handleSubmit}>
               <TextField
                 fullWidth
@@ -107,7 +89,6 @@ const LoginPage = () => {
                 autoFocus
                 autoComplete="username"
               />
-
               <TextField
                 fullWidth
                 label="密碼"
@@ -131,7 +112,6 @@ const LoginPage = () => {
                   )
                 }}
               />
-
               <Button
                 fullWidth
                 type="submit"
@@ -150,8 +130,7 @@ const LoginPage = () => {
                 )}
               </Button>
             </form>
-
-            {/* Links */}
+            { }
             <Box sx={{ textAlign: 'center', mt: 2 }}>
               <Typography variant="body2" color="text.secondary">
                 還沒有帳號?{' '}
@@ -169,8 +148,7 @@ const LoginPage = () => {
             </Box>
           </CardContent>
         </Card>
-
-        {/* Footer */}
+        { }
         <Typography
           variant="body2"
           color="text.secondary"
@@ -183,5 +161,4 @@ const LoginPage = () => {
     </Container>
   );
 };
-
 export default LoginPage;

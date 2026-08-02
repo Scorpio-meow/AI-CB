@@ -3,17 +3,14 @@ import * as customAgentService from '../services/customAgentService';
 import { CustomAgent } from '../services/customAgentService';
 import { hasValidAuth } from '../utils/tokenUtils';
 import { AgentContext } from './agentContextInstance';
-
 interface AgentProviderProps {
   children: ReactNode;
 }
-
 export const AgentProvider = ({ children }: AgentProviderProps) => {
   const [agents, setAgents] = useState<CustomAgent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const isMountedRef = useRef(true);
-
   const fetchAgents = useCallback(async (force: boolean = false): Promise<CustomAgent[]> => {
     if (!hasValidAuth()) {
       if (import.meta.env.DEV) {
@@ -25,7 +22,6 @@ export const AgentProvider = ({ children }: AgentProviderProps) => {
       }
       return [];
     }
-
     try {
       if (isMountedRef.current) {
         setLoading(true);
@@ -42,7 +38,6 @@ export const AgentProvider = ({ children }: AgentProviderProps) => {
         if (import.meta.env.DEV) console.debug('fetchAgents was cancelled', err);
         return [];
       }
-
       if (err?.response?.status === 403) {
         if (import.meta.env.DEV) {
           console.debug('AgentContext: 403 Forbidden - token 可能過期或無效');
@@ -52,7 +47,6 @@ export const AgentProvider = ({ children }: AgentProviderProps) => {
         }
         return [];
       }
-
       if (isMountedRef.current) {
         setError('無法載入 Agents 列表。');
       }
@@ -62,33 +56,25 @@ export const AgentProvider = ({ children }: AgentProviderProps) => {
       if (isMountedRef.current) setLoading(false);
     }
   }, []);
-
   useEffect(() => {
     isMountedRef.current = true;
-
     const loadAgents = async () => {
       await fetchAgents();
     };
-
     loadAgents();
-
     return () => {
       isMountedRef.current = false;
     };
   }, [fetchAgents]);
-
   const addAgent = (agent: CustomAgent) => {
     setAgents(prev => [...prev, agent]);
   };
-
   const updateAgent = (updatedAgent: CustomAgent) => {
     setAgents(prev => prev.map(agent => (agent.id === updatedAgent.id ? updatedAgent : agent)));
   };
-
   const removeAgent = (agentId: number) => {
     setAgents(prev => prev.filter(agent => agent.id !== agentId));
   };
-
   const value = {
     agents,
     loading,
@@ -98,7 +84,6 @@ export const AgentProvider = ({ children }: AgentProviderProps) => {
     updateAgent,
     removeAgent
   };
-
   return (
     <AgentContext.Provider value={value}>
       {children}

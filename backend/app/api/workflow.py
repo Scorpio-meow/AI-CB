@@ -4,7 +4,6 @@ from typing import List
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-
 from app.models.database import get_db
 from app.core.jwt_auth import get_current_active_user
 from app.crud import crud_custom_agent
@@ -15,51 +14,36 @@ from app.services.workflow_service import (
     OUTPUT_DIR,
     sanitize_filename
 )
-
 logger = logging.getLogger(__name__)
-
 router = APIRouter()
-
 @router.get("/professions", response_model=List[str], summary="獲取所有可用的專業角色")
 def get_professions(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
 ):
-    """
-    返回所有可用的專業角色列表，僅包含當前用戶可見的角色。
-    包含所有公開 Agent 和用戶自己的私人 Agent。
-    會對列表進行去重和排序。
-    """
     unique_professions: set[str] = set()
-
     try:
         user_id = current_user.get("user_id")
-        # 獲取用戶可見的 Agent (公開 + 自己的私人)
         custom_agents = crud_custom_agent.get_custom_agents(db, user_id=user_id)
         for agent in custom_agents:
             unique_professions.add(agent.name)
             unique_professions.add(agent.role)
     except Exception as e:
         logger.error(f"從資料庫載入自訂 Agent 列表失敗: {e}")
-
     return sorted(list(unique_professions))
-
 @router.websocket("/ws")
 async def workflow_websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
-    """工作流 WebSocket 端點 - 接受連線並將訊息分派給工作流管理器"""
-    user_id = 1  # TODO: 實施適當的身份驗證
+    user_id = 1
     await workflow_ws_manager.connect(websocket, user_id)
     
     try:
         while True:
-            # 設置接收超時,避免無限等待
             import asyncio
             data = await asyncio.wait_for(
                 websocket.receive_text(),
-                timeout=3600.0  # 1小時超時
+                timeout=3600.0
             )
             
-            # 驗證 JSON 格式
             try:
                 message = json.loads(data)
             except json.JSONDecodeError as e:
@@ -70,11 +54,9 @@ async def workflow_websocket_endpoint(websocket: WebSocket, db: Session = Depend
                 continue
             
             msg_type = message.get("type")
-
             if msg_type == "start_workflow":
                 payload_data = message.get("payload")
                 
-                # 輸入驗證
                 if not payload_data:
                     await websocket.send_json({
                         "status": "error", 
@@ -82,7 +64,6 @@ async def workflow_websocket_endpoint(websocket: WebSocket, db: Session = Depend
                     })
                     continue
                 
-                # 驗證 payload 結構
                 try:
                     workflow_process = WorkflowProcess(**payload_data)
                 except Exception as e:
@@ -92,7 +73,6 @@ async def workflow_websocket_endpoint(websocket: WebSocket, db: Session = Depend
                     })
                     continue
                 
-                # 啟動工作流
                 try:
                     manager_instance = DynamicWorkflowManager(
                         workflow_process, websocket, user_id, db
@@ -114,8 +94,7 @@ async def workflow_websocket_endpoint(websocket: WebSocket, db: Session = Depend
         
     except Exception as e:
         logger.error(f"WebSocket 發生未預期錯誤 ({type(e).__name__}): {e}")
-        # 嘗試發送錯誤訊息
-        if websocket.client_state.value != 3:  # 3 = CLOSED
+        if websocket.client_state.value != 3:
             try:
                 await websocket.send_json({
                     "status": "error", 
@@ -125,17 +104,13 @@ async def workflow_websocket_endpoint(websocket: WebSocket, db: Session = Depend
                 logger.warning("傳送錯誤訊息時失敗: %s", str(send_e))
                 
     finally:
-        # 確保清理資源
         workflow_ws_manager.disconnect(websocket, user_id)
-
 @router.get("/download/{file_name}")
 async def download_generated_file(file_name: str):
-    """下載工作流生成的檔案 - 包含路徑防護"""
     safe_filename = sanitize_filename(file_name)
     target_path = (OUTPUT_DIR / safe_filename).resolve()
     
     try:
-        # 嚴格的路徑驗證
         if not target_path.is_relative_to(OUTPUT_DIR):
             raise HTTPException(status_code=400, detail="非法路徑")
             
@@ -145,9 +120,8 @@ async def download_generated_file(file_name: str):
         if not target_path.is_file():
             raise HTTPException(status_code=400, detail="目標不是檔案")
         
-        # 檢查檔案大小 (防止大檔案攻擊)
         file_size = target_path.stat().st_size
-        max_size = 50 * 1024 * 1024  # 50MB
+        max_size = 50 * 1024 * 1024
         if file_size > max_size:
             raise HTTPException(status_code=413, detail="檔案過大")
             

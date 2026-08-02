@@ -10,9 +10,7 @@ from app.core.security_logging import log_unauthorized_access, log_security_even
 logger = logging.getLogger(__name__)
 security = HTTPBearer()
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
-# 安全註解：
 if not ADMIN_API_KEY or ADMIN_API_KEY == "CHANGE_THIS_TO_A_SECURE_RANDOM_STRING":
-    # Generate a temporary secure key for development
     ADMIN_API_KEY = secrets.token_urlsafe(32)
     logger.warning("=" * 80)
     logger.warning("WARNING: ADMIN_API_KEY not set in environment!")
@@ -22,7 +20,6 @@ if not ADMIN_API_KEY or ADMIN_API_KEY == "CHANGE_THIS_TO_A_SECURE_RANDOM_STRING"
 async def verify_admin_api_key(x_api_key: Optional[str] = Header(None, description="Admin API Key")) -> bool:
     if not x_api_key:
         logger.warning("Admin API access attempt without API key")
-        # 此處無法獲取 Request 對象，在路由層記錄
         raise HTTPException(
             status_code=401,
             detail="Missing API Key. Please provide X-API-Key header.",

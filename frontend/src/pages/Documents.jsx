@@ -29,17 +29,12 @@ import {
 import axios from 'axios';
 import api from '../services/api';
 import { useDocuments } from '../hooks/useDocuments';
-
-// 記憶體快取（3分鐘 TTL）
 const documentsCache = {
   data: null,
   timestamp: 0
 };
-const CACHE_TTL = 3 * 60 * 1000; // 3 分鐘
-
-// 請求去重標記
+const CACHE_TTL = 3 * 60 * 1000;
 let loadingPromise = null;
-
 const createUploadItem = (file) => ({
   file,
   progress: 0,
@@ -47,7 +42,6 @@ const createUploadItem = (file) => ({
   controller: null,
   detail: null
 });
-
 function Documents() {
   const {
     documents,
@@ -56,7 +50,6 @@ function Documents() {
     fetchDocuments,
     deleteDocument
   } = useDocuments();
-
   const [localError, setLocalError] = useState('');
   const [success, setSuccess] = useState('');
   const [uploadLoading, setUploadLoading] = useState(false);
@@ -67,25 +60,19 @@ function Documents() {
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
   const [rebuildLoading, setRebuildLoading] = useState(false);
   const [rebuildDialog, setRebuildDialog] = useState(false);
-
   const isMountedRef = useRef(true);
-
   useEffect(() => {
     isMountedRef.current = true;
     fetchDocuments();
-
     return () => {
       isMountedRef.current = false;
     };
   }, [fetchDocuments]);
-
   const handleFileSelect = (event) => {
     const files = Array.from(event.target.files || []);
     if (!files.length) return;
-
     const allowedTypes = ['text/plain', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    const maxSize = 50 * 1024 * 1024; // 50MB
-
+    const maxSize = 50 * 1024 * 1024;
     const accepted = [];
     for (const file of files) {
       if (!allowedTypes.includes(file.type)) {
@@ -98,27 +85,21 @@ function Documents() {
       }
       accepted.push(file);
     }
-
     setSelectedFiles(accepted);
     const items = accepted.map(createUploadItem);
     setUploadItems(items);
     setLocalError('');
   };
-
   const uploadSingle = async (item, index) => {
     if (!item) return 'skipped';
-
     const controller = new AbortController();
-
     setUploadItems((prev) => {
       const next = prev.slice();
       next[index] = { ...next[index], status: 'uploading', controller, progress: 0, detail: null };
       return next;
     });
-
     const formData = new FormData();
     formData.append('file', item.file);
-
     try {
       const response = await api.post('/documents/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -134,7 +115,6 @@ function Documents() {
           }
         }
       });
-
       const res = response.data?.results?.[0];
       if (res && res.status === 'success') {
         setUploadItems((prev) => {
@@ -151,7 +131,6 @@ function Documents() {
         });
         return 'failed';
       }
-
     } catch (err) {
       console.error('Upload error:', err);
       if (axios.isCancel && axios.isCancel(err)) {
@@ -178,7 +157,6 @@ function Documents() {
       }
     }
   };
-
   const startUpload = async () => {
     if (!selectedFiles || selectedFiles.length === 0) {
       setLocalError('請選擇文件');
@@ -187,12 +165,10 @@ function Documents() {
     setUploadLoading(true);
     setLocalError('');
     setSuccess('');
-
     const itemsToUpload = uploadItems.slice();
     let successCount = 0;
     let failedCount = 0;
     let canceledCount = 0;
-
     for (let i = 0; i < itemsToUpload.length; i++) {
       const it = itemsToUpload[i];
       if (!it) continue;
@@ -202,16 +178,13 @@ function Documents() {
       if (result === 'failed') failedCount += 1;
       if (result === 'canceled') canceledCount += 1;
     }
-
     setUploadLoading(false);
     documentsCache.data = null;
     documentsCache.timestamp = 0;
     await fetchDocuments();
-
     setSelectedFiles([]);
     setUploadItems([]);
     setUploadDialog(false);
-
     if (successCount > 0) {
       const summary = [`成功 ${successCount} 個`];
       if (failedCount > 0) summary.push(`失敗 ${failedCount} 個`);
@@ -224,7 +197,6 @@ function Documents() {
       setLocalError(`文件未成功上傳：${summary.join('，')}`);
     }
   };
-
   const cancelAllUploads = () => {
     setUploadItems((prev) => {
       for (const it of prev) {
@@ -244,7 +216,6 @@ function Documents() {
     setUploadItems([]);
     setUploadDialog(false);
   };
-
   const cancelUpload = (index) => {
     const it = uploadItems[index];
     if (!it || !it.controller) return;
@@ -261,7 +232,6 @@ function Documents() {
       return next;
     });
   };
-
   const removeSelectedFiles = () => {
     if (uploadLoading) {
       setLocalError('正在上傳中，請先取消上傳後再移除檔案');
@@ -269,18 +239,15 @@ function Documents() {
     }
     setConfirmRemoveOpen(true);
   };
-
   const confirmRemoveSelectedFiles = () => {
     setSelectedFiles([]);
     setUploadItems([]);
     setLocalError('');
     setConfirmRemoveOpen(false);
   };
-
   const cancelRemove = () => {
     setConfirmRemoveOpen(false);
   };
-
   const removeFileAt = (index) => {
     const it = uploadItems[index];
     if (it && it.status === 'uploading') {
@@ -291,10 +258,8 @@ function Documents() {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
     setUploadItems((prev) => prev.filter((_, i) => i !== index));
   };
-
   const handleDelete = async (documentId, filename) => {
     if (!window.confirm(`確定要刪除文檔 "${filename}" 嗎？此操作不可逆！`)) return;
-
     try {
       setDeletingStatus((prev) => ({ ...prev, [documentId]: 'deleting' }));
       await deleteDocument(documentId);
@@ -306,7 +271,6 @@ function Documents() {
       setLocalError('刪除文檔失敗: ' + (err.message || '未知錯誤'));
     }
   };
-
   const formatFileSize = (bytes) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -314,7 +278,6 @@ function Documents() {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
-
   const getFileTypeLabel = (contentType) => {
     switch (contentType) {
       case 'text/plain':
@@ -327,28 +290,23 @@ function Documents() {
         return '未知';
     }
   };
-
   const handleRebuildIndex = async () => {
     setRebuildDialog(false);
     setRebuildLoading(true);
     setLocalError('');
     setSuccess('');
-
     try {
       const response = await api.post('/documents/rebuild-index');
       const data = response.data;
-
       const messageParts = [
         `索引重建成功！`,
         `文檔: ${data.document_count || 0}`,
         `向量塊: ${data.chunk_count || 0}`,
         `配置: ${data.chunk_size || '?'}/${data.chunk_overlap || '?'}`
       ];
-
       if (data.qa_pairs_detected && data.qa_pairs_detected > 0) {
         messageParts.push(`Q&A對: ${data.qa_pairs_detected}`);
       }
-
       setSuccess(messageParts.join(' | '));
       await fetchDocuments();
     } catch (err) {
@@ -358,9 +316,7 @@ function Documents() {
       setRebuildLoading(false);
     }
   };
-
   const error = localError || docError;
-
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="50vh">
@@ -368,7 +324,6 @@ function Documents() {
       </Box>
     );
   }
-
   return (
     <Box p={3}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -393,26 +348,22 @@ function Documents() {
           </Button>
         </Box>
       </Box>
-
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setLocalError('')}>
           {error}
         </Alert>
       )}
-
       {success && (
         <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>
           {success}
         </Alert>
       )}
-
       <Paper>
         <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
           <Typography variant="h6">
             已上傳的文檔 ({documents.length})
           </Typography>
         </Box>
-
         {documents.length === 0 ? (
           <Box p={4} textAlign="center">
             <DocumentIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
@@ -487,8 +438,7 @@ function Documents() {
           </List>
         )}
       </Paper>
-
-      {/* 上傳對話框 */}
+      { }
       <Dialog
         open={uploadDialog}
         onClose={() => setUploadDialog(false)}
@@ -524,7 +474,6 @@ function Documents() {
                 移除檔案
               </Button>
             </Box>
-
             {selectedFiles && selectedFiles.length > 0 && (
               <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
                 <Typography variant="subtitle2" gutterBottom>
@@ -572,7 +521,6 @@ function Documents() {
                 })}
               </Paper>
             )}
-
             <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
               支援的文件格式: .txt, .pdf, .docx
               <br />
@@ -599,8 +547,7 @@ function Documents() {
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* 移除檔案確認對話框 */}
+      { }
       <Dialog
         open={confirmRemoveOpen}
         onClose={cancelRemove}
@@ -616,8 +563,7 @@ function Documents() {
           <Button onClick={confirmRemoveSelectedFiles} variant="contained" color="error">確定移除</Button>
         </DialogActions>
       </Dialog>
-
-      {/* 重建索引確認對話框 */}
+      { }
       <Dialog
         open={rebuildDialog}
         onClose={() => !rebuildLoading && setRebuildDialog(false)}
@@ -664,5 +610,4 @@ function Documents() {
     </Box>
   );
 }
-
 export default Documents;

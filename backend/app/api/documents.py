@@ -100,7 +100,6 @@ async def upload_document(
                     "http_status": 400
                 })
                 continue
-            # Validate declared content type; for docx, we allow filename fallback
             if not DocumentProcessor.validate_file_type(up.content_type, up.filename):
                 results.append({
                     "filename": up.filename,
@@ -317,7 +316,6 @@ async def rebuild_index(
                 else:
                     logger.info(f"處理文檔 {doc.id} ({doc.filename}): {chunks_added} 個分塊")
             except Exception as e:
-                # Use logger.exception to capture stack trace for easier debugging
                 logger.exception(f"處理文檔 {doc.id} ({doc.filename}) 失敗")
                 continue
         doc_count = len(documents_from_db)

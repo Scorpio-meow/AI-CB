@@ -1,21 +1,15 @@
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
 from app.core.config import settings
 from app.core.security import (
     SecurityHeadersMiddleware, 
     RateLimitMiddleware
 )
-
 logger = logging.getLogger(__name__)
-
 def setup_middlewares(app: FastAPI) -> None:
-    # 1. Security middleware - 添加安全標頭
     app.add_middleware(SecurityHeadersMiddleware)
     logger.info("SecurityHeadersMiddleware loaded")
-
-    # 2. Rate limiting middleware - 防止 API 濫用
     if settings.RATE_LIMIT_ENABLED:
         app.add_middleware(
             RateLimitMiddleware, 
@@ -23,8 +17,6 @@ def setup_middlewares(app: FastAPI) -> None:
             period=60
         )
         logger.info(f"Rate limiting enabled: {settings.RATE_LIMIT_PER_MINUTE} requests per minute")
-
-    # 3. CORS middleware - 安全配置
     allowed_origins = settings.allowed_origins_list
     cors_kwargs = {
         "allow_origins": allowed_origins,

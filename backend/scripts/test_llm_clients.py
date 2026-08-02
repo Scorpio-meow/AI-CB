@@ -2,13 +2,9 @@ import asyncio
 import os
 import sys
 from unittest.mock import AsyncMock, patch, MagicMock
-
-# 確保能 import backend
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 from app.core.config import settings
 from app.core.llm_client import get_available_models, call_llm
-
 class MockResponse:
     def __init__(self, json_data, status_code=200):
         self._json_data = json_data
@@ -20,11 +16,9 @@ class MockResponse:
     def raise_for_status(self):
         if self.status_code >= 400:
             raise Exception(f"HTTP Error {self.status_code}")
-
 async def run_tests():
     print("=== 開始測試多 LLM 客戶端路由與格式 ===")
     
-    # 測試 1: get_available_models 的動態列出
     print("\n[測試 1] 驗證 get_available_models() 動態清單：")
     with patch.dict(os.environ, {"AVAILABLE_MODELS": ""}):
         with patch.object(settings, "AZURE_OPENAI_API_KEY", "azure-key"), \
@@ -41,8 +35,6 @@ async def run_tests():
             assert "claude-4-8-opus" in models
             assert "gemini-3.5-flash" in models
             print("=> 測試 1 成功！")
-
-    # 測試 2: OpenAI 路由與調用格式
     print("\n[測試 2] 驗證 OpenAI 路由與調用格式：")
     mock_post = AsyncMock()
     mock_post.return_value = MockResponse({
@@ -74,8 +66,6 @@ async def run_tests():
             assert json_payload["model"] == "gpt-4o"
             assert json_payload["messages"] == messages
             print("=> 測試 2 成功！")
-
-    # 測試 3: Google Gemini (OpenAI 相容) 路由與調用格式
     print("\n[測試 3] 驗證 Google Gemini 路由與調用格式：")
     mock_post = AsyncMock()
     mock_post.return_value = MockResponse({
@@ -107,8 +97,6 @@ async def run_tests():
             assert json_payload["model"] == "gemini-3.5-flash"
             assert json_payload["messages"] == messages
             print("=> 測試 3 成功！")
-
-    # 測試 4: Anthropic Claude 路由與調用格式
     print("\n[測試 4] 驗證 Anthropic Claude 路由與調用格式：")
     mock_post = AsyncMock()
     mock_post.return_value = MockResponse({
@@ -144,8 +132,6 @@ async def run_tests():
             assert json_payload["messages"][0]["role"] == "user"
             assert json_payload["messages"][0]["content"] == "你好"
             print("=> 測試 4 成功！")
-
     print("\n=== 所有測試皆通過！ ===")
-
 if __name__ == "__main__":
     asyncio.run(run_tests())

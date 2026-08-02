@@ -1,6 +1,3 @@
-/**
- * 註冊頁面
- */
 
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
@@ -29,23 +26,18 @@ import {
   Close
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
-
 const RegisterPage = () => {
   const navigate = useNavigate();
   const { register, loading, error: authError } = useAuth();
-
   const [formData, setFormData] = useState({
     username: '',
     email: '',
     password: '',
     confirmPassword: ''
   });
-
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState('');
   const [success, setSuccess] = useState(false);
-
-  // 密碼強度驗證
   const passwordRequirements = {
     length: formData.password.length >= 8,
     uppercase: /[A-Z]/.test(formData.password),
@@ -53,9 +45,7 @@ const RegisterPage = () => {
     number: /[0-9]/.test(formData.password),
     match: formData.password === formData.confirmPassword && formData.password.length > 0
   };
-
   const isPasswordValid = Object.values(passwordRequirements).every(req => req);
-
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -63,40 +53,30 @@ const RegisterPage = () => {
     });
     if (localError) setLocalError('');
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // 驗證
     if (!formData.username || !formData.email || !formData.password) {
       setLocalError('請填寫所有必填欄位');
       return;
     }
-
     if (!isPasswordValid) {
       setLocalError('密碼不符合要求');
       return;
     }
-
     setLocalError('');
-
     const result = await register(
       formData.username,
       formData.email,
       formData.password
     );
-
     if (result.success) {
       setSuccess(true);
-      // 註冊成功,2秒後跳轉到首頁
       setTimeout(() => {
         navigate('/', { replace: true });
       }, 2000);
     }
   };
-
   const error = localError || authError;
-
   if (success) {
     return (
       <Container maxWidth="sm">
@@ -123,7 +103,6 @@ const RegisterPage = () => {
       </Container>
     );
   }
-
   return (
     <Container maxWidth="sm">
       <Box
@@ -137,7 +116,7 @@ const RegisterPage = () => {
       >
         <Card elevation={3}>
           <CardContent sx={{ p: 4 }}>
-            {/* Logo / Title */}
+            { }
             <Box sx={{ textAlign: 'center', mb: 3 }}>
               <RegisterIcon sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} />
               <Typography variant="h4" component="h1" gutterBottom>
@@ -147,15 +126,13 @@ const RegisterPage = () => {
                 填寫以下資料完成註冊
               </Typography>
             </Box>
-
-            {/* Error Alert */}
+            { }
             {error && (
               <Alert severity="error" sx={{ mb: 2 }}>
                 {error}
               </Alert>
             )}
-
-            {/* Register Form */}
+            { }
             <form onSubmit={handleSubmit}>
               <TextField
                 fullWidth
@@ -168,7 +145,6 @@ const RegisterPage = () => {
                 autoFocus
                 helperText="3-50 個字符,只能包含字母、數字、下劃線和連字符"
               />
-
               <TextField
                 fullWidth
                 label="電子郵件"
@@ -179,7 +155,6 @@ const RegisterPage = () => {
                 disabled={loading}
                 margin="normal"
               />
-
               <TextField
                 fullWidth
                 label="密碼"
@@ -202,7 +177,6 @@ const RegisterPage = () => {
                   )
                 }}
               />
-
               <TextField
                 fullWidth
                 label="確認密碼"
@@ -213,8 +187,7 @@ const RegisterPage = () => {
                 disabled={loading}
                 margin="normal"
               />
-
-              {/* Password Requirements */}
+              { }
               {formData.password && (
                 <Box sx={{ mt: 2, mb: 1 }}>
                   <Typography variant="caption" color="text.secondary" gutterBottom>
@@ -289,7 +262,6 @@ const RegisterPage = () => {
                   </List>
                 </Box>
               )}
-
               <Button
                 fullWidth
                 type="submit"
@@ -308,8 +280,7 @@ const RegisterPage = () => {
                 )}
               </Button>
             </form>
-
-            {/* Links */}
+            { }
             <Box sx={{ textAlign: 'center', mt: 2 }}>
               <Typography variant="body2" color="text.secondary">
                 已有帳號?{' '}
@@ -327,8 +298,7 @@ const RegisterPage = () => {
             </Box>
           </CardContent>
         </Card>
-
-        {/* Footer */}
+        { }
         <Typography
           variant="body2"
           color="text.secondary"
@@ -341,5 +311,4 @@ const RegisterPage = () => {
     </Container>
   );
 };
-
 export default RegisterPage;
