@@ -30,8 +30,8 @@
 ### 1. 複製專案倉庫
 
 ```bash
-git clone https://github.com/Scorpio-meow/AI-CB.git
-cd AI-CB
+git clone https://github.com/Scorpio-meow/AskMiao.git
+cd AskMiao
 ```
 
 ### 2. 啟動資料庫服務 (Docker)

@@ -30,8 +30,8 @@ An intelligent conversational and multi-Agent collaboration system powered by Co
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/Scorpio-meow/AI-CB.git
-cd AI-CB
+git clone https://github.com/Scorpio-meow/AskMiao.git
+cd AskMiao
 ```
 
 ### 2. Start Database Services (Docker)

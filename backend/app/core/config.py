@@ -46,10 +46,10 @@ class Settings(BaseSettings):
     CACHE_TTL_SECONDS: int = 300
     EMBEDDING_MODEL: str = "BAAI/bge-small-zh-v1.5"
     RERANKER_MODEL: str = "BAAI/bge-reranker-base"
-    HF_HOME: str = "D:/AI-CB/backend/data/hf_home"
-    HUGGINGFACE_HUB_CACHE: str = "D:/AI-CB/backend/data/hf_home/hub"
-    TRANSFORMERS_CACHE: str = "D:/AI-CB/backend/data/hf_home/transformers"
-    SENTENCE_TRANSFORMERS_HOME: str = "D:/AI-CB/backend/data/hf_home/sentence-transformers"
+    HF_HOME: str = "./data/hf_home"
+    HUGGINGFACE_HUB_CACHE: str = "./data/hf_home/hub"
+    TRANSFORMERS_CACHE: str = "./data/hf_home/transformers"
+    SENTENCE_TRANSFORMERS_HOME: str = "./data/hf_home/sentence-transformers"
     HF_HUB_DISABLE_SYMLINKS_WARNING: int = 1
     FORCE_CPU: bool = True
     USE_FP16_QUANTIZATION: bool = False

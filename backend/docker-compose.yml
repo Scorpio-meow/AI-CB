@@ -1,4 +1,4 @@
-name: ai-cb-local
+name: askmiao-local
 services:
   postgres:
     image: postgres:17.9
@@ -20,7 +20,7 @@ services:
       retries: 10
       start_period: 20s
     networks:
-      - ai-cb-net
+      - askmiao-net
   redis:
     image: redis:latest
     restart: unless-stopped
@@ -35,12 +35,12 @@ services:
       timeout: 3s
       retries: 10
     networks:
-      - ai-cb-net
+      - askmiao-net
 volumes:
   postgres_data:
   redis_data:
 networks:
-  ai-cb-net:
+  askmiao-net:
     driver: bridge
     ipam:
       driver: default
