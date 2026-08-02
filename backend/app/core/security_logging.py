@@ -18,6 +18,7 @@ formatter = logging.Formatter(
 )
 file_handler.setFormatter(formatter)
 security_logger.addHandler(file_handler)
+import re
 SENSITIVE_KEYS = {
     "password",
     "pass",
@@ -38,6 +39,9 @@ SENSITIVE_KEYS = {
     "credit_card",
     "cookie",
 }
+SENSITIVE_JSON_RE = re.compile(
+    r'(?i)("(?:password|passwd|pass|secret|token|access_token|refresh_token|api_key|apikey|authorization|auth|credentials|cred|private_key)"\s*:\s*)"[^"]*"',
+)
 def sanitize_sensitive_data(data: Any) -> Any:
     if isinstance(data, dict):
         sanitized = {}
@@ -94,6 +98,7 @@ def log_security_event(
     
     sanitized_entry = sanitize_sensitive_data(log_entry)
     log_message = json.dumps(sanitized_entry, ensure_ascii=False)
+    log_message = SENSITIVE_JSON_RE.sub(r'\1"[REDACTED]"', log_message)
     
     if severity == "CRITICAL":
         security_logger.critical(log_message)
