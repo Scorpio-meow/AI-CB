@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, Foreign
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from .database import Base
 
 class User(Base):
@@ -74,6 +74,7 @@ class MessageCreate(BaseModel):
     content: str
     conversation_id: Optional[int] = None
     model_name: Optional[str] = None
+    reasoning_effort: Optional[str] = "medium"
 
 class MessageResponse(BaseModel):
     id: int
@@ -82,6 +83,10 @@ class MessageResponse(BaseModel):
     created_at: datetime
     context_used: Optional[str] = None
     model_name: Optional[str] = None
+    reasoning_effort: Optional[str] = None
+    sources: Optional[List[str]] = None
+    sources_detail: Optional[List[Dict[str, Any]]] = None
+    research_trace: Optional[List[Dict[str, Any]]] = None
 
 class ConversationResponse(BaseModel):
     id: int

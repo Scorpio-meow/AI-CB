@@ -36,9 +36,15 @@ export default defineConfig(({ mode }) => {
       sourcemap: env.GENERATE_SOURCEMAP !== 'false',
       rollupOptions: {
         output: {
-          manualChunks: {
-            vendor: ['react', 'react-dom', 'react-router-dom'],
-            mui: ['@mui/material', '@emotion/react', '@emotion/styled'],
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('@mui') || id.includes('@emotion')) {
+                return 'mui';
+              }
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+                return 'vendor';
+              }
+            }
           },
         },
       },

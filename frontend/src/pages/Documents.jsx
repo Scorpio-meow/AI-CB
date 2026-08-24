@@ -33,8 +33,6 @@ const documentsCache = {
   data: null,
   timestamp: 0
 };
-const CACHE_TTL = 3 * 60 * 1000;
-let loadingPromise = null;
 const createUploadItem = (file) => ({
   file,
   progress: 0,
@@ -319,18 +317,18 @@ function Documents() {
   const error = localError || docError;
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" height="50vh">
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
         <CircularProgress />
       </Box>
     );
   }
   return (
-    <Box p={3}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+    <Box sx={{ p: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
           知識庫管理
         </Typography>
-        <Box display="flex" gap={2}>
+        <Box sx={{ display: 'flex', gap: 2 }}>
           <Button
             variant="outlined"
             startIcon={<RebuildIcon />}
@@ -359,13 +357,13 @@ function Documents() {
         </Alert>
       )}
       <Paper>
-        <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2, borderBottom: 1, borderColor: 'divider' }}>
           <Typography variant="h6">
             已上傳的文檔 ({documents.length})
           </Typography>
         </Box>
         {documents.length === 0 ? (
-          <Box p={4} textAlign="center">
+          <Box sx={{ p: 4, textAlign: 'center' }}>
             <DocumentIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
             <Typography variant="h6" color="text.secondary" gutterBottom>
               還沒有上傳任何文檔
@@ -381,7 +379,7 @@ function Documents() {
                 <ListItem>
                   <ListItemText
                     primary={
-                      <Box display="flex" alignItems="center" gap={1}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <DocumentIcon color="primary" />
                         <Typography variant="subtitle1">{doc.filename}</Typography>
                         <Chip
@@ -411,7 +409,7 @@ function Documents() {
                     }
                   />
                   <ListItemSecondaryAction>
-                    <Box display="flex" alignItems="center" gap={1}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       {deletingStatus[doc.id] === 'deleting' && (
                         <Chip label="刪除中" size="small" color="warning" />
                       )}
@@ -458,7 +456,7 @@ function Documents() {
               multiple
               onChange={handleFileSelect}
             />
-            <Box display="flex" gap={1}>
+            <Box sx={{ display: 'flex', gap: 1 }}>
               <label htmlFor="file-upload" style={{ flex: 1 }}>
                 <Button
                   variant="outlined"
@@ -483,7 +481,7 @@ function Documents() {
                   const item = uploadItems[idx] || { progress: 0, status: 'ready', detail: null };
                   return (
                     <Box key={idx} sx={{ mb: 1 }}>
-                      <Box display="flex" justifyContent="space-between" alignItems="center">
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Box>
                           <Typography variant="body2">
                             <strong>文件名:</strong> {f.name}
@@ -495,7 +493,7 @@ function Documents() {
                             <strong>類型:</strong> {getFileTypeLabel(f.type)}
                           </Typography>
                         </Box>
-                        <Box display="flex" alignItems="center" gap={1}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <Chip label={item.status} size="small" />
                           <IconButton size="small" onClick={() => removeFileAt(idx)}>
                             <DeleteIcon />
@@ -504,7 +502,7 @@ function Documents() {
                       </Box>
                       <Box sx={{ mt: 1 }}>
                         <LinearProgress variant="determinate" value={item.progress} />
-                        <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mt: 0.5 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
                           <Typography variant="caption">{item.progress}%</Typography>
                           <Box>
                             {item.status === 'uploading' && (

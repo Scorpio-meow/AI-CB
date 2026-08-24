@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -11,41 +11,45 @@ import {
   Avatar,
   Divider,
   ListItemIcon,
-  ListItemText
+  ListItemText,
 } from '@mui/material';
 import {
   AdminPanelSettings,
   Chat,
   Description,
-  SupportAgent,
   AccountCircle,
   Person,
-  Logout
+  Logout,
 } from '@mui/icons-material';
 import { useNavigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { AgentProvider } from '../contexts/AgentContext';
 import { createMotionTransition, reduceMotionStyles } from '../utils/motion';
+
 function Layout() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
+
   const handleMenuOpen = (event) => {
     setAnchorEl(event.currentTarget);
   };
+
   const handleMenuClose = () => {
     setAnchorEl(null);
   };
+
   const handleProfile = () => {
     handleMenuClose();
     navigate('/profile');
   };
+
   const handleLogout = async () => {
     handleMenuClose();
     await logout();
     navigate('/login');
   };
+
   return (
     <Box sx={{ flexGrow: 1, minHeight: '100vh', bgcolor: 'grey.50' }}>
       <AppBar
@@ -141,29 +145,6 @@ function Layout() {
                 知識庫
               </Button>
             )}
-            <Button
-              color="inherit"
-              startIcon={<SupportAgent />}
-              onClick={() => navigate('/custom-agents')}
-              sx={{
-                minHeight: 44,
-                borderRadius: 999,
-                px: 1.75,
-                transition: createMotionTransition(['background-color', 'box-shadow', 'transform']),
-                '&:hover': {
-                  bgcolor: 'rgba(255,255,255,0.14)',
-                  boxShadow: '0 8px 18px rgba(15, 23, 42, 0.16)',
-                  transform: 'translateY(-1px)',
-                },
-                '&:focus-visible': {
-                  outline: '2px solid rgba(255,255,255,0.95)',
-                  outlineOffset: 2,
-                },
-                ...reduceMotionStyles,
-              }}
-            >
-              自訂Agent
-            </Button>
             {user?.is_admin && (
               <Button
                 color="inherit"
@@ -189,7 +170,6 @@ function Layout() {
                 管理後台
               </Button>
             )}
-            { }
             <IconButton
               onClick={handleMenuOpen}
               size="small"
@@ -220,7 +200,6 @@ function Layout() {
           </Box>
         </Toolbar>
       </AppBar>
-      { }
       <Menu
         anchorEl={anchorEl}
         id="account-menu"
@@ -264,9 +243,7 @@ function Layout() {
         </MenuItem>
       </Menu>
       <Box component="main" sx={{ px: { xs: 2, sm: 3 }, pb: 3, mt: 2 }}>
-        <AgentProvider>
-          <Outlet />
-        </AgentProvider>
+        <Outlet />
       </Box>
     </Box>
   );

@@ -99,17 +99,19 @@ const LoginPage = () => {
                 disabled={loading}
                 margin="normal"
                 autoComplete="current-password"
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowPassword(!showPassword)}
-                        edge="end"
-                      >
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  )
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => setShowPassword(!showPassword)}
+                          edge="end"
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    )
+                  }
                 }}
               />
               <Button

@@ -1,1116 +1,203 @@
 from typing import List, Dict, Any, Optional, Tuple
 import os
-import time
-from app.core.llm_client import call_llm
-import httpx
-import logging
-import re
-import shutil
-from datetime import datetime, timedelta
-import numpy as np
-import faiss
 import pickle
-SentenceTransformer = None
-CrossEncoder = None
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_core.documents import Document
-from sklearn.metrics.pairwise import cosine_similarity
-from whoosh import index, fields, qparser, scoring
-from whoosh.analysis import StandardAnalyzer, Analyzer, Tokenizer, Token
-from whoosh.filedb.filestore import FileStorage
-from whoosh.writing import AsyncWriter
-try:
-    import jieba
-    _HAS_JIEBA = True
-except Exception:
-    _HAS_JIEBA = False
-if _HAS_JIEBA:
-    class JiebaTokenizer(Tokenizer):
-        def __call__(self, value, positions=False, chars=False, keeporiginal=False,
-                     removestops=False, start_pos=0, start_char=0, tokenize=True,
-                     mode="default", **kwargs):
-            t = Token(positions, chars, removestops=removestops)
-            if not tokenize:
-                return
-            if isinstance(value, bytes):
-                try:
-                    value = value.decode("utf-8", "ignore")
-                except Exception:
-                    value = value.decode(errors="ignore")
-            pos = start_pos
-            char_pos = start_char
-            for w in jieba.cut(value, cut_all=False):
-                w = w.strip()
-                if not w:
-                    continue
-                t.original = w
-                t.text = w
-                t.boost = 1.0
-                if positions:
-                    t.pos = pos
-                    pos += 1
-                if chars:
-                    idx = value.find(w, char_pos)
-                    if idx < 0:
-                        idx = char_pos
-                    t.startchar = idx
-                    t.endchar = idx + len(w)
-                    char_pos = t.endchar
-                yield t
-    class JiebaAnalyzer(Analyzer):
-        def __init__(self):
-            self._tokenizer = JiebaTokenizer()
-        def __call__(self, value, **kwargs):
-            return self._tokenizer(value, **kwargs)
+import logging
+from datetime import datetime
+
+from .types import Document
+from .tokenizers import init_domain_dictionary, HAS_JIEBA
+from .indices.vector_store import VectorStoreManager
+from .indices.bm25_store import BM25StoreManager
+from .retrievers.hybrid import HybridRetriever
+from .pipeline import RAGPipeline
+from .evaluator import RAGEvaluator
+
 logger = logging.getLogger(__name__)
+
+
 class HybridContextualRAG:
+    """
+    RAG 核心門面（Facade），統整向量檢索、BM25 倒排索引、混合檢索、Cross-Encoder 重排序與生成管線。
+    維持 100% 向下相容介面。
+    """
     def __init__(self):
         self.chunk_size = int(os.getenv("CHUNK_SIZE", "300"))
         self.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "100"))
-        self.embedding_dimension = 384
-        self.local_embeddings = None
-        self.cross_encoder = None
-        self.has_reranker = False
-        self.documents = []
-        self.context_memory = {}
-        self.bm25_index = None
-        self.bm25_searcher = None
-        
-        try:
-            self.model_name = os.getenv("MODEL_NAME", "")
-            self.api_base = os.getenv("LLM_API_BASE", "").strip()
-            if not self.api_base:
-                logger.warning("Environment variable LLM_API_BASE is not set. Calls to external LLM API will fail.")
-            import requests
-            self.requests = requests
-            import torch
-            
-            force_cpu = os.getenv("FORCE_CPU", "false").lower() == "true"
-            if force_cpu:
-                self.device = 'cpu'
-                logger.info("⚙️ FORCE_CPU=true，強制使用 CPU 模式")
-                self.batch_size = int(os.getenv("CPU_BATCH_SIZE", "32"))
-            elif torch.cuda.is_available():
-                self.device = 'cuda'
-                gpu_name = torch.cuda.get_device_name(0)
-                gpu_memory = round(torch.cuda.get_device_properties(0).total_memory / 1024**3, 2)
-                logger.info(f"🚀 GPU加速已啟用: {gpu_name} ({gpu_memory}GB 顯存)")
-                self.batch_size = int(os.getenv("GPU_BATCH_SIZE", "128"))
-            else:
-                self.device = 'cpu'
-                logger.warning("未檢測到 CUDA，使用 CPU 模式")
-                self.batch_size = int(os.getenv("CPU_BATCH_SIZE", "32"))
-            
-            embedding_model = os.getenv("EMBEDDING_MODEL", "paraphrase-multilingual-MiniLM-L12-v2")
-            fallback_model = "paraphrase-multilingual-MiniLM-L12-v2"
-            try:
-                global SentenceTransformer
-                if SentenceTransformer is None:
-                    from sentence_transformers import SentenceTransformer as _ST
-                    SentenceTransformer = _ST
-                self.local_embeddings = SentenceTransformer(embedding_model, device=self.device)
-            except Exception as e:
-                logger.warning(f"Failed to load SentenceTransformer ({embedding_model}): {e}")
-                if embedding_model != fallback_model:
-                    logger.info(f"嘗試載入備用模型: {fallback_model}")
-                    try:
-                        self.local_embeddings = SentenceTransformer(fallback_model, device=self.device)
-                        embedding_model = fallback_model
-                    except Exception as e2:
-                        logger.error(f"Fallback model also failed: {e2}")
-                        self.local_embeddings = None
-                else:
-                    self.local_embeddings = None
-            
-            if self.local_embeddings is None:
-                raise RuntimeError("No embedding model available. Please check EMBEDDING_MODEL environment variable or install sentence-transformers.")
-            self.use_fp16 = os.getenv("USE_FP16_QUANTIZATION", "false").lower() == "true"
-            if self.use_fp16 and self.device == 'cuda':
-                try:
-                    self.local_embeddings = self.local_embeddings.half()
-                    logger.info("嵌入模型已量化為 FP16 (顯存減少 50%)")
-                except Exception as e:
-                    logger.warning(f"FP16 量化失敗，使用 FP32: {e}")
-                    self.use_fp16 = False
-            self.embedding_dimension = self.local_embeddings.get_sentence_embedding_dimension()
-            logger.info(f"嵌入模型已載入至 {self.device.upper()}: {embedding_model} (維度: {self.embedding_dimension}, 精度: {'FP16' if self.use_fp16 else 'FP32'})")
-            reranker_model = os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
-            try:
-                global CrossEncoder
-                if CrossEncoder is None:
-                    from sentence_transformers import CrossEncoder as _CE
-                    CrossEncoder = _CE
-                self.cross_encoder = CrossEncoder(reranker_model, device=self.device)
-                
-                if self.use_fp16 and self.device == 'cuda':
-                    try:
-                        self.cross_encoder.model = self.cross_encoder.model.half()
-                        logger.info("Cross-Encoder 已量化為 FP16")
-                    except Exception as e:
-                        logger.warning(f"Cross-Encoder FP16 量化失敗: {e}")
-                
-                self.has_reranker = True
-                logger.info(f"Cross-Encoder 已載入至 {self.device.upper()}: {reranker_model} (精度: {'FP16' if self.use_fp16 else 'FP32'})")
-            except Exception as e:
-                logger.warning(f"Failed to load cross-encoder {reranker_model}: {e}")
-                self.cross_encoder = None
-                self.has_reranker = False
-            
-            self.similarity_threshold = float(os.getenv("SIMILARITY_THRESHOLD", "0.25"))
-            self.top_k = int(os.getenv("TOP_K", "50"))
-            self.rerank_top_k = int(os.getenv("RERANK_TOP_K", "80"))
-            self.final_k = int(os.getenv("FINAL_K", "10"))
-            self.rerank_weight = float(os.getenv("RERANK_WEIGHT", "0.8"))
-            self.final_threshold = float(os.getenv("FINAL_THRESHOLD", "0.1"))
-            self.hybrid_alpha = float(os.getenv("HYBRID_ALPHA", "0.7"))
-            self.normalization = os.getenv("NORMALIZATION", "max").lower()
-            self.chunk_size = int(os.getenv("CHUNK_SIZE", "300"))
-            self.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "100"))
-            self.reindex_threshold_hours = int(os.getenv("REINDEX_HOURS", "24"))
-            
-            self.llm_timeout = int(os.getenv("LLM_TIMEOUT", "120"))
-            
-            self.data_dir = os.getenv("DATA_DIR", "data")
-            self.faiss_index_path = os.getenv("FAISS_INDEX_PATH", os.path.join(self.data_dir, "faiss_index.bin"))
-            self.documents_path = os.getenv("DOCUMENTS_PATH", os.path.join(self.data_dir, "documents.pkl"))
-            self.bm25_index_dir = os.getenv("BM25_INDEX_DIR", os.path.join(self.data_dir, "bm25_index"))
-            self.metadata_path = os.getenv("METADATA_PATH", os.path.join(self.data_dir, "index_metadata.pkl"))
-            
-            os.makedirs(self.data_dir, exist_ok=True)
-            
-            if _HAS_JIEBA:
-                jieba_dict_path = os.path.join(self.data_dir, "jieba_dict.txt")
-                if os.path.exists(jieba_dict_path):
-                    jieba.load_userdict(jieba_dict_path)
-                    logger.info(f"Jieba 自定義詞典已載入: {jieba_dict_path}")
-                else:
-                    logger.warning(f"Jieba 自定義詞典未找到: {jieba_dict_path}")
-            
-            self.use_faiss_gpu = os.getenv("USE_FAISS_GPU", "false").lower() == "true"
-            self.faiss_gpu_device = int(os.getenv("FAISS_GPU_DEVICE", "0"))
-            self.gpu_resources = None
-            
-            if self.use_faiss_gpu and hasattr(faiss, 'StandardGpuResources'):
-                try:
-                    self.gpu_resources = faiss.StandardGpuResources()
-                    gpu_temp_memory = int(os.getenv("FAISS_GPU_TEMP_MEMORY", str(2 * 1024 * 1024 * 1024)))
-                    self.gpu_resources.setTempMemory(gpu_temp_memory)
-                    logger.info(f"FAISS-GPU 資源已初始化 (設備 {self.faiss_gpu_device}, 臨時記憶體: {gpu_temp_memory / 1024**3:.1f}GB)")
-                except Exception as e:
-                    logger.warning(f"FAISS-GPU 初始化失敗，回退到 CPU: {e}")
-                    self.use_faiss_gpu = False
-                    self.gpu_resources = None
-            elif self.use_faiss_gpu:
-                logger.warning("FAISS-GPU 已啟用但庫不支援 GPU，請安裝 faiss-gpu。回退到 CPU 模式。")
-                self.use_faiss_gpu = False
-            
-            self.index = faiss.IndexFlatIP(self.embedding_dimension)
-            self.documents = []
-            self.context_memory = {}
-            
-            self.bm25_index = None
-            self.bm25_searcher = None
-            
-            self.text_splitter = self._create_text_splitter()
-            
-            if _HAS_JIEBA:
-                try:
-                    domain_words = [
-                        "補休", "到期", "遞延", "產檢", "育嬰留停", "免刷卡", "時刻維護", "集體異動", "調班",
-                        "外勤", "PAKKA", "MES", "薪資條", "在職證明", "眷屬", "健保", "勞保", "資遣",
-                        "特休", "颱風", "防災假", "逾期補登", "刷卡", "忘刷", "排班", "輪班", "四週彈性工時",
-                        "調班申請", "人事調閱", "加班", "請假", "同意書", "證明", "出勤管理", "差勤卡鐘",
-                        "門禁權限", "工時填寫", "留職停薪", "病假", "事假", "公假", "婚假", "喪假",
-                        "陪產假", "產假", "生理假", "家庭照顧假", "公傷假", "特別休假", "休假排休",
-                        "核心上班時間", "彈性上下班", "加班申請", "補休申請", "忘刷申請", "異常申請",
-                        
-                        "人員招募", "甄選", "任用", "面談紀錄", "試用考核", "新進人員", "輔導員",
-                        "內部轉調", "升遷", "調薪", "年度調薪", "離職", "自願離職", "非自願離職",
-                        "預告期間", "工作交接", "離職證明", "資遣費", "退休金", "勞退提撥", "委任經理人",
-                        "海外派駐", "派駐大陸", "組織異動", "部門異動", "職位異動", "職務代理人",
-                        "企業實習生", "工讀生", "約聘人員", "半導體專案", "專案人員", "研發替代役",
-                        
-                        "績效管理", "績效評核", "年中評核", "年底評核", "定期評核", "工作目標",
-                        "績效指標", "KPI", "部門績效", "個人績效", "績效回饋", "績效改善", "考績",
-                        "工作表現", "能力評估", "潛能發展", "職能發展", "改善計畫", "績效面談",
-                        
-                        "組織訓練", "部門訓練", "內部講師", "外部講師", "教育訓練", "訓練需求",
-                        "訓練計畫", "課程規劃", "在職訓練", "專業訓練", "技能訓練", "新人訓練",
-                        "線上訓練", "實體訓練", "教材開發", "訓練評估", "訓練紀錄", "訓練時數",
-                        "資格認證", "專業證照", "技術士", "技能檢定", "Microsoft認證", "Cisco認證",
-                        "Oracle認證", "IBM認證", "CMMI", "ISO認證",
-                        
-                        "薪資", "薪資條", "薪資轉帳", "薪轉帳戶", "扣繳憑單", "所得稅", "二代健保",
-                        "團體保險", "員工保險", "勞保", "健保", "團保", "意外險", "壽險", "退休金",
-                        "勞退", "舊制退休", "新制退休", "退休金提撥", "資深員工獎勵", "神通之星",
-                        "員工紅利", "績效獎金", "年終獎金", "三節獎金", "專案獎金",
-                        
-                        "員工獎懲", "嘉獎", "記功", "申誡", "記過", "懲處", "考核", "獎勵", "懲戒",
-                        "工作倫理", "紀律規範", "誠信經營", "利益衝突", "行為準則", "保密協定",
-                        "競業禁止", "智慧財產權", "營業秘密", "個人資料保護", "資訊安全",
-                        
-                        "職業安全", "職業衛生", "工作場所", "性騷擾防治", "申訴", "不法侵害",
-                        "異常工作負荷", "過勞防護", "輪班工作", "夜間工作", "長時間工作",
-                        "健康管理", "健康檢查", "職業病", "工作壓力", "身心健康", "臨場醫師",
-                        "健康諮詢", "風險評估", "預防措施",
-                        
-                        "組織架構", "組織層級", "事業群", "功能中心", "處級單位", "部級單位",
-                        "組級單位", "總經理", "副總經理", "協理", "資深協理", "處長", "經理",
-                        "資深經理", "副理", "課長", "組長", "主任", "專員", "資深專員", "工程師",
-                        "資深工程師", "主任工程師", "專案經理", "技術經理", "業務經理",
-                        "管理職", "專門職", "主管職", "非管理職", "職位設置", "職責",
-                        
-                        "專案管理", "專案執行", "專案支援", "內部支援", "產品研發", "研發補貼",
-                        "計價作業", "成本代碼", "預算編列", "預算控制", "人力預算", "員額編制",
-                        "專案人員", "安全評估", "專利提案", "專利申請", "專利獎勵", "專利維護",
-                        
-                        "系統整合", "軟體開發", "硬體維護", "網路架構", "資訊安全", "資通訊",
-                        "雲端服務", "物聯網", "AIoT", "智慧城市", "智慧交通", "數位轉型",
-                        "資料庫", "伺服器", "虛擬化", "備份還原", "版本控管", "建構管理",
-                        "驗證確認", "CMMI", "內部稽核", "品質保證", "流程改善",
-                        
-                        "神通資訊", "神通資科", "神通電腦", "聯華神通", "神耀科技", "艾迪訊",
-                        "MITAC", "MiTAC", "GHP", "單一入口網", "員工服務系統", "AVAYA",
-                        "教育訓練系統", "技能資料庫", "差勤系統", "簽核系統", "作業簽核",
-                        
-                        "勞動基準法", "勞基法", "就業服務法", "職業安全衛生法", "勞工健康保護",
-                        "性別工作平等法", "勞資會議", "工會", "團體協約", "勞動檢查", "勞資爭議",
-                        "職災", "職業災害", "工傷", "勞保給付", "失能給付", "死亡給付",
-                        
-                        "呈核", "簽核", "核決", "核准", "核定", "會簽", "知會", "副知", "抄送",
-                        "附件", "表單", "申請單", "同意書", "切結書", "聲明書", "承諾書",
-                        "作業程序", "管理辦法", "實施細則", "注意事項", "FAQ", "SOP",
-                        "允入準則", "允出準則", "控制重點", "調適原則", "版次", "修訂",
-                        "事業群主管", "直線主管", "部門主管", "單位主管", "權責主管",
-                        "承辦人", "窗口", "聯繫人", "負責人", "協辦人", "會辦人"
-                    ]
-                    for w in domain_words:
-                        try:
-                            jieba.add_word(w)
-                        except Exception:
-                            pass
-                except Exception:
-                    pass
-            
-            self._load_indices()
-            if os.getenv("ENABLE_AUTO_REINDEX", "0") == "1":
-                self._check_auto_reindex()
-            else:
-                logger.info("Auto-reindex skipped in init; set ENABLE_AUTO_REINDEX=1 or run reindex in a dedicated indexer/startup hook")
-            
-        except Exception as e:
-            logger.error(f"Failed to initialize HybridContextualRAG: {e}")
-            if not hasattr(self, 'text_splitter') or self.text_splitter is None:
-                self.text_splitter = RecursiveCharacterTextSplitter(
-                    chunk_size=self.chunk_size, 
-                    chunk_overlap=self.chunk_overlap
-                )
-            if not hasattr(self, 'index') or self.index is None:
-                self.index = faiss.IndexFlatIP(self.embedding_dimension)
-            raise
-        
-    def _load_indices(self):
-        try:
-            index_mismatch = False
-            if os.path.exists(self.faiss_index_path) and os.path.exists(self.documents_path):
-                cpu_index = faiss.read_index(self.faiss_index_path)
-                try:
-                    index_dim = getattr(cpu_index, 'd', None)
-                except Exception:
-                    index_dim = None
-                if index_dim is not None and index_dim != self.embedding_dimension:
-                    index_mismatch = True
-                    logger.warning(
-                        f"Loaded FAISS index dimension ({index_dim}) does not match current embedding dimension ({self.embedding_dimension})."
-                        " Initializing empty index to avoid add() assertion failure."
-                    )
-                    cpu_index = faiss.IndexFlatIP(self.embedding_dimension)
-                    try:
-                        if os.path.exists(self.faiss_index_path):
-                            os.replace(self.faiss_index_path, self.faiss_index_path + '.mismatch.bak')
-                        if os.path.exists(self.documents_path):
-                            os.replace(self.documents_path, self.documents_path + '.mismatch.bak')
-                        logger.info("Backed up mismatched FAISS index and documents.pkl as *.mismatch.bak")
-                    except Exception as e:
-                        logger.warning(f"Failed to back up mismatched indices: {e}")
-                
-                if self.use_faiss_gpu and self.gpu_resources:
-                    try:
-                        self.index = faiss.index_cpu_to_gpu(
-                            self.gpu_resources, 
-                            self.faiss_gpu_device, 
-                            cpu_index
-                        )
-                        logger.info(f"FAISS 索引已轉換至 GPU (設備 {self.faiss_gpu_device})")
-                    except Exception as e:
-                        logger.warning(f"FAISS 索引 GPU 轉換失敗，使用 CPU: {e}")
-                        self.index = cpu_index
-                        self.use_faiss_gpu = False
-                else:
-                    self.index = cpu_index
-                
-                if index_mismatch:
-                    self.documents = []
-                else:
-                    try:
-                        with open(self.documents_path, 'rb') as f:
-                            self.documents = pickle.load(f)
-                    except Exception as e:
-                        logger.warning(f"Failed to load documents pickle: {e}. Clearing documents and will rebuild when needed.")
-                        self.documents = []
-                logger.info(f"Loaded FAISS index with {self.index.ntotal} vectors")
-            
-            if os.path.exists(self.bm25_index_dir):
-                self._load_bm25_index()
-                logger.info("Loaded BM25 index")
-            else:
-                logger.info("No BM25 index found, will create on first add")
-                
-        except Exception as e:
-            logger.error(f"Error loading indices: {e}")
-            self._initialize_empty_indices()
-    
-    def _initialize_empty_indices(self):
-        self.index = faiss.IndexFlatIP(self.embedding_dimension)
-        self.documents = []
-        self.bm25_index = None
-        self.bm25_searcher = None
-    
-    def _create_bm25_schema(self):
-        analyzer = self._get_chinese_analyzer()
-        return fields.Schema(
-            doc_id=fields.ID(stored=True, unique=True),
-            content=fields.TEXT(stored=True, analyzer=analyzer),
-            title=fields.TEXT(stored=True),
-            source=fields.TEXT(stored=True),
-            chunk_index=fields.NUMERIC(stored=True)
+        self.similarity_threshold = float(os.getenv("SIMILARITY_THRESHOLD", "0.25"))
+        self.top_k = int(os.getenv("TOP_K", "50"))
+        self.rerank_top_k = int(os.getenv("RERANK_TOP_K", "80"))
+        self.final_k = int(os.getenv("FINAL_K", "10"))
+        self.rerank_weight = float(os.getenv("RERANK_WEIGHT", "0.8"))
+        self.final_threshold = float(os.getenv("FINAL_THRESHOLD", "0.1"))
+        self.hybrid_alpha = float(os.getenv("HYBRID_ALPHA", "0.7"))
+        self.normalization = os.getenv("NORMALIZATION", "max").lower()
+        self.reindex_threshold_hours = int(os.getenv("REINDEX_HOURS", "24"))
+        self.llm_timeout = int(os.getenv("LLM_TIMEOUT", "120"))
+        self.model_name = os.getenv("MODEL_NAME", "")
+        self.api_base = os.getenv("LLM_API_BASE", "").strip()
+        self.data_dir = os.getenv("DATA_DIR", "data")
+        self.use_fp16 = os.getenv("USE_FP16_QUANTIZATION", "false").lower() == "true"
+        self.force_cpu = os.getenv("FORCE_CPU", "false").lower() == "true"
+        self.use_faiss_gpu = os.getenv("USE_FAISS_GPU", "false").lower() == "true"
+        self.faiss_gpu_device = int(os.getenv("FAISS_GPU_DEVICE", "0"))
+
+        os.makedirs(self.data_dir, exist_ok=True)
+        init_domain_dictionary(self.data_dir)
+
+        # 1. 向量庫管理器
+        self.vector_store = VectorStoreManager(
+            data_dir=self.data_dir,
+            force_cpu=self.force_cpu,
+            use_fp16=self.use_fp16,
+            use_faiss_gpu=self.use_faiss_gpu,
+            faiss_gpu_device=self.faiss_gpu_device,
+            similarity_threshold=self.similarity_threshold,
+            top_k=self.top_k,
         )
-    def _get_chinese_analyzer(self) -> Analyzer:
-        if _HAS_JIEBA:
-            return JiebaAnalyzer()
-        return StandardAnalyzer()
-    def _create_text_splitter(self) -> RecursiveCharacterTextSplitter:
-        separators = [
-            "\n\n", "。", "！", "？", "；", "：", "，", ", ", ". ", "! ", "? ",
-            "\n", "。\n", "；\n", "，\n", "。 ", "； ", "， ", " ", ""
-        ]
-        return RecursiveCharacterTextSplitter(
+
+        # 2. BM25 倒排索引管理器
+        self.bm25_store = BM25StoreManager(data_dir=self.data_dir)
+
+        # 3. 混合檢索器
+        self.retriever = HybridRetriever(
+            vector_store=self.vector_store,
+            bm25_store=self.bm25_store,
+            hybrid_alpha=self.hybrid_alpha,
+            rerank_top_k=self.rerank_top_k,
+            final_k=self.final_k,
+            rerank_weight=self.rerank_weight,
+            final_threshold=self.final_threshold,
+            normalization=self.normalization,
+            use_fp16=self.use_fp16,
+        )
+
+        # 4. 生成管線
+        self.pipeline = RAGPipeline(
+            vector_store=self.vector_store,
+            bm25_store=self.bm25_store,
+            retriever=self.retriever,
             chunk_size=self.chunk_size,
             chunk_overlap=self.chunk_overlap,
-            length_function=len,
-            separators=separators,
+            llm_timeout=self.llm_timeout,
+            model_name=self.model_name,
         )
-    
-    def _load_bm25_index(self):
-        try:
-            storage = FileStorage(self.bm25_index_dir)
-            self.bm25_index = storage.open_index()
-            self.bm25_searcher = self.bm25_index.searcher(weighting=scoring.BM25F())
-        except Exception as e:
-            logger.error(f"Failed to load BM25 index: {e}")
-            self.bm25_index = None
-            self.bm25_searcher = None
-    
-    def _save_indices(self):
-        try:
-            if self.use_faiss_gpu and self.gpu_resources:
-                try:
-                    cpu_index = faiss.index_gpu_to_cpu(self.index)
-                    faiss.write_index(cpu_index, self.faiss_index_path)
-                    logger.info("FAISS-GPU 索引已轉回 CPU 並儲存")
-                except Exception as e:
-                    logger.warning(f"GPU 索引轉換失敗，嘗試直接儲存: {e}")
-                    faiss.write_index(self.index, self.faiss_index_path)
-            else:
-                faiss.write_index(self.index, self.faiss_index_path)
-                
-            with open(self.documents_path, 'wb') as f:
-                pickle.dump(self.documents, f)
-            metadata = {
-                "last_reindex": datetime.now(),
-                "total_documents": len(self.documents),
-                "total_vectors": self.index.ntotal,
-                "tokenizer": "jieba" if _HAS_JIEBA else "standard",
-                "faiss_gpu_enabled": self.use_faiss_gpu
-            }
-            with open(self.metadata_path, 'wb') as f:
-                pickle.dump(metadata, f)
-                
-            logger.info(f"Saved indices with {self.index.ntotal} vectors")
-        except Exception as e:
-            logger.error(f"Error saving indices: {e}")
-    
-    def _check_auto_reindex(self):
-        try:
-            if os.path.exists(self.metadata_path):
-                with open(self.metadata_path, 'rb') as f:
-                    metadata = pickle.load(f)
-                last_reindex = metadata.get("last_reindex")
-                tokenizer_used = metadata.get("tokenizer", "standard")
-                if _HAS_JIEBA and tokenizer_used != "jieba":
-                    logger.info("Detected non-jieba BM25 index metadata. Rebuilding BM25 index with jieba analyzer...")
-                    self._rebuild_bm25_index()
-                    metadata["tokenizer"] = "jieba"
-                    metadata["last_reindex"] = datetime.now()
-                    with open(self.metadata_path, 'wb') as f:
-                        pickle.dump(metadata, f)
-                if last_reindex and isinstance(last_reindex, datetime):
-                    hours_since = (datetime.now() - last_reindex).total_seconds() / 3600
-                    if hours_since > self.reindex_threshold_hours:
-                        logger.info(f"Auto-reindex triggered after {hours_since:.1f} hours")
-                        self._rebuild_indices()
-        except Exception as e:
-            logger.warning(f"Auto-reindex check failed: {e}")
-    
-    def _rebuild_indices(self):
-        if not self.documents:
-            return
-            
-        logger.info("Rebuilding indices...")
-        
-        all_texts = [doc.page_content for doc in self.documents]
-        embeddings = self.local_embeddings.encode(
-            all_texts, 
-            batch_size=self.batch_size,
-            show_progress_bar=True,
-            convert_to_numpy=True,
-            device=self.device
-        )
-        embeddings = embeddings.astype('float32')
-        faiss.normalize_L2(embeddings)
-        
-        cpu_index = faiss.IndexFlatIP(self.embedding_dimension)
-        cpu_index.add(embeddings)
-        
-        if self.use_faiss_gpu and self.gpu_resources:
-            try:
-                self.index = faiss.index_cpu_to_gpu(
-                    self.gpu_resources,
-                    self.faiss_gpu_device,
-                    cpu_index
-                )
-                logger.info("索引已重建並轉換至 GPU")
-            except Exception as e:
-                logger.warning(f"GPU 轉換失敗，使用 CPU 索引: {e}")
-                self.index = cpu_index
-                self.use_faiss_gpu = False
-        else:
-            self.index = cpu_index
-        
-        self._rebuild_bm25_index()
-        
-        self._save_indices()
-        logger.info("Indices rebuilt successfully")
-    
-    def _rebuild_bm25_index(self):
-        try:
-            if self.bm25_searcher:
-                try:
-                    self.bm25_searcher.close()
-                except Exception:
-                    pass
-                self.bm25_searcher = None
-            if os.path.exists(self.bm25_index_dir):
-                shutil.rmtree(self.bm25_index_dir)
-            
-            os.makedirs(self.bm25_index_dir, exist_ok=True)
-            storage = FileStorage(self.bm25_index_dir)
-            self.bm25_index = storage.create_index(self._create_bm25_schema())
-            if self.bm25_searcher:
-                try:
-                    self.bm25_searcher.close()
-                except Exception:
-                    pass
-                self.bm25_searcher = None
-            lock_path = os.path.join(self.bm25_index_dir, "bm25_write.lock")
-            use_filelock = False
-            try:
-                from filelock import FileLock, Timeout
-                use_filelock = True
-            except Exception:
-                FileLock = None
-                Timeout = None
-            write_attempts = 3
-            for attempt in range(write_attempts):
-                try:
-                    if use_filelock:
-                        with FileLock(lock_path, timeout=5):
-                            with AsyncWriter(self.bm25_index) as writer:
-                                for i, doc in enumerate(self.documents):
-                                    writer.add_document(
-                                        doc_id=f"doc_{i}",
-                                        content=doc.page_content,
-                                        title=doc.metadata.get('source', ''),
-                                        source=doc.metadata.get('source', ''),
-                                        chunk_index=doc.metadata.get('chunk_index', 0)
-                                    )
-                    else:
-                        with AsyncWriter(self.bm25_index) as writer:
-                            for i, doc in enumerate(self.documents):
-                                writer.add_document(
-                                    doc_id=f"doc_{i}",
-                                    content=doc.page_content,
-                                    title=doc.metadata.get('source', ''),
-                                    source=doc.metadata.get('source', ''),
-                                    chunk_index=doc.metadata.get('chunk_index', 0)
-                                )
-                    break
-                except Exception as e:
-                    logger.warning(f"BM25 write attempt {attempt+1} failed: {e}")
-                    time.sleep(0.5)
-            if self.bm25_searcher:
-                try:
-                    self.bm25_searcher.close()
-                except Exception:
-                    pass
-            try:
-                self.bm25_searcher = self.bm25_index.searcher(weighting=scoring.BM25F())
-            except Exception as e:
-                logger.warning(f"Failed to open BM25 searcher after rebuild: {e}")
-            
-        except Exception as e:
-            logger.error(f"Failed to rebuild BM25 index: {e}")
-            self.bm25_index = None
-            self.bm25_searcher = None
-    
-    async def add_documents(self, documents: List[Document]):
-        if not documents:
-            return
-            
-        all_chunks = []
-        preserved_count = 0
-        preserved_sources = set()
-        for doc in documents:
-            preserve = bool(doc.metadata.get('preserve_whole')) if doc.metadata and isinstance(doc.metadata, dict) else False
-            if preserve:
-                preserved_count += 1
-                try:
-                    preserved_sources.add(doc.metadata.get('source', 'unknown'))
-                except Exception:
-                    pass
-                chunk_doc = Document(
-                    page_content=doc.page_content,
-                    metadata={
-                        **doc.metadata,
-                        "chunk_id": f"{doc.metadata.get('source', 'unknown')}_0",
-                        "chunk_index": 0,
-                        "original_doc_id": doc.metadata.get('document_id'),
-                        "added_timestamp": datetime.now().isoformat()
-                    }
-                )
-                all_chunks.append(chunk_doc)
-            else:
-                chunks = self.text_splitter.split_text(doc.page_content)
-                for i, chunk in enumerate(chunks):
-                    chunk_doc = Document(
-                        page_content=chunk,
-                        metadata={
-                            **doc.metadata,
-                            "chunk_id": f"{doc.metadata.get('source', 'unknown')}_{i}",
-                            "chunk_index": i,
-                            "original_doc_id": doc.metadata.get('document_id'),
-                            "added_timestamp": datetime.now().isoformat()
-                        }
-                    )
-                    all_chunks.append(chunk_doc)
-        
-        if preserved_count > 0:
-            try:
-                logger.debug(f"preserve_whole used for {preserved_count} document(s); sources={list(preserved_sources)}")
-            except Exception:
-                logger.debug(f"preserve_whole used for {preserved_count} document(s)")
-        if not all_chunks:
-            return
-        
-        chunk_texts = [chunk.page_content for chunk in all_chunks]
-        embeddings = self.local_embeddings.encode(
-            chunk_texts, 
-            batch_size=self.batch_size,
-            show_progress_bar=True,
-            convert_to_numpy=True,
-            device=self.device
-        )
-        embeddings = embeddings.astype('float32')
-        faiss.normalize_L2(embeddings)
-        self.index.add(embeddings)
-        
-        self._add_to_bm25(all_chunks)
-        
-        self.documents.extend(all_chunks)
-        
-        self._save_indices()
-        
-        logger.info(f"Added {len(all_chunks)} chunks. Total: {self.index.ntotal} vectors")
-        return len(all_chunks)
-    
-    def _add_to_bm25(self, chunks: List[Document]):
-        try:
-            if self.bm25_index is None:
-                os.makedirs(self.bm25_index_dir, exist_ok=True)
-                storage = FileStorage(self.bm25_index_dir)
-                self.bm25_index = storage.create_index(self._create_bm25_schema())
-                if self.bm25_searcher:
-                    self.bm25_searcher.close()
-                self.bm25_searcher = self.bm25_index.searcher(weighting=scoring.BM25F())
-            
-            if self.bm25_searcher:
-                try:
-                    self.bm25_searcher.close()
-                except Exception:
-                    pass
-                self.bm25_searcher = None
-            start_id = len(self.documents)
-            lock_path = os.path.join(self.bm25_index_dir, "bm25_write.lock")
-            use_filelock = False
-            try:
-                from filelock import FileLock, Timeout
-                use_filelock = True
-            except Exception:
-                FileLock = None
-                Timeout = None
-            write_attempts = 3
-            for attempt in range(write_attempts):
-                try:
-                    if use_filelock:
-                        with FileLock(lock_path, timeout=5):
-                            with AsyncWriter(self.bm25_index) as writer:
-                                for i, chunk in enumerate(chunks):
-                                    writer.add_document(
-                                        doc_id=f"doc_{start_id + i}",
-                                        content=chunk.page_content,
-                                        title=chunk.metadata.get('source', ''),
-                                        source=chunk.metadata.get('source', ''),
-                                        chunk_index=chunk.metadata.get('chunk_index', 0)
-                                    )
-                    else:
-                        with AsyncWriter(self.bm25_index) as writer:
-                            for i, chunk in enumerate(chunks):
-                                writer.add_document(
-                                    doc_id=f"doc_{start_id + i}",
-                                    content=chunk.page_content,
-                                    title=chunk.metadata.get('source', ''),
-                                    source=chunk.metadata.get('source', ''),
-                                    chunk_index=chunk.metadata.get('chunk_index', 0)
-                                )
-                    break
-                except Exception as e:
-                    logger.warning(f"BM25 add attempt {attempt+1} failed: {e}")
-                    time.sleep(0.3)
-            try:
-                if self.bm25_searcher:
-                    try:
-                        self.bm25_searcher.close()
-                    except Exception:
-                        pass
-                self.bm25_searcher = self.bm25_index.searcher(weighting=scoring.BM25F())
-            except Exception as e:
-                logger.warning(f"Failed to open BM25 searcher after add: {e}")
-            
-        except Exception as e:
-            logger.error(f"Failed to add to BM25 index: {e}")
-    
+
+        # 5. 評估器
+        self.evaluator = RAGEvaluator(self.retriever)
+
+        logger.info("HybridContextualRAG 門面模組初始化完成")
+
+    # 向下相容屬性映射
+    @property
+    def documents(self) -> List[Document]:
+        return self.vector_store.documents
+
+    @documents.setter
+    def documents(self, value: List[Document]):
+        self.vector_store.documents = value
+
+    @property
+    def index(self):
+        return self.vector_store.index
+
+    @property
+    def embedding_dimension(self) -> int:
+        return self.vector_store.embedding_dimension
+
+    @property
+    def local_embeddings(self):
+        return self.vector_store.local_embeddings
+
+    @property
+    def cross_encoder(self):
+        return self.retriever.cross_encoder
+
+    @property
+    def has_reranker(self) -> bool:
+        return self.retriever.has_reranker
+
+    @property
+    def context_memory(self):
+        return self.pipeline.context_memory
+
+    @property
+    def device(self):
+        return self.vector_store.device
+
+    @property
+    def bm25_index(self):
+        return self.bm25_store.bm25_index
+
+    @property
+    def bm25_searcher(self):
+        return self.bm25_store.bm25_searcher
+
+    # 檢索方法委派
     def vector_search(self, query: str, top_k: int = None, apply_threshold: bool = True) -> List[Tuple[Document, float]]:
-        if self.index.ntotal == 0:
-            return []
-            
-        top_k = top_k or self.top_k
-        
-        query_embedding = self.local_embeddings.encode(
-            [query],
-            batch_size=1,
-            convert_to_numpy=True,
-            device=self.device
-        )
-        query_embedding = query_embedding.astype('float32')
-        faiss.normalize_L2(query_embedding)
-        
-        similarities, indices = self.index.search(query_embedding, min(top_k, self.index.ntotal))
-        
-        results = []
-        for similarity, idx in zip(similarities[0], indices[0]):
-            if (not apply_threshold or similarity > self.similarity_threshold) and idx < len(self.documents):
-                results.append((self.documents[idx], float(similarity)))
-        
-        return results
-    
+        return self.vector_store.search(query, top_k=top_k, apply_threshold=apply_threshold)
+
     def bm25_search(self, query: str, top_k: int = None) -> List[Tuple[Document, float]]:
-        if not self.bm25_searcher:
-            return []
-            
-        top_k = top_k or self.top_k
-        
-        try:
-            parser = qparser.QueryParser("content", self.bm25_index.schema)
-            query_obj = parser.parse(query)
-            
-            results = self.bm25_searcher.search(query_obj, limit=top_k)
-            
-            bm25_results = []
-            for hit in results:
-                doc_id = int(hit['doc_id'].split('_')[1])
-                if doc_id < len(self.documents):
-                    doc = self.documents[doc_id]
-                    score = hit.score
-                    bm25_results.append((doc, score))
-            
-            return bm25_results
-            
-        except Exception as e:
-            logger.error(f"BM25 search failed: {e}")
-            return []
-    
-    def _normalize_scores(self, scores: List[float], method: str = "max") -> List[float]:
-        if not scores:
-            return []
-        if method == "softmax":
-            a = np.array(scores, dtype=np.float32)
-            a = a - np.max(a)
-            exp = np.exp(a)
-            denom = np.sum(exp)
-            if denom <= 0:
-                return [0.0 for _ in scores]
-            prob = exp / denom
-            return prob.tolist()
-        max_v = max(scores)
-        return [(s / max_v) if max_v > 0 else 0.0 for s in scores]
+        return self.bm25_store.search(query, self.vector_store.documents, top_k=top_k or self.top_k)
+
     def hybrid_search(self, query: str, alpha: float = None) -> List[Tuple[Document, float]]:
-        alpha = self.hybrid_alpha if alpha is None else alpha
-        vector_results = self.vector_search(query, self.rerank_top_k, apply_threshold=False)
-        bm25_results = self.bm25_search(query, self.rerank_top_k)
-        doc_scores: Dict[int, Dict[str, Any]] = {}
-        if vector_results:
-            vec_scores = [score for _, score in vector_results]
-            vec_norms = self._normalize_scores(vec_scores, method=self.normalization)
-            for (doc, _), norm in zip(vector_results, vec_norms):
-                did = id(doc)
-                doc_scores[did] = {"doc": doc, "vector_score": float(norm), "bm25_score": 0.0}
-        if bm25_results:
-            bm_scores = [score for _, score in bm25_results]
-            bm_norms = self._normalize_scores(bm_scores, method=self.normalization)
-            for (doc, _), norm in zip(bm25_results, bm_norms):
-                did = id(doc)
-                if did in doc_scores:
-                    doc_scores[did]["bm25_score"] = float(norm)
-                else:
-                    doc_scores[did] = {"doc": doc, "vector_score": 0.0, "bm25_score": float(norm)}
-        combined: List[Tuple[Document, float]] = []
-        for rec in doc_scores.values():
-            score = alpha * rec["vector_score"] + (1 - alpha) * rec["bm25_score"]
-            if score > 0:
-                combined.append((rec["doc"], score))
-        combined.sort(key=lambda x: x[1], reverse=True)
-        return combined[: self.rerank_top_k]
+        return self.retriever.hybrid_search(query, alpha=alpha)
+
     def rerank_with_cross_encoder(self, query: str, doc_score_pairs: List[Tuple[Document, float]]) -> List[Tuple[Document, float]]:
-        if not self.has_reranker or not doc_score_pairs:
-            return doc_score_pairs
-        try:
-            pairs = [(query, d.page_content) for d, _ in doc_score_pairs]
-            cross_scores = self.cross_encoder.predict(pairs)
-            orig_scores = [s for _, s in doc_score_pairs]
-            def _minmax(arr):
-                mn, mx = float(np.min(arr)), float(np.max(arr))
-                if mx - mn <= 1e-8:
-                    return [0.0 for _ in arr]
-                return [float((x - mn) / (mx - mn)) for x in arr]
-            cs_norm = _minmax(cross_scores)
-            os_norm = _minmax(orig_scores)
-            w = min(max(self.rerank_weight, 0.0), 1.0)
-            combined = [
-                (doc, float(w * cs + (1 - w) * os))
-                for (doc, _), cs, os in zip(doc_score_pairs, cs_norm, os_norm)
-            ]
-            combined = [x for x in combined if x[1] >= self.final_threshold]
-            combined.sort(key=lambda x: x[1], reverse=True)
-            return combined[: self.final_k]
-        except Exception as e:
-            logger.error(f"Cross-encoder reranking failed: {e}")
-            doc_score_pairs.sort(key=lambda x: x[1], reverse=True)
-            return doc_score_pairs[: self.final_k]
-    
+        return self.retriever.rerank_with_cross_encoder(query, doc_score_pairs)
+
     def smart_search(self, query: str) -> List[Tuple[Document, float]]:
-        has_quotes = '"' in query
-        has_chinese = bool(re.search(r"[\u4e00-\u9fff]", query))
-        has_exact_terms = bool(has_quotes or re.search(r'\b(exactly|precisely|具體|確切)\b', query, re.I))
-        faq_keywords = r'(填寫說明|申請|到期|調班|補登|證明|薪資條|特休|補休|育嬰留停|產檢|免刷卡|時刻維護|集體異動|輪班|排班)'
-        is_short = len(re.sub(r'\s+', '', query)) <= 25
-        contains_faq_kw = bool(re.search(faq_keywords, query))
-        strategy = ""
-        if has_exact_terms and not has_chinese:
-            results = self.bm25_search(query, self.rerank_top_k)
-            strategy = "bm25"
-            logger.info(f"Retrieval strategy=BM25 query='{query}' candidates={len(results)}")
-        elif has_chinese and (is_short or contains_faq_kw):
-            results = self.hybrid_search(query, alpha=self.hybrid_alpha)
-            strategy = "hybrid"
-            logger.info(f"Retrieval strategy=HYBRID(FAQ-like) query='{query}' candidates={len(results)}")
-        elif has_chinese and not has_exact_terms:
-            results = self.vector_search(query, self.rerank_top_k, apply_threshold=False)
-            strategy = "vector"
-            logger.info(f"Retrieval strategy=VECTOR query='{query}' candidates={len(results)}")
-        else:
-            results = self.hybrid_search(query, alpha=self.hybrid_alpha)
-            strategy = "hybrid"
-            logger.info(f"Retrieval strategy=HYBRID(alpha={self.hybrid_alpha}) query='{query}' candidates={len(results)}")
-        if results:
-            try:
-                preview = [
-                    {
-                        "source": d.metadata.get('source', '未知'),
-                        "chunk": d.metadata.get('chunk_index', 0),
-                        "score": round(float(s), 4)
-                    }
-                    for d, s in results[:5]
-                ]
-                logger.info(f"Retrieval pre-rerank top5: {preview}")
-            except Exception:
-                pass
-            results = self.rerank_with_cross_encoder(query, results)
-            try:
-                preview = [
-                    {
-                        "source": d.metadata.get('source', '未知'),
-                        "chunk": d.metadata.get('chunk_index', 0),
-                        "score": round(float(s), 4)
-                    }
-                    for d, s in results[:5]
-                ]
-                logger.info(f"Retrieval post-rerank top5: {preview}")
-            except Exception:
-                pass
-        try:
-            self._last_retrieval_strategy = strategy or "unknown"
-        except Exception:
-            pass
-        return results if results else []
-    
-    def build_context_prompt(self, query: str, relevant_docs: List[Document], 
-                           conversation_id: Optional[int] = None,
-                           user_id: Optional[int] = None) -> Tuple[str, List[Dict[str, str]]]:
-        conversation_history = []
-        if conversation_id is not None:
-            key = f"{user_id}:{conversation_id}" if user_id is not None else f"{conversation_id}"
-            if key in self.context_memory:
-                recent_context = self.context_memory[key][-3:]
-                for exchange in recent_context:
-                    conversation_history.append({
-                        "role": "user",
-                        "content": exchange['user']
-                    })
-                    conversation_history.append({
-                        "role": "assistant", 
-                        "content": exchange['assistant']
-                    })
-        
-        document_context = ""
-        max_docs = min(len(relevant_docs), 5)
-        for i, doc in enumerate(relevant_docs[:max_docs]):
-            source = doc.metadata.get('source', '未知來源')
-            chunk_id = doc.metadata.get('chunk_index', 0)
-            document_context += f"文檔 [{i+1}] (來源: {source}, 段落: {chunk_id}):\n{doc.page_content}\n\n"
-        
-        user_prompt = f"""用戶問題: {query}
-檔案片段:
-{document_context}"""
-        
-        return user_prompt, conversation_history
-    
-    async def call_llm_api(self, prompt: str, model_name: str = None, 
-                          conversation_history: List[Dict[str, str]] = None) -> str:
-        model_to_use = model_name or self.model_name
-        try:
-            messages = [
-                {
-                    "role": "system",
-                    "content": """你是神通資訊科技內部的知識型助理，綽號為「通哥」，負責根據用戶問題、對話上下文與檔案片段，產出準確、可追溯的中文回答。
-規則：
-1) 以中文回答問題。
-2) 在回答末尾列出使用到的來源，格式為："[n] 來源名稱 (段落: m)"。若來源未知請標示為「無來源」。
-3) 避免編造事實；若資料不足或為推論，請在回覆中明確標註「推論」或回報「無法確定」，並建議下一步可查詢的關鍵字或資料位置。
-4) 回應中不得包含任何系統內部實作細節、索引 id 或未經驗證的 URL。"""
-                }
-            ]
-            
-            if conversation_history:
-                messages.extend(conversation_history)
-            
-            messages.append({
-                "role": "user",
-                "content": prompt
-            })
-            
-            response_text = await call_llm(messages, model_name=model_to_use, timeout=self.llm_timeout)
-            
-            if response_text:
-                logger.info(f"LLM response received: {len(response_text)} chars")
-                return response_text
-            else:
-                logger.warning("LLM returned empty response")
-                return "抱歉，模型沒有返回有效回應。"
-                
-        except httpx.TimeoutException:
-            logger.error(f"LLM API timeout after {self.llm_timeout}s for model {model_to_use}")
-            return f"抱歉，請求超時 ({self.llm_timeout}秒)。請嘗試使用較小的模型或稍後再試。"
-        except httpx.RequestError as e:
-            logger.error(f"LLM API network error: {e}")
-            return "抱歉，無法連接到語言模型服務。請檢查網路連接。"
-        except httpx.HTTPStatusError as e:
-            status_code = e.response.status_code if e.response else "unknown"
-            error_detail = ""
-            try:
-                error_detail = e.response.text if e.response else ""
-            except:
-                pass
-            logger.error(f"LLM API HTTP error {status_code}: {e}, detail: {error_detail[:200]}")
-            if status_code == 500:
-                return f"抱歉，模型服務器錯誤 (500)。可能是模型 '{model_to_use}' 負載過重，建議切換到較小的模型。"
-            return f"抱歉，模型 API 返回錯誤 ({status_code}): {str(e)}"
-        except Exception as e:
-            logger.error(f"LLM API unexpected error: {type(e).__name__}: {e}")
-            return f"抱歉，生成回應時出現錯誤: {str(e)}"
-    
-    async def generate_response(self, query: str, conversation_id: Optional[int] = None, model_name: str = None, user_id: Optional[int] = None) -> Dict[str, Any]:
-        start_time = time.time()
-        
-        try:
-            from app.services.cache_service import get_cache
-            cache = get_cache()
-            cached_result = cache.get(query, user_id, conversation_id)
-            
-            if cached_result:
-                logger.info(f"🎯 使用快取結果，節省檢索時間")
-                cached_result["from_cache"] = True
-                cached_result["cache_hit_time"] = time.time() - start_time
-                return cached_result
-        except Exception as e:
-            logger.warning(f"Redis 快取讀取失敗: {e}")
-        
-        doc_score_pairs = self.smart_search(query)
-        retrieval_strategy = getattr(self, "_last_retrieval_strategy", None)
-        relevant_docs = [doc for doc, _ in doc_score_pairs]
-        retrieval_time = time.time() - start_time
-        
-        user_prompt, conversation_history = self.build_context_prompt(
-            query, relevant_docs, conversation_id, user_id
-        )
-        
-        generation_start = time.time()
-        answer = await self.call_llm_api(user_prompt, model_name, conversation_history)
-        generation_time = time.time() - generation_start
-        
-        if conversation_id is not None:
-            key = f"{user_id}:{conversation_id}" if user_id is not None else f"{conversation_id}"
-            if key not in self.context_memory:
-                self.context_memory[key] = []
-            self.context_memory[key].append({
-                "user": query,
-                "assistant": answer,
-                "timestamp": time.time(),
-                "context_used": len(relevant_docs),
-                "sources": [doc.metadata.get('source', '未知') for doc in relevant_docs],
-                "retrieval_time": retrieval_time,
-                "generation_time": generation_time
-            })
-            if len(self.context_memory[key]) > 10:
-                self.context_memory[key] = self.context_memory[key][-10:]
-        
-        sources_info = []
-        for i, doc in enumerate(relevant_docs[:3]):
-            score = doc_score_pairs[i][1] if i < len(doc_score_pairs) else None
-            sources_info.append({
-                "source": doc.metadata.get('source', '未知'),
-                "chunk": doc.metadata.get('chunk_index', 0),
-                "score": round(float(score), 4) if score is not None else None,
-                "snippet": doc.page_content[:200] + "..." if len(doc.page_content) > 200 else doc.page_content
-            })
-        
-        result = {
-            "answer": answer,
-            "context_used": len(relevant_docs),
-            "sources": [doc.metadata.get('source', '未知') for doc in relevant_docs[:3]],
-            "sources_detail": sources_info,
-            "retrieval_time": retrieval_time,
-            "generation_time": generation_time,
-            "total_time": time.time() - start_time,
-            "retrieval_strategy": retrieval_strategy,
-            "from_cache": False
-        }
-        
-        try:
-            from app.services.cache_service import get_cache
-            cache = get_cache()
-            cache.set(query, result, user_id, conversation_id)
-        except Exception as e:
-            logger.warning(f"Redis 快取寫入失敗: {e}")
-        
-        return result
-    
+        return self.retriever.smart_search(query)
+
+    # 文檔與索引操作委派
+    def add_documents(self, documents: List[Document]) -> int:
+        return self.pipeline.process_and_add_documents(documents)
+
     def remove_document_by_id(self, document_id: int, rebuild_bm25: bool = True):
-        docs_to_remove_indices = []
-        for i, doc in enumerate(self.documents):
-            if doc.metadata.get('document_id') == document_id or doc.metadata.get('original_doc_id') == document_id:
-                docs_to_remove_indices.append(i)
-        if not docs_to_remove_indices:
-            logger.warning(f"No documents found with document_id: {document_id}")
-            return
-        for i in sorted(docs_to_remove_indices, reverse=True):
-            del self.documents[i]
-        try:
-            if not self.documents:
-                self.clear_vector_store()
-            else:
-                all_texts = [doc.page_content for doc in self.documents]
-                embeddings = self.local_embeddings.encode(
-                    all_texts, 
-                    batch_size=self.batch_size,
-                    show_progress_bar=False,
-                    convert_to_numpy=True,
-                    device=self.device
-                )
-                embeddings = embeddings.astype('float32')
-                faiss.normalize_L2(embeddings)
-                self.index = faiss.IndexFlatIP(self.embedding_dimension)
-                self.index.add(embeddings)
-                if rebuild_bm25:
-                    try:
-                        self._rebuild_bm25_index()
-                    except Exception as e:
-                        logger.warning(f"BM25 rebuild skipped/failed during remove: {e}")
-                try:
-                    self._save_indices()
-                except Exception as e:
-                    logger.error(f"Failed to save indices after removal: {e}")
-        except Exception as e:
-            logger.error(f"Failed to rebuild indices after removal: {e}")
-        logger.info(f"Removed {len(docs_to_remove_indices)} chunks for document_id {document_id}")
-    
+        removed = self.vector_store.remove_document_by_id(document_id)
+        if rebuild_bm25 and removed > 0:
+            self.bm25_store.rebuild(self.vector_store.documents)
+
     def clear_vector_store(self):
-        self.index = faiss.IndexFlatIP(self.embedding_dimension)
-        self.documents = []
-        self.context_memory = {}
-        
-        if self.bm25_searcher:
-            self.bm25_searcher.close()
-            self.bm25_searcher = None
-        
-        for path in [self.faiss_index_path, self.documents_path, self.metadata_path]:
-            if os.path.exists(path):
-                os.remove(path)
-        
-        if os.path.exists(self.bm25_index_dir):
-            shutil.rmtree(self.bm25_index_dir)
-        
-        self.bm25_index = None
-        logger.info("Vector store cleared completely")
-    
+        self.vector_store.clear()
+        self.bm25_store.clear()
+        self.pipeline.context_memory.clear()
+
+    # 對話與生成委派
+    async def generate_response(
+        self,
+        query: str,
+        conversation_id: Optional[int] = None,
+        model_name: Optional[str] = None,
+        user_id: Optional[int] = None,
+        reasoning_effort: Optional[str] = "medium"
+    ) -> Dict[str, Any]:
+        return await self.pipeline.generate_response(
+            query=query,
+            conversation_id=conversation_id,
+            model_name=model_name,
+            user_id=user_id,
+            reasoning_effort=reasoning_effort
+        )
+
+    def clear_conversation_context(self, conversation_id: int, user_id: Optional[int] = None):
+        self.pipeline.clear_conversation_context(conversation_id, user_id)
+
+    # 評估與調參委派
+    def evaluate_retrieval(self, test_queries: List[str], gold_doc_ids: List[List[int]], k_values: List[int] = [1, 3, 5, 10]) -> Dict[str, Any]:
+        return self.evaluator.evaluate_retrieval(test_queries, gold_doc_ids, k_values)
+
+    def auto_tune_alpha(self, test_queries: List[str], gold_doc_ids: List[List[int]], alphas: List[float] = None) -> Dict[str, Any]:
+        return self.evaluator.auto_tune_alpha(test_queries, gold_doc_ids, alphas)
+
+    # 統計與管理
     def get_statistics(self) -> Dict[str, Any]:
-        bm25_status = "Available" if self.bm25_index else "Not Available"
-        reranker_status = "Available" if self.has_reranker else "Not Available"
-        
+        bm25_status = "Available" if self.bm25_store.bm25_index else "Not Available"
+        reranker_status = "Available" if self.retriever.has_reranker else "Not Available"
         return {
-            "total_documents": len(self.documents),
-            "total_conversations": len(self.context_memory),
-            "total_vectors": self.index.ntotal,
-            "embedding_dimension": self.embedding_dimension,
+            "total_documents": len(self.vector_store.documents),
+            "total_conversations": len(self.pipeline.context_memory),
+            "total_vectors": self.vector_store.index.ntotal,
+            "embedding_dimension": self.vector_store.embedding_dimension,
             "bm25_status": bm25_status,
             "reranker_status": reranker_status,
             "similarity_threshold": self.similarity_threshold,
@@ -1118,11 +205,11 @@ class HybridContextualRAG:
             "chunk_overlap": self.chunk_overlap,
             "last_reindex": self._get_last_reindex_time()
         }
-    
+
     def _get_last_reindex_time(self) -> Optional[str]:
         try:
-            if os.path.exists(self.metadata_path):
-                with open(self.metadata_path, 'rb') as f:
+            if os.path.exists(self.vector_store.metadata_path):
+                with open(self.vector_store.metadata_path, "rb") as f:
                     metadata = pickle.load(f)
                 last_reindex = metadata.get("last_reindex")
                 if last_reindex and isinstance(last_reindex, datetime):
@@ -1130,80 +217,28 @@ class HybridContextualRAG:
         except Exception:
             pass
         return None
-    
-    def evaluate_retrieval(self, test_queries: List[str], gold_doc_ids: List[List[int]], k_values: List[int] = [1, 3, 5, 10]) -> Dict[str, Any]:
-        if len(test_queries) != len(gold_doc_ids):
-            raise ValueError("Number of queries must match number of gold standard lists")
-        
-        results = {f"recall@{k}": [] for k in k_values}
-        results.update({f"precision@{k}": [] for k in k_values})
-        results["mrr"] = []
-        
-        for query, gold_ids in zip(test_queries, gold_doc_ids):
-            doc_score_pairs = self.hybrid_search(query, alpha=self.hybrid_alpha)
-            doc_score_pairs = self.rerank_with_cross_encoder(query, doc_score_pairs)
-            retrieved_doc_ids = [doc.metadata.get('document_id', doc.metadata.get('original_doc_id', -1)) 
-                               for doc, _ in doc_score_pairs]
-            
-            for k in k_values:
-                top_k_retrieved = retrieved_doc_ids[:k]
-                
-                relevant_retrieved = len(set(top_k_retrieved) & set(gold_ids))
-                recall = relevant_retrieved / len(gold_ids) if gold_ids else 0
-                results[f"recall@{k}"].append(recall)
-                
-                precision = relevant_retrieved / k if k > 0 else 0
-                results[f"precision@{k}"].append(precision)
-            
-            mrr = 0
-            for i, doc_id in enumerate(retrieved_doc_ids):
-                if doc_id in gold_ids:
-                    mrr = 1 / (i + 1)
-                    break
-            results["mrr"].append(mrr)
-        
-        avg_results = {}
-        for metric, values in results.items():
-            avg_results[f"avg_{metric}"] = sum(values) / len(values) if values else 0
-            avg_results[f"{metric}_std"] = np.std(values) if values else 0
-        
-        avg_results["num_queries"] = len(test_queries)
-        avg_results["evaluation_timestamp"] = datetime.now().isoformat()
-        
-        return avg_results
-    def auto_tune_alpha(self, test_queries: List[str], gold_doc_ids: List[List[int]], 
-                         alphas: List[float] = None) -> Dict[str, Any]:
-        if alphas is None:
-            alphas = [round(x, 2) for x in np.linspace(0.3, 0.9, 13)]
-        best = {"alpha": None, "avg_mrr": -1, "metrics": None}
-        for a in alphas:
-            self.hybrid_alpha = a
-            metrics = self.evaluate_retrieval(test_queries, gold_doc_ids)
-            if metrics.get("avg_mrr", 0) > best["avg_mrr"]:
-                best = {"alpha": a, "avg_mrr": metrics.get("avg_mrr", 0), "metrics": metrics}
-        return best
-    
-    def force_reindex(self):
-        logger.info("Forcing reindex...")
-        self._rebuild_indices()
-        return True
-    
+
     def get_vector_store_info(self) -> Dict[str, Any]:
         return {
-            "total_vectors": self.index.ntotal,
-            "total_documents": len(self.documents),
-            "embedding_dimension": self.embedding_dimension,
+            "total_vectors": self.vector_store.index.ntotal,
+            "total_documents": len(self.vector_store.documents),
+            "embedding_dimension": self.vector_store.embedding_dimension,
             "index_type": "FAISS IndexFlatIP + Whoosh BM25",
-            "vector_index_exists": os.path.exists(self.faiss_index_path),
-            "bm25_index_exists": os.path.exists(self.bm25_index_dir),
-            "documents_file_exists": os.path.exists(self.documents_path),
-            "reranker_available": self.has_reranker,
+            "vector_index_exists": os.path.exists(self.vector_store.faiss_index_path),
+            "bm25_index_exists": os.path.exists(self.bm25_store.bm25_index_dir),
+            "documents_file_exists": os.path.exists(self.vector_store.documents_path),
+            "reranker_available": self.retriever.has_reranker,
             "last_reindex": self._get_last_reindex_time(),
             "auto_reindex_hours": self.reindex_threshold_hours
         }
-    
-    def clear_conversation_context(self, conversation_id: int):
-        if conversation_id in self.context_memory:
-            del self.context_memory[conversation_id]
-            logger.info(f"Cleared context for conversation {conversation_id}")
+
+    def force_reindex(self):
+        logger.info("Forcing reindex...")
+        if self.vector_store.documents:
+            docs = list(self.vector_store.documents)
+            self.clear_vector_store()
+            self.add_documents(docs)
+        return True
+
+
 ContextualRAG = HybridContextualRAG

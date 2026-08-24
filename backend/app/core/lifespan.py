@@ -7,7 +7,10 @@ from app.models.database import create_tables
 from app.tasks.uploads_watcher import scan_and_cleanup_uploads
 from app.tasks.index_rebuilder import start_index_rebuilder
 from app.core.rag_manager import get_rag_system
+
 logger = logging.getLogger(__name__)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting ChatBot application...")
@@ -53,11 +56,4 @@ async def lifespan(app: FastAPI):
             pass
         logger.info("Index rebuilder task stopped")
         
-    try:
-        from app.services.workflow_service import close_http_client
-        await close_http_client()
-        logger.info("Workflow HTTP client closed")
-    except Exception as e:
-        logger.warning(f"Failed to close workflow HTTP client: {e}")
-    
     logger.info("ChatBot application shutdown complete")

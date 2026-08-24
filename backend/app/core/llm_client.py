@@ -31,28 +31,38 @@ def get_available_models() -> List[str]:
     if available:
         return [m.strip() for m in available.split(",") if m.strip()]
     
-    models = []
+    models: List[str] = []
     
     if is_azure_openai_enabled():
         if settings.AZURE_OPENAI_DEPLOYMENT:
-            models.append(settings.AZURE_OPENAI_DEPLOYMENT)
+            deployments = [d.strip() for d in settings.AZURE_OPENAI_DEPLOYMENT.split(",") if d.strip()]
+            for dep in deployments:
+                if dep not in models:
+                    models.append(dep)
         else:
             models.append("gpt-4o")
             
     if settings.OPENAI_API_KEY:
-        models.extend(DEFAULT_OPENAI_MODELS)
+        for m in DEFAULT_OPENAI_MODELS:
+            if m not in models:
+                models.append(m)
         
     if settings.ANTHROPIC_API_KEY:
-        models.extend(DEFAULT_CLAUDE_MODELS)
+        for m in DEFAULT_CLAUDE_MODELS:
+            if m not in models:
+                models.append(m)
         
     if settings.GEMINI_API_KEY:
-        models.extend(DEFAULT_GEMINI_MODELS)
+        for m in DEFAULT_GEMINI_MODELS:
+            if m not in models:
+                models.append(m)
         
     return models
 async def call_llm(
     messages: List[Dict[str, str]],
     model_name: Optional[str] = None,
-    timeout: Optional[float] = None
+    timeout: Optional[float] = None,
+    reasoning_effort: Optional[str] = None
 ) -> str:
     client = await get_llm_http_client()
     
@@ -155,6 +165,8 @@ async def call_llm(
             "messages": messages,
             "stream": False
         }
+        if reasoning_effort and reasoning_effort in ("none", "minimal", "low", "medium", "high", "xhigh", "max"):
+            payload["reasoning_effort"] = reasoning_effort
         
         logger.info(f"Calling OpenAI API: model={target_model}, messages={len(messages)}, url={url}")
         
@@ -172,7 +184,8 @@ async def call_llm(
         endpoint = settings.AZURE_OPENAI_ENDPOINT.rstrip("/")
         url = f"{endpoint}/openai/v1/chat/completions"
         
-        deployment = model_name or settings.AZURE_OPENAI_DEPLOYMENT or "gpt-4o"
+        raw_deployment = model_name or settings.AZURE_OPENAI_DEPLOYMENT or "gpt-4o"
+        deployment = raw_deployment.split(",")[0].strip()
         
         headers = {
             "Content-Type": "application/json",
@@ -185,6 +198,8 @@ async def call_llm(
             "messages": messages,
             "stream": False
         }
+        if reasoning_effort and reasoning_effort in ("none", "minimal", "low", "medium", "high", "xhigh", "max"):
+            payload["reasoning_effort"] = reasoning_effort
         
         logger.info(f"Calling v1 Azure OpenAI: deployment={deployment}, messages={len(messages)}, url={url}")
         

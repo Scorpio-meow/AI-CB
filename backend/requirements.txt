@@ -30,8 +30,6 @@ argon2-cffi
 bcrypt
 email-validator
 cryptography
-redis
-aioredis
 pytest-asyncio
 PyJWT
 sentence-transformers

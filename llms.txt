@@ -2,31 +2,46 @@
 
 [繁體中文](llms.txt) | [English](llms_en.txt)
 
-> 基於增強型混合 RAG（檢索增強生成）技術的智慧對話與多 Agent 協作系統。
+> 基於增強型混合 RAG（檢索增強生成）與 Agentic 自主研究架構的企業級智慧知識庫對話系統。
 
 ## 專案架構與核心檔案地圖
 
-- [backend/main.py](backend/main.py): FastAPI 後端應用程式進入點與 API 路由註冊
-- [backend/app/core/security_logging.py](backend/app/core/security_logging.py): 安全日誌系統、物件遞迴脫敏與正則表達式敏感欄位遮罩
-- [backend/app/core/jwt_auth.py](backend/app/core/jwt_auth.py): RSA-2048 JWT 簽署、令牌驗證與 Redis 黑名單撤銷處理
-- [backend/app/rag/contextual_rag.py](backend/app/rag/contextual_rag.py): 混合 RAG 檢索器（FAISS 向量搜尋 + Whoosh BM25 關鍵字搜尋 + Cross-Encoder 重排序）
-- [backend/app/api/auth.py](backend/app/api/auth.py): 身份認證 RESTful API 端點（註冊、登入、刷新、個人資料、登出）
-- [backend/app/api/chat.py](backend/app/api/chat.py): 對話與 RAG 檢索 API 端點
-- [backend/app/services/workflow_service.py](backend/app/services/workflow_service.py): 多 Agent 協作工作流與 WebSocket 即時狀態分發
-- [frontend/src/App.jsx](frontend/src/App.jsx): React 前端主要路由與頂層元件配置
-- [frontend/src/pages/DiscussionBoard.jsx](frontend/src/pages/DiscussionBoard.jsx): 多 Agent 討論看板與 React Flow 視覺化節點介面
+- [backend/main.py](backend/main.py): FastAPI 後端進入點與全域路由中介軟體註冊
+- [backend/app/rag/agent.py](backend/app/rag/agent.py): ReAct 自主研究 Agent（多輪工具調用與研究思考歷程紀錄）
+- [backend/app/rag/tools.py](backend/app/rag/tools.py): 自主研究工具註冊中心（內部知識庫檢索、DuckDuckGo/Ollama 聯網搜尋、網頁深入抓取）
+- [backend/app/rag/pipeline.py](backend/app/rag/pipeline.py): RAG 執行管線、上下文組裝與 Agent 整合
+- [backend/app/rag/contextual_rag.py](backend/app/rag/contextual_rag.py): HybridContextualRAG 門面模組
+- [backend/app/rag/indices/vector_store.py](backend/app/rag/indices/vector_store.py): FAISS 向量儲存與相似度檢索
+- [backend/app/rag/indices/bm25_store.py](backend/app/rag/indices/bm25_store.py): Whoosh BM25 中文文字搜尋引擎
+- [backend/app/rag/retrievers/hybrid.py](backend/app/rag/retrievers/hybrid.py): 混合搜尋與 Cross-Encoder 重排序器
+- [backend/app/core/llm_client.py](backend/app/core/llm_client.py): 統一 LLM 客戶端（Azure OpenAI v1 / OpenAI / Claude / Gemini / Ollama）
+- [backend/app/core/jwt_auth.py](backend/app/core/jwt_auth.py): RSA-2048 JWT 簽署、令牌驗證與黑名單撤銷
+- [backend/app/core/security_logging.py](backend/app/core/security_logging.py): 敏感資料雙層脫敏日誌系統（物件遞迴與正則遮罩）
+- [backend/app/api/chat.py](backend/app/api/chat.py): 對話發送、自主研究生成與可用模型查詢端點
+- [backend/app/api/documents.py](backend/app/api/documents.py): 知識庫文件上傳、切分與管理端點
+- [frontend/src/App.jsx](frontend/src/App.jsx): React 19 頂層路由與佈局
+- [frontend/src/pages/Chat/index.tsx](frontend/src/pages/Chat/index.tsx): 對話主頁面、狀態控制與多模型/推理程度管理
+- [frontend/src/pages/Chat/ResearchTraceBlock.tsx](frontend/src/pages/Chat/ResearchTraceBlock.tsx): 自主研究歷程折疊時間軸元件
+- [frontend/src/pages/Chat/SourceBadges.tsx](frontend/src/pages/Chat/SourceBadges.tsx): 內部與外部參考來源徽章元件
 
-## 核心設計概念與架構約束
+## 核心設計概念與系統約束
 
-1. **混合 RAG 管道 (Hybrid RAG Pipeline)**：結合 FAISS 密集向量檢索與 Whoosh BM25 稀疏文字檢索，並經由 `bge-reranker-base` 進行加權重排序，確保高相關性上下文導入 LLM。
-2. **雙 Token 認證機制 (Dual-Token Auth)**：Access Token（30 分鐘有效）配合 HttpOnly Cookie 之 Refresh Token（7 天有效），支援 Redis JTI 黑名單撤銷。
-3. **多 Agent 協作工作流 (Multi-Agent Workflow)**：採用 React Flow 節點圖與 WebSocket 雙向串流實現多 Agent 即時討論與結論收斂。
-4. **全系統安全脫敏約束 (Security Invariants)**：全系統日誌必須實施物件層級與字串正則雙層脫敏遮罩，所有密碼與權限 Token 在日誌中必須呈現為 `[REDACTED]`。
-5. **前端技術與套件規範**：前端使用 React 19 與 Vite 7 建構，套件管理優先使用 Bun。
+1. **Agentic RAG 自主研究管線**：
+   - 採用 ReAct 自主研究模式，模型可根據問題自動決定調用內部知識庫檢索、外部即時聯網搜尋或網頁深度內容抓取。
+   - 每次問答產出結構化 `research_trace`（步驟、工具、參數、耗時與摘要）以及可點擊跳轉之 `sources_detail`。
+2. **多檔位推理程度 (Reasoning Effort)**：
+   - 支援 `none`, `low`, `medium`, `high`, `xhigh` 五種思考深度，透傳至 Azure OpenAI v1 / OpenAI 推理模型。
+   - 遵循微軟 Foundry 規範，於結合 Function Tools 時自動保持相容性。
+3. **混合檢索與重排序 (Hybrid Retrieval)**：
+   - FAISS 稠密向量搜尋與 Whoosh BM25 稀疏文字檢索加權融合，最終經由 Cross-Encoder 加權重排序輸出高精準度上下文。
+4. **全系統安全日誌脫敏 (Security Redaction)**：
+   - 日誌記錄全面實施物件層級與正則表達式雙層遮罩，密碼、Token 與 Authorization 標頭必須強制呈現為 `[REDACTED]`。
+5. **輕量化與現代化工具鏈**：
+   - 後端預設採用 SQLite 零依賴運作，前端全面基於 React 19 + Vite 7 + Bun 建構。
 
 ## 詳細文件導覽
 
-- [API 參考手冊](docs/api.md): 完整 RESTful 端點、請求回應 JSON 規格與 WebSocket 協定說明
-- [架構與設計文件](docs/architecture.md): 系統模組架構圖、RAG 流程圖、雙 Token 生命週期與安全設計
+- [API 參考手冊](docs/api.md): 完整 RESTful 端點、請求回應 JSON 規格與參數說明
+- [系統架構與設計](docs/architecture.md): 模組架構圖、Agentic RAG 管線與安全架構
 - [架構決策紀錄 (ADR)](docs/adr/README.md): 專案架構演進與重大決策紀錄
-- [版本變更紀錄](CHANGELOG.md): 專案版本發行歷史
+- [版本變更紀錄](CHANGELOG.md): 系統版本發行歷史

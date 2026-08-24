@@ -10,6 +10,7 @@ import logging
 logger = logging.getLogger(__name__)
 import json
 import os
+from app.core.config import settings
 router = APIRouter()
 chat_service = ChatService()
 class ConnectionManager:
@@ -33,7 +34,8 @@ async def get_available_models():
     from app.core.llm_client import get_available_models as get_configured_models
     configured_models = get_configured_models()
     if configured_models:
-        default_model = os.getenv("MODEL_NAME") or os.getenv("AZURE_OPENAI_DEPLOYMENT") or configured_models[0]
+        azure_dep = settings.AZURE_OPENAI_DEPLOYMENT.split(',')[0].strip() if settings.AZURE_OPENAI_DEPLOYMENT else None
+        default_model = os.getenv("MODEL_NAME") or azure_dep or configured_models[0]
         if default_model not in configured_models:
             default_model = configured_models[0]
         return {
@@ -70,16 +72,19 @@ async def send_message(
             message_data.content,
             user_message.conversation_id,
             message_data.model_name,
-            user_id
+            user_id,
+            reasoning_effort=message_data.reasoning_effort
         )
         
+        # 將 sources 序列化存入 context_used 以利歷史查詢
+        sources_payload = json.dumps(rag_response.get("sources", []), ensure_ascii=False)
         bot_message = await chat_service.save_message(
             db,
             user_id,
             rag_response["answer"],
             False,
             user_message.conversation_id,
-            rag_response["context_used"],
+            sources_payload,
             model_name=message_data.model_name,
         )
         
@@ -90,7 +95,11 @@ async def send_message(
                 is_user=bot_message.is_user,
                 created_at=bot_message.created_at,
                 context_used=bot_message.context_used,
-                model_name=getattr(bot_message, "model_name", None)
+                model_name=getattr(bot_message, "model_name", None),
+                reasoning_effort=message_data.reasoning_effort,
+                sources=rag_response.get("sources", []),
+                sources_detail=rag_response.get("sources_detail", []),
+                research_trace=rag_response.get("research_trace", [])
             ),
             conversation_id=user_message.conversation_id
         )

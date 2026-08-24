@@ -164,17 +164,19 @@ const RegisterPage = () => {
                 onChange={handleChange}
                 disabled={loading}
                 margin="normal"
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowPassword(!showPassword)}
-                        edge="end"
-                      >
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  )
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => setShowPassword(!showPassword)}
+                          edge="end"
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    )
+                  }
                 }}
               />
               <TextField
@@ -203,8 +205,7 @@ const RegisterPage = () => {
                         )}
                       </ListItemIcon>
                       <ListItemText
-                        primary="至少 8 個字符"
-                        primaryTypographyProps={{ variant: 'caption' }}
+                        primary={<Typography variant="caption">至少 8 個字符</Typography>}
                       />
                     </ListItem>
                     <ListItem disablePadding>
@@ -216,8 +217,7 @@ const RegisterPage = () => {
                         )}
                       </ListItemIcon>
                       <ListItemText
-                        primary="包含大寫字母"
-                        primaryTypographyProps={{ variant: 'caption' }}
+                        primary={<Typography variant="caption">包含大寫字母</Typography>}
                       />
                     </ListItem>
                     <ListItem disablePadding>
@@ -229,8 +229,7 @@ const RegisterPage = () => {
                         )}
                       </ListItemIcon>
                       <ListItemText
-                        primary="包含小寫字母"
-                        primaryTypographyProps={{ variant: 'caption' }}
+                        primary={<Typography variant="caption">包含小寫字母</Typography>}
                       />
                     </ListItem>
                     <ListItem disablePadding>
@@ -242,8 +241,7 @@ const RegisterPage = () => {
                         )}
                       </ListItemIcon>
                       <ListItemText
-                        primary="包含數字"
-                        primaryTypographyProps={{ variant: 'caption' }}
+                        primary={<Typography variant="caption">包含數字</Typography>}
                       />
                     </ListItem>
                     <ListItem disablePadding>
@@ -255,8 +253,7 @@ const RegisterPage = () => {
                         )}
                       </ListItemIcon>
                       <ListItemText
-                        primary="兩次密碼輸入一致"
-                        primaryTypographyProps={{ variant: 'caption' }}
+                        primary={<Typography variant="caption">兩次密碼輸入一致</Typography>}
                       />
                     </ListItem>
                   </List>

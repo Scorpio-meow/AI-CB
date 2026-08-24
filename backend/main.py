@@ -6,9 +6,8 @@ from fastapi import FastAPI
 from app.core.config import settings
 from app.core.lifespan import lifespan
 from app.middleware import setup_middlewares
-from app.api import chat, admin, documents, workflow, custom_agent
-from app.api import tags as tags_router
-from app.api import auth
+from app.api import chat, admin, documents, tags as tags_router, auth
+
 os.makedirs('logs', exist_ok=True)
 log_level = settings.LOG_LEVEL.upper()
 logging.basicConfig(
@@ -22,29 +21,33 @@ logging.basicConfig(
 )
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
+
 app = FastAPI(
     title="ChatBot API",
     description="ChatBot with Contextual RAG",
     version="1.0.0",
     lifespan=lifespan
 )
+
 setup_middlewares(app)
+
 app.include_router(auth.router, tags=["authentication"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
-app.include_router(workflow.router, prefix="/api/workflow", tags=["workflow"])
-app.include_router(custom_agent.router, prefix="/api/custom_agents", tags=["Custom Agents"])
 app.include_router(tags_router.router, prefix="/api", tags=["tags"])
+
+
 @app.get("/")
 async def root():
     return {"message": "ChatBot API is running"}
+
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
-@app.get("/socket.io/")
-async def socket_io_fallback():
-    return {"error": "Socket.IO not supported. Use WebSocket at /api/workflow/ws"}
+
+
 def create_app():
     try:
         cuda_available = torch.cuda.is_available()
@@ -59,6 +62,8 @@ def create_app():
         logger.warning("FAISS not importable or CPU-only. If you intended to use GPU FAISS, ensure faiss-gpu is installed and CUDA is configured. Error: %s", e)
         faiss_gpu_available = False
     return app
+
+
 if __name__ == "__main__":
     host = settings.HOST
     port = settings.PORT

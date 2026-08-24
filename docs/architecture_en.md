@@ -110,24 +110,34 @@ sequenceDiagram
 
 ---
 
-## 4. Multi-Agent Workflow & WebSocket Mechanism
+## 4. Agentic RAG Autonomous Research & Tool Pipeline
 
-React Flow renders the interactive Agent graph on the client, while the backend workflow engine (`workflow_service.py`) manages agent turn-taking and broadcasts state via WebSockets.
+The system employs a ReAct autonomous agent architecture (`ResearchAgent`), using Native Tool Calling for multi-turn dynamic research and contextual synthesis.
 
 ```mermaid
 flowchart LR
-    UserTrigger["User Initiates Task"] --> Engine["Backend Workflow Engine"]
+    UserQuery["User Query"] --> Agent["Autonomous Research Agent (ResearchAgent)"]
     
-    subgraph AgentLoop ["Multi-Agent Collaboration Loop"]
-        Engine --> AgentA["Researcher Agent (Retrieves Facts)"]
-        AgentA --> Broker["Message Dispatch & State Manager"]
-        Broker --> AgentB["Critic Agent (Evaluates Arguments)"]
-        AgentB --> Broker
+    subgraph ToolLoop ["Multi-Turn Tool Calling Loop (Up to 5 Turns)"]
+        Agent -->|Decisions & Args| Tools{"Tool Registry (ResearchToolRegistry)"}
+        Tools -->|Internal Search| LocalRAG["search_knowledge_base\n(FAISS + BM25 + Cross-Encoder)"]
+        Tools -->|Live Web Search| WebSearch["web_search\n(DuckDuckGo / Ollama Dual Engine)"]
+        Tools -->|Deep Fetch| WebFetch["web_fetch\n(HTTP Fetch & Parser)"]
+        
+        LocalRAG -->|Document Chunks| ToolResult["Tool Execution Results"]
+        WebSearch -->|Live Snippets & URLs| ToolResult
+        WebFetch -->|Extracted Page Text| ToolResult
+        ToolResult -->|Observations Injected| Agent
     end
 
-    Broker --> WSBroadcast["WebSocket Broadcast Server"]
-    WSBroadcast --> ReactFlowUI["Frontend React Flow Node UI"]
+    Agent -->|Synthesizes Trace & Citations| FinalAnswer["Structured Response Output\n(Answer + Research Trace + Sources)"]
 ```
+
+### Key Autonomous Capabilities
+
+1. **Context-Aware Decision Making**: The agent autonomously determines whether internal documentation, live web search, or full web page scraping is required to answer the query accurately.
+2. **Research Trace Auditing**: Every tool step, arguments, execution duration, and output preview are captured in structured format for real-time visualization in the frontend timeline component.
+3. **Interactive Source Attribution**: Integrates internal knowledge chunks with external web links, allowing users to verify facts and open primary sources with one click.
 
 ---
 

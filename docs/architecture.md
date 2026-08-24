@@ -110,24 +110,34 @@ sequenceDiagram
 
 ---
 
-## 4. 多 Agent 協作工作流與 WebSocket 機制
+## 4. Agentic RAG 自主研究與多輪工具調用管線
 
-前端透過 React Flow 呈現可視化的 Agent 節點關係圖，後端工作流引擎 (`workflow_service.py`) 控制 Agent 的思考與發言順序，並透過 WebSocket 即時串流給客戶端。
+系統採用 ReAct 自主研究代理人架構（`ResearchAgent`），透過 Native Tool Calling 實現智慧多輪工具協同與上下文自主搜集。
 
 ```mermaid
 flowchart LR
-    UserTrigger["用戶發起議題/任務"] --> Engine["後端工作流引擎"]
+    UserQuery["用戶問題 (Query)"] --> Agent["自主研究 Agent (ResearchAgent)"]
     
-    subgraph AgentLoop ["多 Agent 協作討論循環"]
-        Engine --> AgentA["研究員 Agent (檢索資料)"]
-        AgentA --> Broker["訊息調配與狀態更新"]
-        Broker --> AgentB["審查員 Agent (論點評估)"]
-        AgentB --> Broker
+    subgraph ToolLoop ["多輪工具調用循環 (最多 5 輪)"]
+        Agent -->|決策與參數| Tools{"工具註冊中心 (ResearchToolRegistry)"}
+        Tools -->|內部檢索| LocalRAG["search_knowledge_base\n(FAISS + BM25 + Cross-Encoder)"]
+        Tools -->|即時聯網| WebSearch["web_search\n(DuckDuckGo / Ollama 雙引擎)"]
+        Tools -->|深度閱讀| WebFetch["web_fetch\n(HTTP 抓取與純文字解析)"]
+        
+        LocalRAG -->|返回文檔片段| ToolResult["工具執行結果 (Tool Outputs)"]
+        WebSearch -->|返回即時摘要與 URL| ToolResult
+        WebFetch -->|返回網頁正文| ToolResult
+        ToolResult -->|觀察與注入上下文| Agent
     end
 
-    Broker --> WSBroadcast["WebSocket 即時廣播伺服器"]
-    WSBroadcast --> ReactFlowUI["前端 React Flow 節點動態渲染"]
+    Agent -->|整理研究歷程與參考來源| FinalAnswer["輸出結構化回應\n(Answer + Research Trace + Sources)"]
 ```
+
+### 自主研究核心機制
+
+1. **動態決策思考**：模型根據用戶問題語境，自主判斷是否需查詢內部知識庫、外部即時聯網或深入閱讀外部 URL。
+2. **研究歷程追蹤 (Research Trace)**：每一輪工具調用之步驟名稱、輸入參數、輸出摘要與執行耗時均被結構化記錄，供前端進行即時折疊視覺化呈現。
+3. **來源標籤與跳轉 (Sources Detail)**：整合內部文檔片段與外部網頁連結，生成精確之來源標籤，支援使用者點擊直接驗證資訊出處。
 
 ---
 

@@ -1,13 +1,33 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
-import { shouldRefreshToken, hasValidAuth, clearAuth } from '../utils/tokenUtils';
-import { devLog, devWarn } from '../utils/secureLogger';
+import { shouldRefreshToken, hasValidAuth, clearAuth } from '../utils/tokenUtils.ts';
+import { devLog, devWarn } from '../utils/secureLogger.ts';
 export interface Message {
-  id: number;
+  id?: number;
   content: string;
   is_user: boolean;
-  created_at: string;
-  context_used?: string | null;
+  created_at?: string;
+  context_used?: string | null | string[];
   model_name?: string | null;
+  reasoning_effort?: string | null;
+  sources?: string[];
+  sources_detail?: Array<{
+    source: string;
+    chunk?: number;
+    score?: number | null;
+    snippet?: string;
+    url?: string;
+  }>;
+  research_trace?: Array<{
+    step: number;
+    tool: string;
+    arguments?: Record<string, any>;
+    output_preview?: string;
+    duration_seconds?: number;
+    status?: string;
+  }>;
+  think?: string | null;
+  role?: string;
+  isUser?: boolean;
 }
 export interface Conversation {
   id: number;
@@ -156,11 +176,17 @@ api.interceptors.response.use(
   }
 );
 export const chatService = {
-  async sendMessage(content: string, conversationId: number | null = null, model_name: string | null = null): Promise<ChatResponse> {
+  async sendMessage(
+    content: string,
+    conversationId: number | null = null,
+    model_name: string | null = null,
+    reasoning_effort: string = 'medium'
+  ): Promise<ChatResponse> {
     const response = await api.post<ChatResponse>('/chat/send', {
       content,
       conversation_id: conversationId,
-      model_name
+      model_name,
+      reasoning_effort
     });
     return response.data;
   },

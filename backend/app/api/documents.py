@@ -211,7 +211,7 @@ async def upload_document(
                 "original_filename": up.filename
             }
             langchain_docs, qa_count = process_document_for_rag(content, base_metadata, rag_system)
-            await rag_system.add_documents(langchain_docs)
+            rag_system.add_documents(langchain_docs)
             document.is_processed = True
             db.commit()
             results.append({
@@ -307,7 +307,7 @@ async def rebuild_index(
                     "original_filename": doc.filename
                 }
                 langchain_docs, qa_count = process_document_for_rag(doc.content, base_metadata, rag_system)
-                chunks_added = await rag_system.add_documents(langchain_docs)
+                chunks_added = rag_system.add_documents(langchain_docs)
                 
                 total_chunks += chunks_added or 0
                 if qa_count > 0:

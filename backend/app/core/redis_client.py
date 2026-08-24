@@ -1,105 +1,72 @@
+import time
+import logging
+import threading
+from typing import Dict, Optional
 
-import os
-import redis
-from typing import Optional
-from dotenv import load_dotenv
-load_dotenv()
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", "7967"))
-REDIS_DB = int(os.getenv("REDIS_DB", "0"))
-REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None)
-redis_pool = None
-redis_client = None
-def init_redis():
-    global redis_pool, redis_client
-    
-    try:
-        redis_pool = redis.ConnectionPool(
-            host=REDIS_HOST,
-            port=REDIS_PORT,
-            db=REDIS_DB,
-            password=REDIS_PASSWORD,
-            decode_responses=True,
-            max_connections=10,
-            socket_connect_timeout=0.5,
-            socket_timeout=0.5
-        )
-        
-        redis_client = redis.Redis(connection_pool=redis_pool)
-        
-        redis_client.ping()
-        print(f"Redis 連接成功: {REDIS_HOST}:{REDIS_PORT}")
-        print(f"Token 黑名單功能已啟用")
-        return True
-    except redis.ConnectionError as e:
-        print(f"Redis 連接失敗: {e}")
-        print("Token 黑名單功能將不可用，但系統仍可正常運行")
-        redis_client = None
-        return False
-    except Exception as e:
-        print(f"Redis 初始化錯誤: {e}")
-        redis_client = None
-        return False
-def get_redis() -> Optional[redis.Redis]:
-    global redis_client
-    
-    if redis_client is None:
-        init_redis()
-    
-    return redis_client
-def close_redis():
-    global redis_client, redis_pool
-    
-    if redis_client:
-        redis_client.close()
-        redis_client = None
-    
-    if redis_pool:
-        redis_pool.disconnect()
-        redis_pool = None
+logger = logging.getLogger(__name__)
+
+
 class TokenBlacklist:
-    
-    PREFIX = "blacklist:token:"
-    
-    @staticmethod
-    def add_token(token: str, expires_in: int = 3600):
-        client = get_redis()
-        if client is None:
-            print("Redis 不可用，無法加入黑名單")
-            return False
-        
+    """記憶體型 Token 黑名單管理器（無須外部 Redis 依賴）"""
+    _blacklist: Dict[str, float] = {}  # token -> expire_timestamp
+    _lock = threading.Lock()
+
+    @classmethod
+    def _cleanup_expired(cls):
+        now = time.time()
+        expired = [t for t, exp in cls._blacklist.items() if exp <= now]
+        for t in expired:
+            del cls._blacklist[t]
+
+    @classmethod
+    def add_token(cls, token: str, expires_in: int = 3600) -> bool:
         try:
-            key = f"{TokenBlacklist.PREFIX}{token}"
-            client.setex(key, expires_in, "revoked")
+            with cls._lock:
+                cls._cleanup_expired()
+                cls._blacklist[token] = time.time() + max(1, expires_in)
             return True
         except Exception as e:
-            print(f"加入黑名單失敗: {e}")
+            logger.error(f"加入黑名單失敗: {e}")
             return False
-    
-    @staticmethod
-    def is_blacklisted(token: str) -> bool:
-        client = get_redis()
-        if client is None:
-            return False
-        
+
+    @classmethod
+    def is_blacklisted(cls, token: str) -> bool:
         try:
-            key = f"{TokenBlacklist.PREFIX}{token}"
-            return client.exists(key) > 0
+            with cls._lock:
+                cls._cleanup_expired()
+                if token in cls._blacklist:
+                    if cls._blacklist[token] > time.time():
+                        return True
+                    else:
+                        del cls._blacklist[token]
+            return False
         except Exception as e:
-            print(f"檢查黑名單失敗: {e}")
+            logger.error(f"檢查黑名單失敗: {e}")
             return False
-    
-    @staticmethod
-    def remove_token(token: str):
-        client = get_redis()
-        if client is None:
-            return False
-        
+
+    @classmethod
+    def remove_token(cls, token: str) -> bool:
         try:
-            key = f"{TokenBlacklist.PREFIX}{token}"
-            client.delete(key)
+            with cls._lock:
+                if token in cls._blacklist:
+                    del cls._blacklist[token]
             return True
         except Exception as e:
-            print(f"移除黑名單失敗: {e}")
+            logger.error(f"移除黑名單失敗: {e}")
             return False
-init_redis()
+
+
+def init_redis():
+    """向下相容保留，直接回傳 True"""
+    logger.info("Token 黑名單已採用記憶體模式運行 (無需 Redis)")
+    return True
+
+
+def get_redis() -> Optional[object]:
+    """向下相容保留"""
+    return None
+
+
+def close_redis():
+    """向下相容保留"""
+    pass

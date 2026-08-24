@@ -4,7 +4,7 @@ frontend/package-lock.json
 *.pyc
 backend/keys
 __pycache__
-models
+backend/models/
 frontend/~
 backend/data/hf_home
 backend/data/workflow_outputs/*
@@ -19,3 +19,6 @@ frontend/bun.lock
 backend/.env
 frontend/.env
 .env
+.pytest_cache
+*.db
+backend/*.db

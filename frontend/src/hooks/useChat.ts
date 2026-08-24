@@ -93,12 +93,12 @@ export function useChat() {
       setLoadingMore(false);
     }
   }, [currentConversation, loadingMore, hasMoreMessages, messagesOffset]);
-  const sendChatMessage = useCallback(async (content: string, selectedModel: string) => {
+  const sendChatMessage = useCallback(async (content: string, selectedModel: string, reasoningEffort: string = 'medium') => {
     if (!content.trim()) return;
     setLoading(true);
     setError(null);
     try {
-      const response = await chatService.sendMessage(content, currentConversation?.id || null, selectedModel);
+      const response = await chatService.sendMessage(content, currentConversation?.id || null, selectedModel, reasoningEffort);
       setMessages(prev => [...prev, response.message]);
       if (!currentConversation || response.conversation_id !== currentConversation.id) {
         const freshConvs = await fetchConversations();

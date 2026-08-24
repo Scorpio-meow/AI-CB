@@ -165,11 +165,11 @@ Authorization: Bearer <access_token>
 
 ---
 
-## 2. Chat & RAG Retrieval Module
+## 2. Chat & Agentic RAG Autonomous Research Module
 
 ### 2.1 POST /api/chat/send
 
-Send a chat message and receive RAG-augmented response.
+Send a user query to trigger the ReAct autonomous ResearchAgent for multi-turn tool calling and contextual response generation.
 
 **Headers:**
 
@@ -182,36 +182,76 @@ Content-Type: application/json
 
 | Field Name | Type | Required | Description | Default |
 |---|---|---|---|---|
-| message | string | Yes | User query message | - |
-| conversation_id | integer | No | Conversation history ID | null |
-| model_name | string | No | Target LLM model name | System default |
-| use_rag | boolean | No | Enable RAG retrieval | true |
+| `content` | string | Yes | User query message content | - |
+| `conversation_id` | integer | No | Conversation ID (or null for new session) | null |
+| `model_name` | string | No | Target LLM model name (e.g. `gpt-5.6-luna`, `gemma4:26b`) | System default |
+| `reasoning_effort` | string | No | Model reasoning depth (`none`, `low`, `medium`, `high`, `xhigh`) | `medium` |
 
-**Responses:**
+**Responses (ChatResponse):**
 
-- **200 OK**: Response generated.
+- **200 OK**: Autonomous research response generated.
 
 ```json
 {
   "conversation_id": 42,
-  "answer": "According to company policy...",
-  "sources": [
-    {
-      "source": "Employee_Handbook_2026.pdf",
-      "chunk_index": 3,
-      "score": 0.89
-    }
-  ],
-  "retrieval_time": 0.045,
-  "generation_time": 1.230,
-  "total_time": 1.275,
-  "from_cache": false
+  "message": {
+    "id": 108,
+    "content": "MiTAC Agent Builder is an enterprise-grade agentic AI platform...",
+    "is_user": false,
+    "created_at": "2026-08-24T18:04:07Z",
+    "model_name": "gpt-5.6-luna",
+    "reasoning_effort": "medium",
+    "sources": [
+      "https://example.com/mitac-agent-builder",
+      "Company_Handbook.pdf"
+    ],
+    "sources_detail": [
+      {
+        "source": "https://example.com/mitac-agent-builder",
+        "title": "MiTAC Agent Builder Overview",
+        "url": "https://example.com/mitac-agent-builder",
+        "snippet": "MiTAC Agent Builder orchestrates multi-agent workflows..."
+      }
+    ],
+    "research_trace": [
+      {
+        "step": 1,
+        "tool": "web_search",
+        "arguments": {
+          "query": "MiTAC Agent Builder"
+        },
+        "output_preview": "Retrieved 5 external results...",
+        "duration_seconds": 1.25,
+        "status": "success"
+      }
+    ]
+  }
 }
 ```
 
 ---
 
-### 2.2 GET /api/chat/history
+### 2.2 GET /api/chat/models
+
+Retrieve all currently available LLM models and the default deployment.
+
+**Responses:**
+
+- **200 OK**: Model list retrieved.
+
+```json
+{
+  "models": [
+    "gpt-5.6-luna",
+    "gpt-5.6-terra"
+  ],
+  "default": "gpt-5.6-luna"
+}
+```
+
+---
+
+### 2.3 GET /api/chat/conversations
 
 Fetch user conversation history list.
 

@@ -1,4 +1,5 @@
 name: askmiao-local
+
 services:
   postgres:
     image: postgres:17.9
@@ -21,24 +22,10 @@ services:
       start_period: 20s
     networks:
       - askmiao-net
-  redis:
-    image: redis:latest
-    restart: unless-stopped
-    command: [ "redis-server", "--appendonly", "yes" ]
-    ports:
-      - "7967:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
-      interval: 10s
-      timeout: 3s
-      retries: 10
-    networks:
-      - askmiao-net
+
 volumes:
   postgres_data:
-  redis_data:
+
 networks:
   askmiao-net:
     driver: bridge

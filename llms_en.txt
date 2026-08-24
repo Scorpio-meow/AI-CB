@@ -2,31 +2,46 @@
 
 [Traditional Chinese](llms.txt) | [English](llms_en.txt)
 
-> An intelligent conversational and multi-Agent collaboration system powered by Contextual Hybrid RAG (Retrieval-Augmented Generation) technology.
+> An enterprise-grade intelligent knowledge-base conversational system powered by Contextual Hybrid RAG (Retrieval-Augmented Generation) and Agentic Autonomous Research architectures.
 
 ## Core File Map & System Architecture
 
-- [backend/main.py](backend/main.py): FastAPI entry point and route registration
-- [backend/app/core/security_logging.py](backend/app/core/security_logging.py): Security logging system, recursive object masking, and regex redaction
-- [backend/app/core/jwt_auth.py](backend/app/core/jwt_auth.py): RSA-2048 JWT signing, token verification, and Redis blacklist revocation
-- [backend/app/rag/contextual_rag.py](backend/app/rag/contextual_rag.py): Contextual Hybrid RAG retriever (FAISS vector search + Whoosh BM25 keyword search + Cross-Encoder re-ranking)
-- [backend/app/api/auth.py](backend/app/api/auth.py): Authentication RESTful API endpoints (register, login, refresh, profile, logout)
-- [backend/app/api/chat.py](backend/app/api/chat.py): Chat and RAG query endpoints
-- [backend/app/services/workflow_service.py](backend/app/services/workflow_service.py): Multi-Agent collaboration workflow & WebSocket real-time broadcast service
-- [frontend/src/App.jsx](frontend/src/App.jsx): React top-level routing and layout setup
-- [frontend/src/pages/DiscussionBoard.jsx](frontend/src/pages/DiscussionBoard.jsx): Multi-Agent discussion board with React Flow interactive graph
+- [backend/main.py](backend/main.py): FastAPI entry point, CORS, and global middleware registration
+- [backend/app/rag/agent.py](backend/app/rag/agent.py): ReAct autonomous ResearchAgent with multi-turn tool calling and trace logging
+- [backend/app/rag/tools.py](backend/app/rag/tools.py): ResearchToolRegistry (Internal RAG, DuckDuckGo/Ollama web search, and deep web fetch)
+- [backend/app/rag/pipeline.py](backend/app/rag/pipeline.py): Context builder, document chunking & embedding, and agent integration
+- [backend/app/rag/contextual_rag.py](backend/app/rag/contextual_rag.py): HybridContextualRAG facade module
+- [backend/app/rag/indices/vector_store.py](backend/app/rag/indices/vector_store.py): FAISS dense vector indexing and similarity search
+- [backend/app/rag/indices/bm25_store.py](backend/app/rag/indices/bm25_store.py): Whoosh BM25 keyword search index
+- [backend/app/rag/retrievers/hybrid.py](backend/app/rag/retrievers/hybrid.py): Hybrid search combiner and Cross-Encoder re-ranker
+- [backend/app/core/llm_client.py](backend/app/core/llm_client.py): Unified LLM client (Azure OpenAI v1 / OpenAI / Claude / Gemini / Ollama)
+- [backend/app/core/jwt_auth.py](backend/app/core/jwt_auth.py): RSA-2048 JWT signing, token verification, and revocation
+- [backend/app/core/security_logging.py](backend/app/core/security_logging.py): Two-layer sensitive data redaction logging system
+- [backend/app/api/chat.py](backend/app/api/chat.py): Chat, autonomous research, and available models API endpoints
+- [backend/app/api/documents.py](backend/app/api/documents.py): Knowledge document upload, indexing, and management endpoints
+- [frontend/src/App.jsx](frontend/src/App.jsx): React 19 top-level routes and global layout
+- [frontend/src/pages/Chat/index.tsx](frontend/src/pages/Chat/index.tsx): Main chat page, model selection & reasoning effort controller
+- [frontend/src/pages/Chat/ResearchTraceBlock.tsx](frontend/src/pages/Chat/ResearchTraceBlock.tsx): Collapsible research trace timeline component
+- [frontend/src/pages/Chat/SourceBadges.tsx](frontend/src/pages/Chat/SourceBadges.tsx): Interactive reference source badge component
 
-## Key Architectural Concepts & Invariants
+## Key Architectural Invariants & Concepts
 
-1. **Contextual Hybrid RAG Pipeline**: Combines FAISS dense vector search with Whoosh BM25 sparse keyword search, re-ranked dynamically via `bge-reranker-base` to feed high-precision contexts to LLM.
-2. **Dual-Token Security Architecture**: Access Tokens (30-min expiration) paired with HttpOnly Refresh Cookies (7-day expiration) backed by Redis JTI blacklist revocation.
-3. **Multi-Agent Collaboration Workflow**: Uses React Flow graph and WebSockets to orchestrate turn-taking and consensus across multiple specialized AI Agents.
-4. **System-Wide Security Redaction**: Mandatory two-layer masking (object-level and string regex filter). Passwords and bearer tokens MUST appear as `[REDACTED]` in logs.
-5. **Frontend Toolchain & Guidelines**: Built on React 19 + Vite 7. Bun is preferred for package management and script execution.
+1. **Agentic RAG Pipeline**:
+   - ReAct research pattern where the model dynamically calls internal knowledge search, live web search, or deep web scraping.
+   - Every response provides structured `research_trace` (steps, tools, parameters, durations, summaries) and clickable `sources_detail`.
+2. **Reasoning Effort Multi-Tier Selection**:
+   - Supports 5 depth tiers: `none`, `low`, `medium`, `high`, and `xhigh` forwarded to Azure OpenAI v1 / OpenAI reasoning models.
+   - Enforces Microsoft Foundry tool-call compatibility rules.
+3. **Contextual Hybrid Retrieval**:
+   - FAISS dense vector search and Whoosh BM25 sparse keyword search combined and re-ranked via Cross-Encoder for high precision.
+4. **System-Wide Security Redaction**:
+   - Recursive object masking and regex-based string redaction. Passwords and bearer tokens MUST appear as `[REDACTED]` in logs.
+5. **Modern Lightweight Stack**:
+   - Zero-dependency local setup with built-in SQLite, React 19 + Vite 7 frontend built with Bun.
 
 ## Documentation Index
 
-- [API Reference](docs/api_en.md): RESTful endpoints, JSON request/response schemas, and WebSocket specs
-- [Architecture & Design](docs/architecture_en.md): High-level system modules, RAG pipeline, dual-token lifecycle, and security design
-- [Architecture Decision Records (ADR)](docs/adr/README_en.md): Project architecture evolution and design trade-offs
+- [API Reference](docs/api_en.md): RESTful endpoints, JSON schemas, and parameters
+- [Architecture & Design](docs/architecture_en.md): High-level system modules, Agentic RAG pipeline, and security design
+- [Architecture Decision Records (ADR)](docs/adr/README_en.md): Project architecture evolution and trade-offs
 - [Changelog](CHANGELOG_en.md): Version release history

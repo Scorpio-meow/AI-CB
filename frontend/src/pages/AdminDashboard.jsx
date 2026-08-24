@@ -183,7 +183,7 @@ function AdminDashboard() {
   };
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" height="50vh">
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
         <CircularProgress />
       </Box>
     );
@@ -200,10 +200,10 @@ function AdminDashboard() {
       )}
       { }
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent>
-              <Box display="flex" alignItems="center">
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <PeopleIcon color="primary" sx={{ mr: 2 }} />
                 <Box>
                   <Typography variant="h6">{statistics?.users?.total || 0}</Typography>
@@ -213,10 +213,10 @@ function AdminDashboard() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent>
-              <Box display="flex" alignItems="center">
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <ChatIcon color="primary" sx={{ mr: 2 }} />
                 <Box>
                   <Typography variant="h6">{statistics?.conversations?.total || 0}</Typography>
@@ -226,10 +226,10 @@ function AdminDashboard() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent>
-              <Box display="flex" alignItems="center">
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <DocumentIcon color="primary" sx={{ mr: 2 }} />
                 <Box>
                   <Typography variant="h6">{statistics?.documents?.total || 0}</Typography>
@@ -239,10 +239,10 @@ function AdminDashboard() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent>
-              <Box display="flex" alignItems="center">
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <TrendingUpIcon color="primary" sx={{ mr: 2 }} />
                 <Box>
                   <Typography variant="h6">{statistics?.messages?.recent_7_days || 0}</Typography>

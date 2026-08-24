@@ -165,11 +165,11 @@ Authorization: Bearer <access_token>
 
 ---
 
-## 2. 對話與 RAG 檢索模組 (Chat & RAG)
+## 2. 對話與 Agentic RAG 自主研究模組 (Chat & Research)
 
 ### 2.1 POST /api/chat/send
 
-發送單次對話訊息並取得 RAG 增強生成回應。
+發送對話訊息，啟動 ReAct 自主研究 Agent 執行多輪工具調用與知識檢索生成。
 
 **請求標頭 (Headers):**
 
@@ -182,38 +182,78 @@ Content-Type: application/json
 
 | 欄位名稱 | 型態 | 必填 | 說明 | 預設值 |
 |---|---|---|---|---|
-| message | string | 是 | 用戶提問內容 | - |
-| conversation_id | integer | 否 | 對話紀錄 ID | null |
-| model_name | string | 否 | 指定使用的 LLM 模型名稱 | 預設系統模型 |
-| use_rag | boolean | 否 | 是否啟用 RAG 混合檢索 | true |
+| `content` | string | 是 | 用戶提問或對話內容 | - |
+| `conversation_id` | integer | 否 | 對話紀錄 ID（若為新對話則傳入 null） | null |
+| `model_name` | string | 否 | 指定使用的 LLM 模型名稱（如 `gpt-5.6-luna`, `gemma4:26b`） | 系統預設模型 |
+| `reasoning_effort` | string | 否 | 模型思考與推理程度 (`none`, `low`, `medium`, `high`, `xhigh`) | `medium` |
 
-**回應結果:**
+**回應結果 (ChatResponse):**
 
 - **200 OK**: 成功生成回應。
 
 ```json
 {
   "conversation_id": 42,
-  "answer": "根據公司規章，特休假排定應於二週前提出申請...",
-  "sources": [
-    {
-      "source": "員工手冊2026.pdf",
-      "chunk_index": 3,
-      "score": 0.89
-    }
-  ],
-  "retrieval_time": 0.045,
-  "generation_time": 1.230,
-  "total_time": 1.275,
-  "from_cache": false
+  "message": {
+    "id": 108,
+    "content": "MiTAC Agent Builder 是神通資訊科技所開發的企業級 Agentic AI 構建平台...",
+    "is_user": false,
+    "created_at": "2026-08-24T18:04:07Z",
+    "model_name": "gpt-5.6-luna",
+    "reasoning_effort": "medium",
+    "sources": [
+      "https://example.com/mitac-agent-builder",
+      "公司規章手冊.pdf"
+    ],
+    "sources_detail": [
+      {
+        "source": "https://example.com/mitac-agent-builder",
+        "title": "MiTAC Agent Builder 官方簡介",
+        "url": "https://example.com/mitac-agent-builder",
+        "snippet": "MiTAC Agent Builder 支援多 Agent 協作..."
+      }
+    ],
+    "research_trace": [
+      {
+        "step": 1,
+        "tool": "web_search",
+        "arguments": {
+          "query": "MiTAC Agent Builder 是什麼"
+        },
+        "output_preview": "檢索到 5 條外部結果...",
+        "duration_seconds": 1.25,
+        "status": "success"
+      }
+    ]
+  }
 }
 ```
 
 ---
 
-### 2.2 GET /api/chat/history
+### 2.2 GET /api/chat/models
 
-查詢歷史對話紀錄清單。
+取得系統當前所有可用之語言模型清單與預設模型。
+
+**回應結果:**
+
+- **200 OK**: 成功回傳可用模型。
+
+```json
+{
+  "models": [
+    "gpt-5.6-luna",
+    "gpt-5.6-terra"
+  ],
+  "default": "gpt-5.6-luna"
+}
+```
+
+---
+
+### 2.3 GET /api/chat/conversations
+
+查詢當前用戶的所有歷史對話列表。
 
 **請求標頭 (Headers):**
 
