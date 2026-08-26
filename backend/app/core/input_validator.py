@@ -97,12 +97,18 @@ class InputValidator:
         if '..' in filename or filename.startswith('/') or filename.startswith('\\'):
             return False, "檢測到路徑遍歷攻擊嘗試"
         
-        allowed_extensions = {'.txt', '.pdf', '.docx', '.jpg', '.png', '.gif'}
+        allowed_extensions = {
+            '.txt', '.md', '.markdown', '.pdf', '.docx', '.doc', '.pptx',
+            '.xlsx', '.xls', '.csv', '.json', '.yaml', '.yml', '.xml',
+            '.html', '.htm', '.log', '.py', '.js', '.ts', '.tsx', '.jsx',
+            '.java', '.cpp', '.c', '.sql', '.sh', '.ini', '.env',
+            '.jpg', '.png', '.gif'
+        }
         import os
         ext = os.path.splitext(filename)[1].lower()
         if ext and ext not in allowed_extensions:
             return False, f"不允許的文件類型: {ext}"
-        
+
         return True, ""
     
     @staticmethod

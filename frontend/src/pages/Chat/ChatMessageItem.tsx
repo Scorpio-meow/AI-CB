@@ -1,6 +1,4 @@
 import React, { useMemo } from 'react';
-import { Box, Paper, Typography, IconButton, Tooltip, Avatar } from '@mui/material';
-import { ContentCopy, Person, SmartToyOutlined } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import DOMPurify from 'dompurify';
@@ -8,6 +6,8 @@ import { ChatMessageItemProps } from './types';
 import ThinkBlock from './ThinkBlock';
 import SourceBadges from './SourceBadges';
 import ResearchTraceBlock from './ResearchTraceBlock';
+import { Avatar, Tooltip, IconButton, Spinner, Icon } from '../../components/ui';
+import styles from './ChatMessageItem.module.css';
 
 export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   message,
@@ -17,18 +17,18 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
 }) => {
   const isUser = message.is_user;
 
-  // 解析思考區塊與主要內容
   const { thinkContent, mainContent } = useMemo(() => {
     const rawContent = message.content || '';
     const thinkMatch = rawContent.match(/<think>([\s\S]*?)<\/think>/);
+
     if (thinkMatch) {
-      return {
-        thinkContent: thinkMatch[1].trim(),
-        mainContent: rawContent.replace(/<think>[\s\S]*?<\/think>/, '').trim(),
-      };
+      const think = thinkMatch[1].trim();
+      const content = rawContent.replace(/<think>[\s\S]*?<\/think>/, '').trim();
+      return { thinkContent: think, mainContent: content };
     }
+
     return {
-      thinkContent: '',
+      thinkContent: null,
       mainContent: rawContent,
     };
   }, [message.content]);
@@ -37,59 +37,126 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
     return DOMPurify.sanitize(mainContent);
   }, [mainContent]);
 
+  const traceFromContext = useMemo(() => {
+    if (message.research_trace && message.research_trace.length > 0) {
+      return message.research_trace;
+    }
+    if (message.context_used) {
+      try {
+        const parsed = typeof message.context_used === 'string' ? JSON.parse(message.context_used) : message.context_used;
+        if (parsed && typeof parsed === 'object' && Array.isArray(parsed.research_trace)) {
+          return parsed.research_trace;
+        }
+      } catch {}
+    }
+    return [];
+  }, [message.research_trace, message.context_used]);
+
+  const sourcesFromContext = useMemo(() => {
+    if (message.sources && message.sources.length > 0) {
+      return message.sources;
+    }
+    if (message.context_used) {
+      try {
+        const parsed = typeof message.context_used === 'string' ? JSON.parse(message.context_used) : message.context_used;
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+        if (parsed && typeof parsed === 'object' && Array.isArray(parsed.sources)) {
+          return parsed.sources;
+        }
+      } catch {}
+    }
+    return [];
+  }, [message.sources, message.context_used]);
+
+  const sourcesDetailFromContext = useMemo(() => {
+    if (message.sources_detail && message.sources_detail.length > 0) {
+      return message.sources_detail;
+    }
+    if (message.context_used) {
+      try {
+        const parsed = typeof message.context_used === 'string' ? JSON.parse(message.context_used) : message.context_used;
+        if (parsed && typeof parsed === 'object' && Array.isArray(parsed.sources_detail)) {
+          return parsed.sources_detail;
+        }
+      } catch {}
+    }
+    return [];
+  }, [message.sources_detail, message.context_used]);
+
+  const attachmentsFromContext = useMemo(() => {
+    if (message.attachments && message.attachments.length > 0) {
+      return message.attachments;
+    }
+    if (message.context_used) {
+      try {
+        const parsed = typeof message.context_used === 'string' ? JSON.parse(message.context_used) : message.context_used;
+        if (parsed && typeof parsed === 'object' && Array.isArray(parsed.attachments)) {
+          return parsed.attachments;
+        }
+      } catch {}
+    }
+    return [];
+  }, [message.attachments, message.context_used]);
+
+  const [lightboxImg, setLightboxImg] = React.useState<string | null>(null);
+
+  const hasTrace = traceFromContext.length > 0;
+  const hasText = Boolean(mainContent.trim());
+  const hasAttachments = attachmentsFromContext.length > 0;
+
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: isUser ? 'row-reverse' : 'row',
-        alignItems: 'flex-start',
-        gap: 1.5,
-        mb: 2.5,
-        width: '100%',
-      }}
-    >
+    <div className={`${styles.container} ${isUser ? styles.userContainer : ''}`}>
       <Avatar
-        sx={{
-          width: 36,
-          height: 36,
-          bgcolor: isUser ? '#2563EB' : '#EEF2F6',
-          color: isUser ? '#FFFFFF' : '#2563EB',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
-          border: isUser ? 'none' : '1px solid #E2E8F0',
-        }}
+        size={36}
+        className={isUser ? styles.avatarUser : styles.avatarBot}
       >
-        {isUser ? <Person fontSize="small" /> : <SmartToyOutlined fontSize="small" />}
+        <Icon name={isUser ? 'person' : 'bot'} size={18} />
       </Avatar>
 
-      <Box
-        sx={{
-          maxWidth: { xs: '85%', sm: '78%', md: '72%' },
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: isUser ? 'flex-end' : 'flex-start',
-        }}
+      <div
+        className={`${styles.contentWrapper} ${isUser ? styles.alignEnd : styles.alignStart}`}
       >
-        <Paper
-          elevation={isUser ? 2 : 1}
-          sx={{
-            p: 2,
-            borderRadius: isUser ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
-            backgroundColor: isUser ? '#2563EB' : '#FFFFFF',
-            color: isUser ? '#FFFFFF' : '#1E293B',
-            border: isUser ? 'none' : '1px solid #E2E8F0',
-            boxShadow: isUser
-              ? '0 4px 12px rgba(37, 99, 235, 0.2)'
-              : '0 2px 8px rgba(0, 0, 0, 0.04)',
-            overflowWrap: 'break-word',
-            wordBreak: 'break-word',
-          }}
+        <div
+          className={`${styles.bubble} ${isUser ? styles.bubbleUser : styles.bubbleBot}`}
         >
-          {/* AI 自主研究歷程折疊卡片 */}
-          {!isUser && message.research_trace && message.research_trace.length > 0 && (
-            <ResearchTraceBlock trace={message.research_trace} />
+          {/* 訊息附件展示 */}
+          {hasAttachments && (
+            <div className={styles.attachmentGallery}>
+              {attachmentsFromContext.map((att: any, idx: number) => {
+                const isImg = att.file_type?.startsWith('image/') || Boolean(att.data_url?.startsWith('data:image/'));
+                if (isImg && att.data_url) {
+                  return (
+                    <img
+                      key={idx}
+                      src={att.data_url}
+                      alt={att.filename || '圖片'}
+                      className={styles.messageImage}
+                      onClick={() => setLightboxImg(att.data_url)}
+                      title="點擊放大圖片"
+                    />
+                  );
+                }
+                const ext = (att.filename || '').split('.').pop()?.toUpperCase() || 'FILE';
+                return (
+                  <div key={idx} className={styles.messageFileCard}>
+                    <span className={styles.fileBadge}>{ext}</span>
+                    <span>{att.filename}</span>
+                  </div>
+                );
+              })}
+            </div>
           )}
 
-          {/* 思考區塊 */}
+          {!isUser && hasTrace && (
+            <ResearchTraceBlock
+              trace={traceFromContext}
+              hasContent={hasText}
+              isStreaming={!message.id || Number(message.id) > 1000000000}
+            />
+          )}
+
           {!isUser && thinkContent && (
             <ThinkBlock
               thinkContent={thinkContent}
@@ -99,95 +166,58 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
           )}
 
           {isUser ? (
-            <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
-              {mainContent}
-            </Typography>
-          ) : (
-            <Box
-              sx={{
-                '& p': { m: 0, mb: 1, '&:last-child': { mb: 0 }, lineHeight: 1.65 },
-                '& pre': {
-                  backgroundColor: '#0F172A',
-                  color: '#F8FAFC',
-                  p: 1.5,
-                  borderRadius: 1.5,
-                  overflowX: 'auto',
-                  my: 1,
-                },
-                '& code': {
-                  fontFamily: 'monospace',
-                  fontSize: '0.875rem',
-                  backgroundColor: 'rgba(0, 0, 0, 0.05)',
-                  px: 0.6,
-                  py: 0.2,
-                  borderRadius: 0.8,
-                },
-                '& pre code': {
-                  backgroundColor: 'transparent',
-                  p: 0,
-                },
-                '& ul, & ol': { pl: 2.5, my: 0.8 },
-                '& table': {
-                  borderCollapse: 'collapse',
-                  width: '100%',
-                  my: 1.5,
-                },
-                '& th, & td': {
-                  border: '1px solid #CBD5E1',
-                  p: 1,
-                  fontSize: '0.875rem',
-                },
-                '& th': {
-                  backgroundColor: '#F1F5F9',
-                },
-              }}
-            >
+            <div className={styles.userText}>{mainContent}</div>
+          ) : !hasText && !hasTrace ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0', color: 'var(--text-secondary)', fontSize: '13px' }}>
+              <Spinner size={16} color="var(--color-primary)" />
+              <span>AI 正在分析您的問題...</span>
+            </div>
+          ) : hasText ? (
+            <div className={styles.markdownBody}>
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{sanitizedContent}</ReactMarkdown>
-            </Box>
-          )}
+            </div>
+          ) : null}
 
           {!isUser && (
             <SourceBadges
-              sources={message.sources || (message.context_used as any)}
-              sourcesDetail={message.sources_detail}
+              sources={sourcesFromContext}
+              sourcesDetail={sourcesDetailFromContext}
             />
           )}
-        </Paper>
+        </div>
 
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-            mt: 0.5,
-            px: 0.5,
-          }}
-        >
+        {/* 圖片全螢幕燈箱 */}
+        {lightboxImg && (
+          <div className={styles.lightboxOverlay} onClick={() => setLightboxImg(null)}>
+            <img src={lightboxImg} alt="預覽" className={styles.lightboxImage} />
+          </div>
+        )}
+
+        <div className={styles.footer}>
           {message.created_at && (
-            <Typography variant="caption" sx={{ color: '#94A3B8', fontSize: '0.7rem' }}>
+            <span className={styles.timestamp}>
               {new Date(message.created_at).toLocaleTimeString([], {
                 hour: '2-digit',
                 minute: '2-digit',
               })}
-            </Typography>
+            </span>
           )}
 
-          <Tooltip title="複製訊息內容">
-            <IconButton
-              size="small"
-              onClick={() => onCopyMessage(mainContent)}
-              sx={{
-                p: 0.4,
-                color: '#94A3B8',
-                '&:hover': { color: '#2563EB' },
-              }}
-            >
-              <ContentCopy sx={{ fontSize: 14 }} />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      </Box>
-    </Box>
+          {hasText && (
+            <Tooltip title="複製訊息內容">
+              <IconButton
+                size="sm"
+                onClick={() => onCopyMessage(mainContent)}
+                className={styles.copyButton}
+                aria-label="複製訊息內容"
+              >
+                <Icon name="copy" size={14} />
+              </IconButton>
+            </Tooltip>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
 

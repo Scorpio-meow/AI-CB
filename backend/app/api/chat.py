@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from app.models.database import get_db
 from app.models import MessageCreate, MessageResponse, ChatResponse, ConversationResponse
@@ -33,80 +34,129 @@ manager = ConnectionManager()
 async def get_available_models():
     from app.core.llm_client import get_available_models as get_configured_models
     configured_models = get_configured_models()
-    if configured_models:
-        azure_dep = settings.AZURE_OPENAI_DEPLOYMENT.split(',')[0].strip() if settings.AZURE_OPENAI_DEPLOYMENT else None
-        default_model = os.getenv("MODEL_NAME") or azure_dep or configured_models[0]
-        if default_model not in configured_models:
-            default_model = configured_models[0]
-        return {
-            "models": configured_models,
-            "default": default_model
-        }
-        
-    available_models_str = os.getenv("AVAILABLE_MODELS", "gemma4:26b,qwen3.6:27b,glm-5.2,laguna-xs-2.1")
-    models = [model.strip() for model in available_models_str.split(",")]
-    default_model = os.getenv("MODEL_NAME", "gemma4:26b")
-    
+
+    if not configured_models:
+        from app.api.tags import _fetch_remote_models
+        try:
+            remote_models, _ = _fetch_remote_models()
+            if remote_models:
+                configured_models = remote_models
+        except Exception:
+            pass
+
+    azure_dep = settings.AZURE_OPENAI_DEPLOYMENT.split(',')[0].strip() if settings.AZURE_OPENAI_DEPLOYMENT else None
+    default_model = os.getenv("MODEL_NAME") or azure_dep or (configured_models[0] if configured_models else "")
+    if default_model and configured_models and default_model not in configured_models:
+        default_model = configured_models[0]
+
     return {
-        "models": models,
+        "models": configured_models or [],
         "default": default_model
     }
-@router.post("/send", response_model=ChatResponse)
+@router.post("/send")
 async def send_message(
     message_data: MessageCreate,
     db: Session = Depends(get_db),
     user_id: int = Depends(get_current_user_id)
 ):
-    try:
-        user_message = await chat_service.save_message(
-            db,
-            user_id,
-            message_data.content,
-            True,
-            message_data.conversation_id,
-            model_name=message_data.model_name,
-        )
-        
+    user_context = None
+    if message_data.attachments:
+        user_context = json.dumps({
+            "attachments": [att.dict() for att in message_data.attachments]
+        }, ensure_ascii=False)
+
+    user_message = await chat_service.save_message(
+        db,
+        user_id,
+        message_data.content,
+        True,
+        message_data.conversation_id,
+        context_used=user_context,
+        model_name=message_data.model_name,
+    )
+    conv_id = user_message.conversation_id
+
+    async def sse_generator():
+        yield f"event: start\ndata: {json.dumps({'conversation_id': conv_id, 'user_message_id': user_message.id}, ensure_ascii=False)}\n\n"
+
         rag_system = get_rag_system()
-        rag_response = await rag_system.generate_response(
-            message_data.content,
-            user_message.conversation_id,
-            message_data.model_name,
-            user_id,
-            reasoning_effort=message_data.reasoning_effort
-        )
-        
-        # 將 sources 序列化存入 context_used 以利歷史查詢
-        sources_payload = json.dumps(rag_response.get("sources", []), ensure_ascii=False)
-        bot_message = await chat_service.save_message(
-            db,
-            user_id,
-            rag_response["answer"],
-            False,
-            user_message.conversation_id,
-            sources_payload,
-            model_name=message_data.model_name,
-        )
-        
-        return ChatResponse(
-            message=MessageResponse(
-                id=bot_message.id,
-                content=bot_message.content,
-                is_user=bot_message.is_user,
-                created_at=bot_message.created_at,
-                context_used=bot_message.context_used,
-                model_name=getattr(bot_message, "model_name", None),
+        collected_tokens = ""
+        collected_sources = []
+        collected_sources_detail = []
+        collected_research_trace = []
+
+        try:
+            async for event_item in rag_system.generate_response_stream(
+                message_data.content,
+                conv_id,
+                message_data.model_name,
+                user_id,
                 reasoning_effort=message_data.reasoning_effort,
-                sources=rag_response.get("sources", []),
-                sources_detail=rag_response.get("sources_detail", []),
-                research_trace=rag_response.get("research_trace", [])
-            ),
-            conversation_id=user_message.conversation_id
-        )
-        
-    except Exception as e:
-        logger.exception("處理消息時發生錯誤")
-        raise HTTPException(status_code=500, detail="處理消息時發生錯誤: 內部錯誤，請聯繫系統管理員")
+                attachments=message_data.attachments
+            ):
+                ev = event_item.get("event")
+                data = event_item.get("data", {})
+
+                if ev == "step_start":
+                    yield f"event: step_start\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+                elif ev == "step_end":
+                    collected_research_trace.append(data)
+                    yield f"event: step_end\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+                elif ev == "token":
+                    collected_tokens += data.get("content", "")
+                    yield f"event: token\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+                elif ev == "sources":
+                    collected_sources = data.get("sources", [])
+                    collected_sources_detail = data.get("sources_detail", [])
+                    yield f"event: sources\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+                elif ev == "done":
+                    if not collected_tokens:
+                        collected_tokens = data.get("answer", "")
+                    if not collected_sources:
+                        collected_sources = data.get("sources", [])
+                        collected_sources_detail = data.get("sources_detail", [])
+                    if not collected_research_trace:
+                        collected_research_trace = data.get("research_trace", [])
+
+            context_payload = json.dumps({
+                "sources": collected_sources,
+                "sources_detail": collected_sources_detail,
+                "research_trace": collected_research_trace
+            }, ensure_ascii=False)
+            bot_message = await chat_service.save_message(
+                db,
+                user_id,
+                collected_tokens,
+                False,
+                conv_id,
+                context_payload,
+                model_name=message_data.model_name,
+            )
+
+            done_payload = {
+                "message_id": bot_message.id,
+                "conversation_id": conv_id,
+                "answer": collected_tokens,
+                "sources": collected_sources,
+                "sources_detail": collected_sources_detail,
+                "research_trace": collected_research_trace
+            }
+            yield f"event: done\ndata: {json.dumps(done_payload, ensure_ascii=False)}\n\n"
+
+        except Exception as e:
+            logger.exception("處理訊息串流時發生錯誤")
+            err_payload = {"detail": f"處理訊息時發生錯誤: {str(e)}"}
+            yield f"event: error\ndata: {json.dumps(err_payload, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        sse_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 @router.get("/conversations", response_model=List[ConversationResponse])
 async def get_conversations(
     db: Session = Depends(get_db),

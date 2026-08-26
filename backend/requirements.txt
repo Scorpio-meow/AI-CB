@@ -18,7 +18,13 @@ websockets
 requests
 httpx
 pypdf
+pymupdf
+fonttools
 python-docx
+docxtpl
+python-pptx
+openpyxl
+XlsxWriter
 whoosh
 jieba
 filelock

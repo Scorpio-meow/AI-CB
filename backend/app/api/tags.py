@@ -39,10 +39,8 @@ async def get_tags():
         default_model = models[0]
     return {"tags": models, "default": default_model}
 def _load_fallback_models() -> list[str]:
-    available = os.getenv("AVAILABLE_MODELS", "gemma4:26b,qwen3.6:27b,glm-5.2,laguna-xs-2.1")
+    available = os.getenv("AVAILABLE_MODELS", "")
     models = [m.strip() for m in available.split(",") if m.strip()]
-    if not models:
-        models = ["gemma4:26b", "qwen3.6:27b", "glm-5.2", "laguna-xs-2.1"]
     return models
 def _fetch_remote_models() -> tuple[list[str], Optional[str]]:
     custom_url = os.getenv("EXTERNAL_TAGS_URL", "").strip()

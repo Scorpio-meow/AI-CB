@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, AsyncGenerator
 import os
 import time
 import logging
@@ -43,8 +43,12 @@ class RAGPipeline:
 
     def _create_text_splitter(self) -> RecursiveCharacterTextSplitter:
         separators = [
-            "\n\n", "。", "！", "？", "；", "：", "，", ", ", ". ", "! ", "? ",
-            "\n", "。\n", "；\n", "，\n", "。 ", "； ", "， ", " ", ""
+            "\n\n---\n\n",
+            "\n\n",
+            "\n",
+            "。", "！", "？", "；", "：", "，",
+            ". ", "! ", "? ", ", ",
+            " ", ""
         ]
         return RecursiveCharacterTextSplitter(
             chunk_size=self.chunk_size,
@@ -136,9 +140,9 @@ class RAGPipeline:
             messages = [
                 {
                     "role": "system",
-                    "content": """你是神通資訊科技內部的知識型助理，綽號為「通哥」，負責根據用戶問題、對話上下文與檔案片段，產出準確、可追溯的中文回答。
+                    "content": """你是一個具備自主研究能力的智慧知識助理「AskMiao」，負責根據用戶問題、對話上下文與檔案片段，產出準確、客觀且可追溯的繁體中文回答。
 規則：
-1) 以中文回答問題。
+1) 以繁體中文回答問題。
 2) 在回答末尾列出使用到的來源，格式為："[n] 來源名稱 (段落: m)"。若來源未知請標示為「無來源」。
 3) 避免編造事實；若資料不足或為推論，請在回覆中明確標註「推論」或回報「無法確定」，並建議下一步可查詢的關鍵字或資料位置。
 4) 回應中不得包含任何系統內部實作細節、索引 id 或未經驗證的 URL。"""
@@ -262,6 +266,65 @@ class RAGPipeline:
             "total_time": round(time.time() - start_time, 2),
             "retrieval_strategy": research_result.get("retrieval_strategy", "agentic_research")
         }
+
+    async def generate_response_stream(
+        self,
+        query: str,
+        conversation_id: Optional[int] = None,
+        model_name: Optional[str] = None,
+        user_id: Optional[int] = None,
+        reasoning_effort: Optional[str] = "medium",
+        attachments: Optional[List[Any]] = None
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """非同步生成器：向 API 層提供研究步驟與回答文字串流"""
+        history_msgs = []
+        if conversation_id is not None:
+            key = f"{user_id}:{conversation_id}" if user_id is not None else f"{conversation_id}"
+            if key in self.context_memory:
+                for item in self.context_memory[key]:
+                    if item.get("user"):
+                        history_msgs.append({"role": "user", "content": item.get("user")})
+                    if item.get("assistant"):
+                        history_msgs.append({"role": "assistant", "content": item.get("assistant")})
+
+        final_answer = ""
+        final_sources = []
+
+        async for event_item in self.agent.stream_research(
+            query=query,
+            model_name=model_name or self.model_name,
+            conversation_history=history_msgs,
+            reasoning_effort=reasoning_effort,
+            attachments=attachments,
+            max_turns=5
+        ):
+            ev = event_item.get("event")
+            data = event_item.get("data", {})
+            if ev == "token":
+                final_answer += data.get("content", "")
+            elif ev == "sources":
+                final_sources = data.get("sources", [])
+            elif ev == "done":
+                if not final_answer:
+                    final_answer = data.get("answer", "")
+                if not final_sources:
+                    final_sources = data.get("sources", [])
+
+            yield event_item
+
+        # 寫入上下文記憶體
+        if conversation_id is not None and final_answer:
+            key = f"{user_id}:{conversation_id}" if user_id is not None else f"{conversation_id}"
+            if key not in self.context_memory:
+                self.context_memory[key] = []
+            self.context_memory[key].append({
+                "user": query,
+                "assistant": final_answer,
+                "timestamp": time.time(),
+                "sources": final_sources,
+            })
+            if len(self.context_memory[key]) > 10:
+                self.context_memory[key] = self.context_memory[key][-10:]
 
     def clear_conversation_context(self, conversation_id: int, user_id: Optional[int] = None) -> None:
         key = f"{user_id}:{conversation_id}" if user_id is not None else f"{conversation_id}"

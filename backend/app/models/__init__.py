@@ -52,6 +52,7 @@ class Document(Base):
     filename = Column(String)
     content = Column(Text)
     file_type = Column(String)
+    description = Column(Text, nullable=True)
     uploaded_by = Column(Integer, ForeignKey("users.id"), index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     is_processed = Column(Boolean, default=False)
@@ -70,11 +71,19 @@ class UserResponse(BaseModel):
     is_admin: bool
     created_at: datetime
 
+class FileAttachment(BaseModel):
+    filename: str
+    file_type: str
+    file_size: Optional[int] = None
+    data_url: Optional[str] = None  # Base64 Data URL (如 data:image/png;base64,...)
+    content: Optional[str] = None   # 預先抽取或解析後的文本內容
+
 class MessageCreate(BaseModel):
     content: str
     conversation_id: Optional[int] = None
     model_name: Optional[str] = None
     reasoning_effort: Optional[str] = "medium"
+    attachments: Optional[List[FileAttachment]] = []
 
 class MessageResponse(BaseModel):
     id: int
@@ -84,6 +93,7 @@ class MessageResponse(BaseModel):
     context_used: Optional[str] = None
     model_name: Optional[str] = None
     reasoning_effort: Optional[str] = None
+    attachments: Optional[List[FileAttachment]] = None
     sources: Optional[List[str]] = None
     sources_detail: Optional[List[Dict[str, Any]]] = None
     research_trace: Optional[List[Dict[str, Any]]] = None

@@ -22,3 +22,4 @@ frontend/.env
 .pytest_cache
 *.db
 backend/*.db
+backend/chatbot.db

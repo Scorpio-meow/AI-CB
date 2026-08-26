@@ -20,11 +20,11 @@
 
 ### 環境要求
 
-| 組件名稱 | 最低版本要求 | 建議工具與用途說明 |
-|---|---|---|
-| Python | 3.10 或更高版本 | 後端 FastAPI 伺服器、RAG 向量索引與 Agentic 自主研究引擎 |
-| Bun | 1.0 或更高版本 | 前端優先使用之套件管理與建構打包工具 |
-| SQLite | 3.x（Python 內建） | 預設關聯式資料庫，支援零依賴即時啟動 |
+| 組件名稱 | 最低版本要求　　　 | 建議工具與用途說明　　　　　　　　　　　　　　　　　　　 |
+| ----------| --------------------| ----------------------------------------------------------|
+| Python　 | 3.10 或更高版本　　| 後端 FastAPI 伺服器、RAG 向量索引與 Agentic 自主研究引擎 |
+| Bun　　　| 1.0 或更高版本　　 | 前端優先使用之套件管理與建構打包工具　　　　　　　　　　 |
+| SQLite　 | 3.x（Python 內建） | 預設關聯式資料庫，支援零依賴即時啟動　　　　　　　　　　 |
 
 ### 1. 複製專案倉庫
 
@@ -39,7 +39,7 @@ cd AskMiao
 cd backend
 
 # 建立並啟用 Python 虛擬環境
-python -m venv .venv
+py -m venv .venv
 
 # Windows PowerShell 啟用：
 .\.venv\Scripts\Activate.ps1
@@ -53,10 +53,10 @@ pip install -r requirements.txt
 cp .env.example .env
 
 # 初始化資料庫表格與管理員帳號
-python init_db.py
+py init_db.py
 
 # 啟動 FastAPI 開發伺服器 (Port 8001)
-python -m uvicorn main:app --reload --host 0.0.0.0 --port 8001
+py main.py
 ```
 
 ### 3. 前端服務設定與啟動 (使用 Bun)

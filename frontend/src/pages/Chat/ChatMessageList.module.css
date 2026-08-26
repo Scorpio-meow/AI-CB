@@ -1,0 +1,98 @@
+.container {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 600px) {
+  .container {
+    padding: var(--space-6);
+  }
+}
+
+.loadMoreContainer {
+  display: flex;
+  justify-content: center;
+  margin: var(--space-3) 0;
+}
+
+.emptyContainer {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-10) var(--space-4);
+}
+
+.emptyCard {
+  padding: var(--space-8);
+  max-width: 480px;
+  border-radius: var(--radius-xl);
+  border: 1px dashed var(--border-strong);
+  background-color: var(--bg-surface-secondary);
+}
+
+.emptyIcon {
+  margin: 0 auto var(--space-4);
+  color: var(--color-primary);
+}
+
+.emptyTitle {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.emptyDesc {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-6);
+  line-height: var(--line-height-relaxed);
+  font-size: var(--font-size-sm);
+}
+
+.suggestPrompts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.suggestTitle {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  font-weight: var(--font-weight-semibold);
+  text-align: left;
+}
+
+.suggestList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.loadingRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.loadingBubble {
+  padding: var(--space-4);
+  border-radius: 4px 16px 16px 16px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  box-shadow: var(--shadow-sm);
+}
+
+.loadingText {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}

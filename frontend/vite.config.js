@@ -38,9 +38,6 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks(id) {
             if (id.includes('node_modules')) {
-              if (id.includes('@mui') || id.includes('@emotion')) {
-                return 'mui';
-              }
               if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
                 return 'vendor';
               }
@@ -69,10 +66,6 @@ export default defineConfig(({ mode }) => {
         'react',
         'react-dom',
         'react-router-dom',
-        '@mui/material',
-        '@mui/material/styles',
-        '@emotion/react',
-        '@emotion/styled',
         'axios'
       ],
     },

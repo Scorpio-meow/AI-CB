@@ -1,0 +1,88 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
+  padding: 4px 10px;
+  background-color: var(--bg-surface-secondary);
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  user-select: none;
+  white-space: nowrap;
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  background-color: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.sizeSm {
+  padding: 2px 6px;
+  font-size: 11px;
+}
+
+.sizeMd {
+  padding: 4px 10px;
+  font-size: var(--font-size-xs);
+}
+
+.primary {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary-text);
+  border-color: rgba(37, 99, 235, 0.2);
+}
+
+.success {
+  background-color: var(--color-success-bg);
+  color: var(--color-success);
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.warning {
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+.error {
+  background-color: var(--color-error-bg);
+  color: var(--color-error);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.info {
+  background-color: var(--color-info-bg);
+  color: var(--color-info);
+  border-color: rgba(2, 132, 199, 0.2);
+}
+
+.outlined {
+  background-color: transparent;
+  border-color: var(--border-strong);
+}
+
+.deleteButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin-left: 2px;
+  color: currentColor;
+  opacity: 0.6;
+  cursor: pointer;
+  border-radius: var(--radius-full);
+}
+
+.deleteButton:hover {
+  opacity: 1;
+}

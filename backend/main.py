@@ -8,7 +8,9 @@ from app.core.lifespan import lifespan
 from app.middleware import setup_middlewares
 from app.api import chat, admin, documents, tags as tags_router, auth
 
-os.makedirs('logs', exist_ok=True)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+os.makedirs(LOGS_DIR, exist_ok=True)
 log_level = settings.LOG_LEVEL.upper()
 logging.basicConfig(
     level=getattr(logging, log_level),
@@ -16,7 +18,7 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler('logs/app.log', encoding='utf-8')
+        logging.FileHandler(os.path.join(LOGS_DIR, 'app.log'), encoding='utf-8')
     ]
 )
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
@@ -65,8 +67,25 @@ def create_app():
 
 
 if __name__ == "__main__":
-    host = settings.HOST
-    port = settings.PORT
-    reload_flag = settings.RELOAD
-    
-    uvicorn.run("main:app", host=host, port=port, reload=reload_flag)
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run AskMiao ChatBot Backend API Server")
+    parser.add_argument("--host", type=str, default=settings.HOST, help=f"Host address (default: {settings.HOST})")
+    parser.add_argument("--port", type=int, default=settings.PORT, help=f"Port number (default: {settings.PORT})")
+    parser.add_argument("--reload", action=argparse.BooleanOptionalAction, default=settings.RELOAD, help="Enable/disable auto-reload (default: enabled)")
+    args = parser.parse_args()
+
+    reload_dirs = [os.path.join(BASE_DIR, "app")]
+    reload_excludes = [
+        "*.log", "*.db", "*.bin", "*.pkl", "*.sqlite*",
+        "data", "logs", "data/*", "logs/*", "data/**", "logs/**"
+    ]
+    uvicorn.run(
+        "main:app",
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
+        reload_dirs=reload_dirs if args.reload else None,
+        reload_excludes=reload_excludes if args.reload else None,
+        app_dir=BASE_DIR
+    )

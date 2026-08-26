@@ -1,27 +1,18 @@
 import { useState } from 'react';
+import { useAuth } from '../hooks/useAuth';
 import {
-  Container,
-  Box,
-  Card,
-  CardContent,
-  Typography,
   TextField,
   Button,
   Alert,
-  CircularProgress,
-  Divider,
   Chip,
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
-} from '@mui/material';
-import {
-  Person as PersonIcon,
-  Lock as LockIcon,
-  AdminPanelSettings as AdminIcon
-} from '@mui/icons-material';
-import { useAuth } from '../hooks/useAuth';
+  DialogActions,
+  Spinner,
+  Icon
+} from '../components/ui';
+import styles from './ProfilePage.module.css';
 const ProfilePage = () => {
   const { user, loading, logout, changePassword } = useAuth();
   const [localLoading, setLocalLoading] = useState(false);
@@ -68,155 +59,119 @@ const ProfilePage = () => {
   };
   if (loading) {
     return (
-      <Container>
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-          <CircularProgress />
-        </Box>
-      </Container>
+      <div className={styles.container} style={{ display: 'flex', justifyContent: 'center', padding: '64px 0' }}>
+        <Spinner size={36} color="var(--color-primary)" />
+      </div>
     );
   }
   if (!user) {
     return (
-      <Container>
+      <div className={styles.container}>
         <Alert severity="error">無法載入用戶資料</Alert>
-      </Container>
+      </div>
     );
   }
   return (
-    <Container maxWidth="md">
-      <Box sx={{ py: 4 }}>
-        { }
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h4" gutterBottom>
-            <PersonIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-            用戶資料
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            管理您的帳號資訊和安全設定
-          </Typography>
-        </Box>
-        { }
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
-            {error}
-          </Alert>
-        )}
-        {success && (
-          <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>
-            {success}
-          </Alert>
-        )}
-        { }
-        <Card elevation={2} sx={{ mb: 3 }}>
-          <CardContent sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-              <Typography variant="h6" sx={{ flexGrow: 1 }}>
-                基本資訊
-              </Typography>
-              {user.is_admin && (
-                <Chip
-                  icon={<AdminIcon />}
-                  label="管理員"
-                  color="primary"
-                  size="small"
-                />
+    <div className={styles.container}>
+      <div className={styles.header}>
+        <h1 className={styles.title}>
+          <Icon name="person" size={28} />
+          <span>用戶資料</span>
+        </h1>
+        <p className={styles.subtitle}>管理您的帳號資訊和安全設定</p>
+      </div>
+      {error && (
+        <Alert severity="error" style={{ marginBottom: '16px' }} onClose={() => setError('')}>
+          {error}
+        </Alert>
+      )}
+      {success && (
+        <Alert severity="success" style={{ marginBottom: '16px' }} onClose={() => setSuccess('')}>
+          {success}
+        </Alert>
+      )}
+      <div className={styles.card}>
+        <div className={styles.cardHeader}>
+          <h2 className={styles.cardTitle}>基本資訊</h2>
+          {user.is_admin && (
+            <Chip
+              icon={<Icon name="admin" size={14} />}
+              label="管理員"
+              color="primary"
+              size="sm"
+            />
+          )}
+        </div>
+        <div className={styles.infoGrid}>
+          <div className={styles.infoItem}>
+            <span className={styles.infoLabel}>用戶名</span>
+            <span className={styles.infoValue}>{user.username}</span>
+          </div>
+          <div className={styles.infoItem}>
+            <span className={styles.infoLabel}>電子郵件</span>
+            <span className={styles.infoValue}>{user.email}</span>
+          </div>
+          <div className={styles.infoItem}>
+            <span className={styles.infoLabel}>角色</span>
+            <span className={styles.infoValue}>{user.role}</span>
+          </div>
+          <div className={styles.infoItem}>
+            <span className={styles.infoLabel}>帳號狀態</span>
+            <div>
+              {user.is_active ? (
+                <Chip label="已啟用" color="success" size="sm" />
+              ) : (
+                <Chip label="已停用" color="error" size="sm" />
               )}
-            </Box>
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="caption" color="text.secondary">
-                用戶名
-              </Typography>
-              <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                {user.username}
-              </Typography>
-            </Box>
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="caption" color="text.secondary">
-                電子郵件
-              </Typography>
-              <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                {user.email}
-              </Typography>
-            </Box>
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="caption" color="text.secondary">
-                角色
-              </Typography>
-              <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                {user.role}
-              </Typography>
-            </Box>
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="caption" color="text.secondary">
-                帳號狀態
-              </Typography>
-              <Box sx={{ mt: 0.5 }}>
-                {user.is_active ? (
-                  <Chip label="已啟用" color="success" size="small" />
-                ) : (
-                  <Chip label="已停用" color="error" size="small" />
-                )}
-              </Box>
-            </Box>
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="caption" color="text.secondary">
-                註冊時間
-              </Typography>
-              <Typography variant="body1">
-                {new Date(user.created_at).toLocaleString('zh-TW')}
-              </Typography>
-            </Box>
-            {user.last_login && (
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  最後登入
-                </Typography>
-                <Typography variant="body1">
-                  {new Date(user.last_login).toLocaleString('zh-TW')}
-                </Typography>
-              </Box>
-            )}
-          </CardContent>
-        </Card>
-        { }
-        <Card elevation={2} sx={{ mb: 3 }}>
-          <CardContent sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              <LockIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-              安全設定
-            </Typography>
-            <Divider sx={{ my: 2 }} />
-            <Button
-              variant="outlined"
-              startIcon={<LockIcon />}
-              onClick={() => setPasswordDialog(true)}
-              fullWidth
-            >
-              修改密碼
-            </Button>
-          </CardContent>
-        </Card>
-        { }
+            </div>
+          </div>
+          <div className={styles.infoItem}>
+            <span className={styles.infoLabel}>註冊時間</span>
+            <span className={styles.infoValue}>
+              {new Date(user.created_at).toLocaleString('zh-TW')}
+            </span>
+          </div>
+          {user.last_login && (
+            <div className={styles.infoItem}>
+              <span className={styles.infoLabel}>最後登入</span>
+              <span className={styles.infoValue}>
+                {new Date(user.last_login).toLocaleString('zh-TW')}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className={styles.card}>
+        <h2 className={styles.cardTitle} style={{ marginBottom: '16px' }}>
+          <Icon name="lock" size={20} />
+          <span>安全設定</span>
+        </h2>
         <Button
-          variant="contained"
-          color="error"
+          variant="outline"
+          startIcon={<Icon name="lock" size={16} />}
+          onClick={() => setPasswordDialog(true)}
           fullWidth
-          onClick={handleLogout}
-          size="large"
         >
-          登出
+          修改密碼
         </Button>
-        { }
-        <Dialog
-          open={passwordDialog}
-          onClose={() => setPasswordDialog(false)}
-          maxWidth="sm"
-          fullWidth
-          disableRestoreFocus
-          aria-labelledby="change-password-dialog-title"
-        >
-          <DialogTitle id="change-password-dialog-title">修改密碼</DialogTitle>
-          <DialogContent>
+      </div>
+      <Button
+        variant="danger"
+        fullWidth
+        onClick={handleLogout}
+        size="lg"
+      >
+        登出
+      </Button>
+      <Dialog
+        open={passwordDialog}
+        onClose={() => setPasswordDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>修改密碼</DialogTitle>
+        <DialogContent>
+          <div className={styles.dialogForm}>
             <TextField
               fullWidth
               label="當前密碼"
@@ -225,7 +180,6 @@ const ProfilePage = () => {
               onChange={(e) =>
                 setPasswordData({ ...passwordData, currentPassword: e.target.value })
               }
-              margin="normal"
             />
             <TextField
               fullWidth
@@ -235,7 +189,6 @@ const ProfilePage = () => {
               onChange={(e) =>
                 setPasswordData({ ...passwordData, newPassword: e.target.value })
               }
-              margin="normal"
               helperText="至少 8 個字符,包含大小寫字母和數字"
             />
             <TextField
@@ -246,22 +199,24 @@ const ProfilePage = () => {
               onChange={(e) =>
                 setPasswordData({ ...passwordData, confirmPassword: e.target.value })
               }
-              margin="normal"
             />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setPasswordDialog(false)}>取消</Button>
-            <Button
-              onClick={handleChangePassword}
-              variant="contained"
-              disabled={localLoading}
-            >
-              {localLoading ? <CircularProgress size={24} /> : '確認修改'}
-            </Button>
-          </DialogActions>
-        </Dialog>
-      </Box>
-    </Container>
+          </div>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="secondary" onClick={() => setPasswordDialog(false)}>
+            取消
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleChangePassword}
+            disabled={localLoading}
+            loading={localLoading}
+          >
+            確認修改
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </div>
   );
 };
 export default ProfilePage;

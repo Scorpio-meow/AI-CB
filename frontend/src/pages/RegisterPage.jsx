@@ -1,31 +1,8 @@
-
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import {
-  Container,
-  Box,
-  Card,
-  CardContent,
-  TextField,
-  Button,
-  Typography,
-  Alert,
-  CircularProgress,
-  InputAdornment,
-  IconButton,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText
-} from '@mui/material';
-import {
-  Visibility,
-  VisibilityOff,
-  PersonAdd as RegisterIcon,
-  Check,
-  Close
-} from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
+import { TextField, Button, Alert, IconButton, Icon } from '../components/ui';
+import styles from './Auth.module.css';
 const RegisterPage = () => {
   const navigate = useNavigate();
   const { register, loading, error: authError } = useAuth();
@@ -79,233 +56,131 @@ const RegisterPage = () => {
   const error = localError || authError;
   if (success) {
     return (
-      <Container maxWidth="sm">
-        <Box
-          sx={{
-            minHeight: '100vh',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-        >
-          <Card elevation={3}>
-            <CardContent sx={{ p: 4, textAlign: 'center' }}>
-              <Check sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
-              <Typography variant="h5" gutterBottom>
-                註冊成功!
-              </Typography>
-              <Typography variant="body1" color="text.secondary">
-                正在跳轉到首頁...
-              </Typography>
-            </CardContent>
-          </Card>
-        </Box>
-      </Container>
+      <div className={styles.container}>
+        <div className={styles.card} style={{ textAlign: 'center' }}>
+          <div style={{ color: 'var(--color-success)', marginBottom: '16px' }}>
+            <Icon name="check-circle" size={64} />
+          </div>
+          <h2 className={styles.title}>註冊成功!</h2>
+          <p className={styles.subtitle}>正在跳轉到首頁...</p>
+        </div>
+      </div>
     );
   }
   return (
-    <Container maxWidth="sm">
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          py: 4
-        }}
-      >
-        <Card elevation={3}>
-          <CardContent sx={{ p: 4 }}>
-            { }
-            <Box sx={{ textAlign: 'center', mb: 3 }}>
-              <RegisterIcon sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} />
-              <Typography variant="h4" component="h1" gutterBottom>
-                創建新帳號
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                填寫以下資料完成註冊
-              </Typography>
-            </Box>
-            { }
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-            )}
-            { }
-            <form onSubmit={handleSubmit}>
-              <TextField
-                fullWidth
-                label="用戶名"
-                name="username"
-                value={formData.username}
-                onChange={handleChange}
-                disabled={loading}
-                margin="normal"
-                autoFocus
-                helperText="3-50 個字符,只能包含字母、數字、下劃線和連字符"
-              />
-              <TextField
-                fullWidth
-                label="電子郵件"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleChange}
-                disabled={loading}
-                margin="normal"
-              />
-              <TextField
-                fullWidth
-                label="密碼"
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                value={formData.password}
-                onChange={handleChange}
-                disabled={loading}
-                margin="normal"
-                slotProps={{
-                  input: {
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          onClick={() => setShowPassword(!showPassword)}
-                          edge="end"
-                        >
-                          {showPassword ? <VisibilityOff /> : <Visibility />}
-                        </IconButton>
-                      </InputAdornment>
-                    )
-                  }
-                }}
-              />
-              <TextField
-                fullWidth
-                label="確認密碼"
-                name="confirmPassword"
-                type={showPassword ? 'text' : 'password'}
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                disabled={loading}
-                margin="normal"
-              />
-              { }
-              {formData.password && (
-                <Box sx={{ mt: 2, mb: 1 }}>
-                  <Typography variant="caption" color="text.secondary" gutterBottom>
-                    密碼要求:
-                  </Typography>
-                  <List dense>
-                    <ListItem disablePadding>
-                      <ListItemIcon sx={{ minWidth: 32 }}>
-                        {passwordRequirements.length ? (
-                          <Check fontSize="small" color="success" />
-                        ) : (
-                          <Close fontSize="small" color="error" />
-                        )}
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={<Typography variant="caption">至少 8 個字符</Typography>}
-                      />
-                    </ListItem>
-                    <ListItem disablePadding>
-                      <ListItemIcon sx={{ minWidth: 32 }}>
-                        {passwordRequirements.uppercase ? (
-                          <Check fontSize="small" color="success" />
-                        ) : (
-                          <Close fontSize="small" color="error" />
-                        )}
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={<Typography variant="caption">包含大寫字母</Typography>}
-                      />
-                    </ListItem>
-                    <ListItem disablePadding>
-                      <ListItemIcon sx={{ minWidth: 32 }}>
-                        {passwordRequirements.lowercase ? (
-                          <Check fontSize="small" color="success" />
-                        ) : (
-                          <Close fontSize="small" color="error" />
-                        )}
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={<Typography variant="caption">包含小寫字母</Typography>}
-                      />
-                    </ListItem>
-                    <ListItem disablePadding>
-                      <ListItemIcon sx={{ minWidth: 32 }}>
-                        {passwordRequirements.number ? (
-                          <Check fontSize="small" color="success" />
-                        ) : (
-                          <Close fontSize="small" color="error" />
-                        )}
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={<Typography variant="caption">包含數字</Typography>}
-                      />
-                    </ListItem>
-                    <ListItem disablePadding>
-                      <ListItemIcon sx={{ minWidth: 32 }}>
-                        {passwordRequirements.match ? (
-                          <Check fontSize="small" color="success" />
-                        ) : (
-                          <Close fontSize="small" color="error" />
-                        )}
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={<Typography variant="caption">兩次密碼輸入一致</Typography>}
-                      />
-                    </ListItem>
-                  </List>
-                </Box>
-              )}
-              <Button
-                fullWidth
-                type="submit"
-                variant="contained"
-                size="large"
-                disabled={loading || !isPasswordValid}
-                sx={{ mt: 3, mb: 2 }}
+    <div className={styles.container}>
+      <div className={styles.card}>
+        <div className={styles.header}>
+          <div className={styles.headerIcon}>
+            <Icon name="person-add" size={48} />
+          </div>
+          <h1 className={styles.title}>創建新帳號</h1>
+          <p className={styles.subtitle}>填寫以下資料完成註冊</p>
+        </div>
+        {error && (
+          <Alert severity="error" style={{ marginBottom: '16px' }}>
+            {error}
+          </Alert>
+        )}
+        <form onSubmit={handleSubmit} className={styles.form}>
+          <TextField
+            fullWidth
+            label="用戶名"
+            name="username"
+            value={formData.username}
+            onChange={handleChange}
+            disabled={loading}
+            autoFocus
+            helperText="3-50 個字符,只能包含字母、數字、下劃線和連字符"
+          />
+          <TextField
+            fullWidth
+            label="電子郵件"
+            name="email"
+            type="email"
+            value={formData.email}
+            onChange={handleChange}
+            disabled={loading}
+          />
+          <TextField
+            fullWidth
+            label="密碼"
+            name="password"
+            type={showPassword ? 'text' : 'password'}
+            value={formData.password}
+            onChange={handleChange}
+            disabled={loading}
+            endAdornment={
+              <IconButton
+                size="sm"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? '隱藏密碼' : '顯示密碼'}
               >
-                {loading ? (
-                  <>
-                    <CircularProgress size={24} sx={{ mr: 1 }} />
-                    註冊中...
-                  </>
-                ) : (
-                  '註冊'
-                )}
-              </Button>
-            </form>
-            { }
-            <Box sx={{ textAlign: 'center', mt: 2 }}>
-              <Typography variant="body2" color="text.secondary">
-                已有帳號?{' '}
-                <Link to="/login" style={{ textDecoration: 'none' }}>
-                  <Typography
-                    component="span"
-                    variant="body2"
-                    color="primary"
-                    sx={{ fontWeight: 'bold' }}
-                  >
-                    立即登入
-                  </Typography>
-                </Link>
-              </Typography>
-            </Box>
-          </CardContent>
-        </Card>
-        { }
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          align="center"
-          sx={{ mt: 3 }}
-        >
-          ChatBot © 2025 - Powered by JWT Authentication
-        </Typography>
-      </Box>
-    </Container>
+                <Icon name={showPassword ? 'visibility-off' : 'visibility'} size={18} />
+              </IconButton>
+            }
+          />
+          <TextField
+            fullWidth
+            label="確認密碼"
+            name="confirmPassword"
+            type={showPassword ? 'text' : 'password'}
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            disabled={loading}
+          />
+          {formData.password && (
+            <div style={{ marginTop: '8px', padding: '8px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '8px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontWeight: 600, marginBottom: '6px' }}>
+                密碼要求:
+              </div>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px', color: passwordRequirements.length ? 'var(--color-success)' : 'var(--color-error)' }}>
+                  <Icon name={passwordRequirements.length ? 'check' : 'close'} size={14} />
+                  <span>至少 8 個字符</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px', color: passwordRequirements.uppercase ? 'var(--color-success)' : 'var(--color-error)' }}>
+                  <Icon name={passwordRequirements.uppercase ? 'check' : 'close'} size={14} />
+                  <span>包含大寫字母</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px', color: passwordRequirements.lowercase ? 'var(--color-success)' : 'var(--color-error)' }}>
+                  <Icon name={passwordRequirements.lowercase ? 'check' : 'close'} size={14} />
+                  <span>包含小寫字母</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px', color: passwordRequirements.number ? 'var(--color-success)' : 'var(--color-error)' }}>
+                  <Icon name={passwordRequirements.number ? 'check' : 'close'} size={14} />
+                  <span>包含數字</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px', color: passwordRequirements.match ? 'var(--color-success)' : 'var(--color-error)' }}>
+                  <Icon name={passwordRequirements.match ? 'check' : 'close'} size={14} />
+                  <span>兩次密碼輸入一致</span>
+                </li>
+              </ul>
+            </div>
+          )}
+          <Button
+            fullWidth
+            type="submit"
+            variant="primary"
+            size="lg"
+            disabled={loading || !isPasswordValid}
+            loading={loading}
+            className={styles.submitBtn}
+          >
+            註冊
+          </Button>
+        </form>
+        <div className={styles.footer}>
+          已有帳號?
+          <Link to="/login" className={styles.link}>
+            立即登入
+          </Link>
+        </div>
+      </div>
+      <p className={styles.copyright}>
+        ChatBot © 2025 - Powered by JWT Authentication
+      </p>
+    </div>
   );
 };
 export default RegisterPage;

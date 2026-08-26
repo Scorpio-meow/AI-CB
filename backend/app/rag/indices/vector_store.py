@@ -39,20 +39,25 @@ class VectorStoreManager:
         self.documents: List[Document] = []
 
         import torch
-        if force_cpu:
+        from app.core.config import settings
+
+        if force_cpu or not torch.cuda.is_available():
             self.device = "cpu"
-            logger.info("FORCE_CPU=true，強制使用 CPU 模式")
-            self.batch_size = batch_size or int(os.getenv("CPU_BATCH_SIZE", "32"))
-        elif torch.cuda.is_available():
+            try:
+                # 針對 Intel i7-1360P (12 核 16 線程) 配置最佳 PyTorch 執行緒數
+                cpu_threads = min(16, os.cpu_count() or 8)
+                torch.set_num_threads(cpu_threads)
+                torch.set_num_interop_threads(min(4, os.cpu_count() or 4))
+                logger.info(f"Intel Core i7-1360P CPU 多執行緒加速啟用: PyTorch 執行緒數 = {cpu_threads}")
+            except Exception as e:
+                logger.debug(f"設定 PyTorch 執行緒失敗: {e}")
+            self.batch_size = batch_size or settings.CPU_BATCH_SIZE or 128
+        else:
             self.device = "cuda"
             gpu_name = torch.cuda.get_device_name(0)
             gpu_mem = round(torch.cuda.get_device_properties(0).total_memory / 1024**3, 2)
             logger.info(f"GPU加速已啟用: {gpu_name} ({gpu_mem}GB 顯存)")
-            self.batch_size = batch_size or int(os.getenv("GPU_BATCH_SIZE", "128"))
-        else:
-            self.device = "cpu"
-            logger.warning("未檢測到 CUDA，使用 CPU 模式")
-            self.batch_size = batch_size or int(os.getenv("CPU_BATCH_SIZE", "32"))
+            self.batch_size = batch_size or settings.GPU_BATCH_SIZE or 128
 
         model_name = embedding_model or os.getenv("EMBEDDING_MODEL", "paraphrase-multilingual-MiniLM-L12-v2")
         fallback_model = "paraphrase-multilingual-MiniLM-L12-v2"
@@ -205,20 +210,45 @@ class VectorStoreManager:
     def add_documents(self, chunks: List[Document]) -> int:
         if not chunks:
             return 0
+        total_chunks = len(chunks)
         chunk_texts = [chunk.page_content for chunk in chunks]
-        embeddings = self.local_embeddings.encode(
-            chunk_texts,
-            batch_size=self.batch_size,
-            show_progress_bar=False,
-            convert_to_numpy=True,
-            device=self.device
-        )
-        embeddings = embeddings.astype("float32")
+        logger.info(f"正在對 {total_chunks} 個文本塊計算向量嵌入 (Batch Size: {self.batch_size}, Device: {self.device})...")
+        
+        # 若文字塊數量龐大，分批編碼並輸出進度百分比
+        if total_chunks > 500:
+            step = max(500, self.batch_size * 4)
+            all_embeddings = []
+            for start_idx in range(0, total_chunks, step):
+                end_idx = min(start_idx + step, total_chunks)
+                sub_texts = chunk_texts[start_idx:end_idx]
+                sub_emb = self.local_embeddings.encode(
+                    sub_texts,
+                    batch_size=self.batch_size,
+                    show_progress_bar=False,
+                    convert_to_numpy=True,
+                    device=self.device
+                )
+                all_embeddings.append(sub_emb)
+                pct = int((end_idx / total_chunks) * 100)
+                logger.info(f"向量編碼進度: {pct}% ({end_idx}/{total_chunks} 塊)")
+            import numpy as np
+            embeddings = np.vstack(all_embeddings).astype("float32")
+        else:
+            embeddings = self.local_embeddings.encode(
+                chunk_texts,
+                batch_size=self.batch_size,
+                show_progress_bar=False,
+                convert_to_numpy=True,
+                device=self.device
+            )
+            embeddings = embeddings.astype("float32")
+
         faiss.normalize_L2(embeddings)
         self.index.add(embeddings)
         self.documents.extend(chunks)
         self.save_indices()
-        return len(chunks)
+        logger.info(f"成功將 {total_chunks} 個文本塊寫入 FAISS 向量庫 (現有總向量數: {self.index.ntotal})")
+        return total_chunks
 
     def search(self, query: str, top_k: Optional[int] = None, apply_threshold: bool = True) -> List[Tuple[Document, float]]:
         if self.index.ntotal == 0:

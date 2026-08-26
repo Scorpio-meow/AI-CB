@@ -1,21 +1,8 @@
-
 import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import {
-  Container,
-  Box,
-  Card,
-  CardContent,
-  TextField,
-  Button,
-  Typography,
-  Alert,
-  CircularProgress,
-  InputAdornment,
-  IconButton
-} from '@mui/material';
-import { Visibility, VisibilityOff, Login as LoginIcon } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
+import { TextField, Button, Alert, IconButton, Icon } from '../components/ui';
+import styles from './Auth.module.css';
 const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -48,119 +35,73 @@ const LoginPage = () => {
   };
   const error = localError || authError;
   return (
-    <Container maxWidth="sm">
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          py: 4
-        }}
-      >
-        <Card elevation={3}>
-          <CardContent sx={{ p: 4 }}>
-            { }
-            <Box sx={{ textAlign: 'center', mb: 3 }}>
-              <LoginIcon sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} />
-              <Typography variant="h4" component="h1" gutterBottom>
-                ChatBot 登入
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                使用您的帳號登入系統
-              </Typography>
-            </Box>
-            { }
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-            )}
-            { }
-            <form onSubmit={handleSubmit}>
-              <TextField
-                fullWidth
-                label="用戶名或電子郵件"
-                name="username"
-                value={formData.username}
-                onChange={handleChange}
-                disabled={loading}
-                margin="normal"
-                autoFocus
-                autoComplete="username"
-              />
-              <TextField
-                fullWidth
-                label="密碼"
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                value={formData.password}
-                onChange={handleChange}
-                disabled={loading}
-                margin="normal"
-                autoComplete="current-password"
-                slotProps={{
-                  input: {
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          onClick={() => setShowPassword(!showPassword)}
-                          edge="end"
-                        >
-                          {showPassword ? <VisibilityOff /> : <Visibility />}
-                        </IconButton>
-                      </InputAdornment>
-                    )
-                  }
-                }}
-              />
-              <Button
-                fullWidth
-                type="submit"
-                variant="contained"
-                size="large"
-                disabled={loading}
-                sx={{ mt: 3, mb: 2 }}
+    <div className={styles.container}>
+      <div className={styles.card}>
+        <div className={styles.header}>
+          <div className={styles.headerIcon}>
+            <Icon name="login" size={48} />
+          </div>
+          <h1 className={styles.title}>ChatBot 登入</h1>
+          <p className={styles.subtitle}>使用您的帳號登入系統</p>
+        </div>
+        {error && (
+          <Alert severity="error" style={{ marginBottom: '16px' }}>
+            {error}
+          </Alert>
+        )}
+        <form onSubmit={handleSubmit} className={styles.form}>
+          <TextField
+            fullWidth
+            label="用戶名或電子郵件"
+            name="username"
+            value={formData.username}
+            onChange={handleChange}
+            disabled={loading}
+            autoFocus
+            autoComplete="username"
+          />
+          <TextField
+            fullWidth
+            label="密碼"
+            name="password"
+            type={showPassword ? 'text' : 'password'}
+            value={formData.password}
+            onChange={handleChange}
+            disabled={loading}
+            autoComplete="current-password"
+            endAdornment={
+              <IconButton
+                size="sm"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? '隱藏密碼' : '顯示密碼'}
               >
-                {loading ? (
-                  <>
-                    <CircularProgress size={24} sx={{ mr: 1 }} />
-                    登入中...
-                  </>
-                ) : (
-                  '登入'
-                )}
-              </Button>
-            </form>
-            { }
-            <Box sx={{ textAlign: 'center', mt: 2 }}>
-              <Typography variant="body2" color="text.secondary">
-                還沒有帳號?{' '}
-                <Link to="/register" style={{ textDecoration: 'none' }}>
-                  <Typography
-                    component="span"
-                    variant="body2"
-                    color="primary"
-                    sx={{ fontWeight: 'bold' }}
-                  >
-                    立即註冊
-                  </Typography>
-                </Link>
-              </Typography>
-            </Box>
-          </CardContent>
-        </Card>
-        { }
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          align="center"
-          sx={{ mt: 3 }}
-        >
-          ChatBot © 2025 - Powered by JWT Authentication
-        </Typography>
-      </Box>
-    </Container>
+                <Icon name={showPassword ? 'visibility-off' : 'visibility'} size={18} />
+              </IconButton>
+            }
+          />
+          <Button
+            fullWidth
+            type="submit"
+            variant="primary"
+            size="lg"
+            disabled={loading}
+            loading={loading}
+            className={styles.submitBtn}
+          >
+            登入
+          </Button>
+        </form>
+        <div className={styles.footer}>
+          還沒有帳號?
+          <Link to="/register" className={styles.link}>
+            立即註冊
+          </Link>
+        </div>
+      </div>
+      <p className={styles.copyright}>
+        ChatBot © 2025 - Powered by JWT Authentication
+      </p>
+    </div>
   );
 };
 export default LoginPage;

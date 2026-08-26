@@ -93,23 +93,147 @@ export function useChat() {
       setLoadingMore(false);
     }
   }, [currentConversation, loadingMore, hasMoreMessages, messagesOffset]);
-  const sendChatMessage = useCallback(async (content: string, selectedModel: string, reasoningEffort: string = 'medium') => {
-    if (!content.trim()) return;
+  const sendChatMessage = useCallback(async (
+    content: string,
+    selectedModel: string,
+    reasoningEffort: string = 'medium',
+    attachments?: import('../services/api').ChatAttachment[]
+  ) => {
+    if (!content.trim() && (!attachments || attachments.length === 0)) return;
     setLoading(true);
     setError(null);
+
+    const userMsgId = Date.now();
+    const userMessage: Message = {
+      id: userMsgId,
+      content,
+      is_user: true,
+      created_at: new Date().toISOString(),
+      attachments: attachments || []
+    };
+
+    const botMsgId = userMsgId + 1;
+    const botMessage: Message = {
+      id: botMsgId,
+      content: '',
+      is_user: false,
+      created_at: new Date().toISOString(),
+      model_name: selectedModel,
+      reasoning_effort: reasoningEffort,
+      research_trace: [],
+      sources: [],
+      sources_detail: []
+    };
+
+    setMessages(prev => [...prev, userMessage, botMessage]);
+
     try {
-      const response = await chatService.sendMessage(content, currentConversation?.id || null, selectedModel, reasoningEffort);
-      setMessages(prev => [...prev, response.message]);
-      if (!currentConversation || response.conversation_id !== currentConversation.id) {
-        const freshConvs = await fetchConversations();
-        const found = freshConvs.find(c => c.id === response.conversation_id);
-        if (found) {
-          setCurrentConversation(found);
-        }
-      }
-      return response;
+      await chatService.sendMessageStream(
+        content,
+        currentConversation?.id || null,
+        selectedModel,
+        reasoningEffort,
+        (ev) => {
+          if (ev.event === 'step_start') {
+            const stepData = ev.data;
+            setMessages(prev => {
+              const next = [...prev];
+              const idx = next.findIndex(m => m.id === botMsgId);
+              const targetIdx = idx !== -1 ? idx : next.length - 1;
+              if (targetIdx >= 0 && !next[targetIdx].is_user) {
+                const currentTrace = next[targetIdx].research_trace || [];
+                const exists = currentTrace.some(s => s.step === stepData.step);
+                if (!exists) {
+                  next[targetIdx] = {
+                    ...next[targetIdx],
+                    research_trace: [...currentTrace, { ...stepData, status: 'running' }]
+                  };
+                }
+              }
+              return next;
+            });
+          } else if (ev.event === 'step_end') {
+            const stepData = ev.data;
+            setMessages(prev => {
+              const next = [...prev];
+              const idx = next.findIndex(m => m.id === botMsgId);
+              const targetIdx = idx !== -1 ? idx : next.length - 1;
+              if (targetIdx >= 0 && !next[targetIdx].is_user) {
+                const currentTrace = next[targetIdx].research_trace || [];
+                const updated = currentTrace.map(s => s.step === stepData.step ? { ...s, ...stepData } : s);
+                if (!currentTrace.some(s => s.step === stepData.step)) {
+                  updated.push(stepData);
+                }
+                next[targetIdx] = {
+                  ...next[targetIdx],
+                  research_trace: updated
+                };
+              }
+              return next;
+            });
+          } else if (ev.event === 'token') {
+            const token = ev.data?.content || '';
+            setMessages(prev => {
+              const next = [...prev];
+              const idx = next.findIndex(m => m.id === botMsgId);
+              const targetIdx = idx !== -1 ? idx : next.length - 1;
+              if (targetIdx >= 0 && !next[targetIdx].is_user) {
+                next[targetIdx] = {
+                  ...next[targetIdx],
+                  content: (next[targetIdx].content || '') + token
+                };
+              }
+              return next;
+            });
+          } else if (ev.event === 'sources') {
+            setMessages(prev => {
+              const next = [...prev];
+              const idx = next.findIndex(m => m.id === botMsgId);
+              const targetIdx = idx !== -1 ? idx : next.length - 1;
+              if (targetIdx >= 0 && !next[targetIdx].is_user) {
+                next[targetIdx] = {
+                  ...next[targetIdx],
+                  sources: ev.data?.sources || [],
+                  sources_detail: ev.data?.sources_detail || []
+                };
+              }
+              return next;
+            });
+          } else if (ev.event === 'done') {
+            const doneData = ev.data;
+            setMessages(prev => {
+              const next = [...prev];
+              const idx = next.findIndex(m => m.id === botMsgId);
+              const targetIdx = idx !== -1 ? idx : next.length - 1;
+              if (targetIdx >= 0 && !next[targetIdx].is_user) {
+                next[targetIdx] = {
+                  ...next[targetIdx],
+                  id: doneData.message_id || next[targetIdx].id,
+                  content: doneData.answer || next[targetIdx].content,
+                  sources: doneData.sources || next[targetIdx].sources,
+                  sources_detail: doneData.sources_detail || next[targetIdx].sources_detail,
+                  research_trace: doneData.research_trace || next[targetIdx].research_trace
+                };
+              }
+              return next;
+            });
+
+            if (doneData.conversation_id && (!currentConversation || currentConversation.id !== doneData.conversation_id)) {
+              fetchConversations().then(fresh => {
+                const found = fresh.find(c => c.id === doneData.conversation_id);
+                if (found) setCurrentConversation(found);
+              });
+            }
+          } else if (ev.event === 'error') {
+            setError(ev.data?.detail || '處理訊息時發生錯誤');
+          }
+        },
+        undefined,
+        attachments
+      );
     } catch (err: any) {
       setError(err.message || '傳送訊息失敗');
+      setMessages(prev => prev.filter(m => m.id !== botMsgId));
       throw err;
     } finally {
       setLoading(false);

@@ -1,17 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import api from '../services/api';
 import {
-  Box,
-  Paper,
-  Typography,
-  Grid,
-  Card,
-  CardContent,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Button,
   Dialog,
   DialogTitle,
@@ -19,18 +8,12 @@ import {
   DialogActions,
   TextField,
   Switch,
-  FormControlLabel,
   Chip,
   Alert,
-  CircularProgress
-} from '@mui/material';
-import {
-  People as PeopleIcon,
-  Chat as ChatIcon,
-  Description as DocumentIcon,
-  TrendingUp as TrendingUpIcon
-} from '@mui/icons-material';
-import api from '../services/api';
+  Spinner,
+  Icon
+} from '../components/ui';
+import styles from './AdminDashboard.module.css';
 const cache = {
   statistics: { data: null, timestamp: 0 },
   users: { data: null, timestamp: 0 },
@@ -183,235 +166,213 @@ function AdminDashboard() {
   };
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-        <CircularProgress />
-      </Box>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <Spinner size={36} color="var(--color-primary)" />
+      </div>
     );
   }
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        管理後台
-      </Typography>
+    <div className={styles.container}>
+      <h1 className={styles.title}>管理後台</h1>
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
+        <Alert severity="error" style={{ marginBottom: '16px' }} onClose={() => setError('')}>
           {error}
         </Alert>
       )}
-      { }
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <PeopleIcon color="primary" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">{statistics?.users?.total || 0}</Typography>
-                  <Typography color="textSecondary">總用戶數</Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <ChatIcon color="primary" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">{statistics?.conversations?.total || 0}</Typography>
-                  <Typography color="textSecondary">總對話數</Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <DocumentIcon color="primary" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">{statistics?.documents?.total || 0}</Typography>
-                  <Typography color="textSecondary">文件數量</Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <TrendingUpIcon color="primary" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">{statistics?.messages?.recent_7_days || 0}</Typography>
-                  <Typography color="textSecondary">近7天消息</Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-      { }
-      <Paper sx={{ p: 3, mb: 4 }}>
-        <Typography variant="h6" gutterBottom>用戶管理</Typography>
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>ID</TableCell>
-                <TableCell>用戶名</TableCell>
-                <TableCell>郵箱</TableCell>
-                <TableCell>狀態</TableCell>
-                <TableCell>權限</TableCell>
-                <TableCell>註冊時間</TableCell>
-                <TableCell>操作</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
+      {/* 統計卡片 */}
+      <div className={styles.statsGrid}>
+        <div className={styles.statCard}>
+          <div className={styles.statIcon}>
+            <Icon name="people" size={24} />
+          </div>
+          <div>
+            <div className={styles.statValue}>{statistics?.users?.total || 0}</div>
+            <div className={styles.statLabel}>總用戶數</div>
+          </div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statIcon}>
+            <Icon name="chat" size={24} />
+          </div>
+          <div>
+            <div className={styles.statValue}>{statistics?.conversations?.total || 0}</div>
+            <div className={styles.statLabel}>總對話數</div>
+          </div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statIcon}>
+            <Icon name="description" size={24} />
+          </div>
+          <div>
+            <div className={styles.statValue}>{statistics?.documents?.total || 0}</div>
+            <div className={styles.statLabel}>文件數量</div>
+          </div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statIcon}>
+            <Icon name="speed" size={24} />
+          </div>
+          <div>
+            <div className={styles.statValue}>{statistics?.messages?.recent_7_days || 0}</div>
+            <div className={styles.statLabel}>近7天消息</div>
+          </div>
+        </div>
+      </div>
+      {/* 用戶管理表格 */}
+      <div className={styles.card}>
+        <h2 className={styles.cardTitle}>用戶管理</h2>
+        <div className={styles.tableWrapper}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>用戶名</th>
+                <th>郵箱</th>
+                <th>狀態</th>
+                <th>權限</th>
+                <th>註冊時間</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
               {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>{user.id}</TableCell>
-                  <TableCell>{user.username}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>
+                <tr key={user.id}>
+                  <td>{user.id}</td>
+                  <td>{user.username}</td>
+                  <td>{user.email}</td>
+                  <td>
                     <Chip
                       label={user.is_active ? '活躍' : '停用'}
                       color={user.is_active ? 'success' : 'error'}
-                      size="small"
+                      size="sm"
                     />
-                  </TableCell>
-                  <TableCell>
+                  </td>
+                  <td>
                     <Chip
                       label={user.is_admin ? '管理員' : '用戶'}
                       color={user.is_admin ? 'primary' : 'default'}
-                      size="small"
+                      size="sm"
                     />
-                  </TableCell>
-                  <TableCell>
+                  </td>
+                  <td>
                     {new Date(user.created_at).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      size="small"
-                      onClick={() => handleEditUser(user)}
-                      sx={{ mr: 1 }}
-                    >
-                      編輯
-                    </Button>
-                    <Button
-                      size="small"
-                      color="error"
-                      onClick={() => handleDeleteUser(user.id)}
-                    >
-                      刪除
-                    </Button>
-                  </TableCell>
-                </TableRow>
+                  </td>
+                  <td>
+                    <div className={styles.tableActions}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleEditUser(user)}
+                      >
+                        編輯
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        onClick={() => handleDeleteUser(user.id)}
+                      >
+                        刪除
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
               ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Paper>
-      { }
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h6" gutterBottom>文件管理</Typography>
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>ID</TableCell>
-                <TableCell>文件名</TableCell>
-                <TableCell>類型</TableCell>
-                <TableCell>狀態</TableCell>
-                <TableCell>上傳時間</TableCell>
-                <TableCell>操作</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {/* 文件管理表格 */}
+      <div className={styles.card}>
+        <h2 className={styles.cardTitle}>文件管理</h2>
+        <div className={styles.tableWrapper}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>文件名</th>
+                <th>類型</th>
+                <th>狀態</th>
+                <th>上傳時間</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
               {documents.map((doc) => (
-                <TableRow key={doc.id}>
-                  <TableCell>{doc.id}</TableCell>
-                  <TableCell>{doc.filename}</TableCell>
-                  <TableCell>{doc.file_type}</TableCell>
-                  <TableCell>
+                <tr key={doc.id}>
+                  <td>{doc.id}</td>
+                  <td>{doc.filename}</td>
+                  <td>{doc.file_type}</td>
+                  <td>
                     <Chip
                       label={doc.is_processed ? '已處理' : '處理中'}
                       color={doc.is_processed ? 'success' : 'warning'}
-                      size="small"
+                      size="sm"
                     />
-                  </TableCell>
-                  <TableCell>
+                  </td>
+                  <td>
                     {new Date(doc.created_at).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
+                  </td>
+                  <td>
                     <Button
-                      size="small"
-                      color="error"
+                      size="sm"
+                      variant="danger"
                       onClick={() => handleDeleteDocument(doc.id)}
                     >
                       刪除
                     </Button>
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Paper>
-      { }
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {/* 編輯用戶 Dialog */}
       <Dialog
         open={editUserDialog}
         onClose={() => setEditUserDialog(false)}
-        disableRestoreFocus
-        aria-labelledby="edit-user-dialog-title"
+        maxWidth="sm"
+        fullWidth
       >
-        <DialogTitle id="edit-user-dialog-title">編輯用戶</DialogTitle>
+        <DialogTitle>編輯用戶</DialogTitle>
         <DialogContent>
           {editingUser && (
-            <Box sx={{ pt: 1 }}>
+            <div className={styles.editUserForm}>
               <TextField
                 fullWidth
                 label="用戶名"
                 value={editingUser.username}
                 onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })}
-                sx={{ mb: 2 }}
               />
               <TextField
                 fullWidth
                 label="郵箱"
                 value={editingUser.email}
                 onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
-                sx={{ mb: 2 }}
               />
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={editingUser.is_active}
-                    onChange={(e) => setEditingUser({ ...editingUser, is_active: e.target.checked })}
-                  />
-                }
+              <Switch
+                checked={editingUser.is_active}
+                onChange={(e) => setEditingUser({ ...editingUser, is_active: e.target.checked })}
                 label="帳號活躍"
               />
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={editingUser.is_admin}
-                    onChange={(e) => setEditingUser({ ...editingUser, is_admin: e.target.checked })}
-                  />
-                }
+              <Switch
+                checked={editingUser.is_admin}
+                onChange={(e) => setEditingUser({ ...editingUser, is_admin: e.target.checked })}
                 label="管理員權限"
               />
-            </Box>
+            </div>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditUserDialog(false)}>取消</Button>
-          <Button onClick={handleSaveUser} variant="contained">保存</Button>
+          <Button variant="secondary" onClick={() => setEditUserDialog(false)}>
+            取消
+          </Button>
+          <Button variant="primary" onClick={handleSaveUser}>
+            保存
+          </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </div>
   );
 }
 export default AdminDashboard;

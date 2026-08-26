@@ -1,9 +1,8 @@
 import React from 'react';
-import { Box, Typography, Button, CircularProgress, Paper, Chip } from '@mui/material';
-import { SmartToyOutlined, QuestionAnswerOutlined } from '@mui/icons-material';
 import { ChatMessageListProps } from './types';
 import ChatMessageItem from './ChatMessageItem';
-
+import { Button, Spinner, Chip, Icon } from '../../components/ui';
+import styles from './ChatMessageList.module.css';
 export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   messages,
   loading,
@@ -13,106 +12,65 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   thinkOpenArr,
   onToggleThinking,
   onCopyMessage,
+  onSelectPrompt,
   messagesEndRef,
   messagesTopRef,
 }) => {
   const isEmpty = messages.length === 0;
-
   return (
-    <Box
-      sx={{
-        flexGrow: 1,
-        overflowY: 'auto',
-        p: { xs: 2, sm: 3 },
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
+    <div className={styles.container}>
       <div ref={messagesTopRef} />
-
       {hasMoreMessages && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', my: 1.5 }}>
+        <div className={styles.loadMoreContainer}>
           <Button
-            size="small"
-            variant="outlined"
+            size="sm"
+            variant="outline"
             onClick={onLoadMore}
             disabled={loadingMore}
-            sx={{
-              borderRadius: 2,
-              textTransform: 'none',
-              fontSize: '0.8rem',
-              color: '#475569',
-              borderColor: '#CBD5E1',
-              '&:hover': {
-                borderColor: '#94A3B8',
-                backgroundColor: '#F8FAFC',
-              },
-            }}
+            startIcon={loadingMore ? <Spinner size={14} /> : undefined}
           >
-            {loadingMore ? <CircularProgress size={16} sx={{ mr: 1 }} /> : null}
             {loadingMore ? '正在載入更早訊息...' : '載入更早訊息'}
           </Button>
-        </Box>
+        </div>
       )}
-
       {isEmpty && !loading ? (
-        <Box
-          sx={{
-            flexGrow: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            textAlign: 'center',
-            py: 8,
-          }}
-        >
-          <Paper
-            elevation={0}
-            sx={{
-              p: 4,
-              maxWidth: 480,
-              borderRadius: 4,
-              border: '1px dashed #CBD5E1',
-              backgroundColor: 'rgba(248, 250, 252, 0.7)',
-            }}
-          >
-            <SmartToyOutlined sx={{ fontSize: 48, color: '#2563EB', mb: 2 }} />
-            <Typography variant="h6" sx={{ fontWeight: 600, color: '#1E293B', mb: 1 }}>
-              歡迎使用內部知識庫對話
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#64748B', mb: 3, lineHeight: 1.6 }}>
-              我是通哥，您的知識助理。您可以詢問公司規章、人事差勤、專案流程或任何內部文檔相關問題。
-            </Typography>
-
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 600, textAlign: 'left' }}>
-                常見問題提示：
-              </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {['如何申請補休與加班？', '特休天數計算與遞延原則', '忘刷卡申請流程與期限', '留職停薪相關規定'].map((prompt, idx) => (
+        <div className={styles.emptyContainer}>
+          <div className={styles.emptyCard}>
+            <div className={styles.emptyIcon}>
+              <Icon name="bot" size={48} color="var(--color-primary)" />
+            </div>
+            <h3 className={styles.emptyTitle}>歡迎使用智慧知識庫對話</h3>
+            <p className={styles.emptyDesc}>
+              我是您的智慧知識助理。您可以詢問知識庫文檔、技術指引、專案流程或任何即時資訊問題。
+            </p>
+            <div className={styles.suggestPrompts}>
+              <span className={styles.suggestTitle}>常見問題提示：</span>
+              <div className={styles.suggestList}>
+                {[
+                  '請幫我分析並總結文檔的核心重點',
+                  '如何結合知識庫與網路搜尋進行自主研究？',
+                  '請解釋大型語言模型與 RAG 技術的運作原理',
+                  '幫我撰寫一份專案規劃與技術選型建議',
+                ].map((prompt, idx) => (
                   <Chip
                     key={idx}
-                    icon={<QuestionAnswerOutlined sx={{ fontSize: 14 }} />}
+                    icon={<Icon name="chat" size={14} />}
                     label={prompt}
-                    size="small"
+                    size="sm"
                     variant="outlined"
-                    onClick={() => onCopyMessage(prompt)}
-                    sx={{
-                      borderRadius: 1.5,
-                      fontSize: '0.75rem',
-                      cursor: 'pointer',
-                      '&:hover': {
-                        backgroundColor: '#EFF6FF',
-                        borderColor: '#93C5FD',
-                      },
+                    onClick={() => {
+                      if (onSelectPrompt) {
+                        onSelectPrompt(prompt);
+                      } else {
+                        onCopyMessage(prompt);
+                      }
                     }}
                   />
                 ))}
-              </Box>
-            </Box>
-          </Paper>
-        </Box>
+              </div>
+            </div>
+          </div>
+        </div>
       ) : (
         messages.map((msg, index) => {
           const itemKey = `${msg.is_user ? 'user' : 'assistant'}-${msg.id ?? 'idx'}-${index}`;
@@ -128,33 +86,17 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
           );
         })
       )}
-
-      {loading && (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-          <SmartToyOutlined sx={{ fontSize: 24, color: '#2563EB' }} />
-          <Paper
-            elevation={0}
-            sx={{
-              p: 2,
-              borderRadius: '4px 16px 16px 16px',
-              backgroundColor: '#FFFFFF',
-              border: '1px solid #E2E8F0',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1.5,
-            }}
-          >
-            <CircularProgress size={18} sx={{ color: '#2563EB' }} />
-            <Typography variant="body2" sx={{ color: '#64748B' }}>
-              正在檢索知識庫並生成回答...
-            </Typography>
-          </Paper>
-        </Box>
+      {loading && (messages.length === 0 || messages[messages.length - 1].is_user) && (
+        <div className={styles.loadingRow}>
+          <Icon name="bot" size={24} color="var(--color-primary)" />
+          <div className={styles.loadingBubble}>
+            <Spinner size={18} color="var(--color-primary)" />
+            <span className={styles.loadingText}>正在檢索知識庫並生成回答...</span>
+          </div>
+        </div>
       )}
-
       <div ref={messagesEndRef} />
-    </Box>
+    </div>
   );
 };
-
 export default ChatMessageList;

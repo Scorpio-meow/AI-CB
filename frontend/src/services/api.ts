@@ -1,6 +1,16 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 import { shouldRefreshToken, hasValidAuth, clearAuth } from '../utils/tokenUtils.ts';
 import { devLog, devWarn } from '../utils/secureLogger.ts';
+export interface ChatAttachment {
+  id?: string;
+  filename: string;
+  file_type: string;
+  file_size?: number;
+  data_url?: string;
+  content?: string;
+  file?: File;
+}
+
 export interface Message {
   id?: number;
   content: string;
@@ -9,6 +19,7 @@ export interface Message {
   context_used?: string | null | string[];
   model_name?: string | null;
   reasoning_effort?: string | null;
+  attachments?: ChatAttachment[];
   sources?: string[];
   sources_detail?: Array<{
     source: string;
@@ -175,18 +186,117 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+export interface StreamEvent {
+  event: 'start' | 'step_start' | 'step_end' | 'token' | 'think' | 'sources' | 'done' | 'error';
+  data: any;
+}
+
 export const chatService = {
+  async sendMessageStream(
+    content: string,
+    conversationId: number | null = null,
+    model_name: string | null = null,
+    reasoning_effort: string = 'medium',
+    onEvent: (event: StreamEvent) => void,
+    signal?: AbortSignal,
+    attachments?: ChatAttachment[]
+  ): Promise<void> {
+    const token = localStorage.getItem('access_token');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const payloadAttachments = attachments?.map(a => ({
+      filename: a.filename,
+      file_type: a.file_type,
+      file_size: a.file_size,
+      data_url: a.data_url,
+      content: a.content
+    })) || [];
+
+    const response = await fetch(`${API_BASE_URL}/chat/send`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        content,
+        conversation_id: conversationId,
+        model_name,
+        reasoning_effort,
+        attachments: payloadAttachments
+      }),
+      signal
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      let detail = errText;
+      try {
+        const parsed = JSON.parse(errText);
+        detail = parsed.detail || errText;
+      } catch (e) {
+        // ignore parse error
+      }
+      throw new Error(detail || `HTTP Error ${response.status}`);
+    }
+
+    if (!response.body) {
+      throw new Error('ReadableStream not supported by browser');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      let currentEvent: string = 'message';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        if (trimmed.startsWith('event:')) {
+          currentEvent = trimmed.slice(6).trim();
+        } else if (trimmed.startsWith('data:')) {
+          const rawData = trimmed.slice(5).trim();
+          try {
+            const parsedData = JSON.parse(rawData);
+            onEvent({ event: currentEvent as any, data: parsedData });
+          } catch (e) {
+            console.warn('Failed to parse SSE data:', rawData, e);
+          }
+        }
+      }
+    }
+  },
   async sendMessage(
     content: string,
     conversationId: number | null = null,
     model_name: string | null = null,
-    reasoning_effort: string = 'medium'
+    reasoning_effort: string = 'medium',
+    attachments?: ChatAttachment[]
   ): Promise<ChatResponse> {
+    const payloadAttachments = attachments?.map(a => ({
+      filename: a.filename,
+      file_type: a.file_type,
+      file_size: a.file_size,
+      data_url: a.data_url,
+      content: a.content
+    })) || [];
+
     const response = await api.post<ChatResponse>('/chat/send', {
       content,
       conversation_id: conversationId,
       model_name,
-      reasoning_effort
+      reasoning_effort,
+      attachments: payloadAttachments
     });
     return response.data;
   },

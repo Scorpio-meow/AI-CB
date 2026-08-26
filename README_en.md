@@ -39,7 +39,7 @@ cd AskMiao
 cd backend
 
 # Create and activate Python virtual environment
-python -m venv .venv
+py -m venv .venv
 
 # Windows PowerShell:
 .\.venv\Scripts\Activate.ps1
@@ -53,10 +53,10 @@ pip install -r requirements.txt
 cp .env.example .env
 
 # Initialize database schema and admin account
-python init_db.py
+py init_db.py
 
 # Start FastAPI development server (Port 8001)
-python -m uvicorn main:app --reload --host 0.0.0.0 --port 8001
+py main.py
 ```
 
 ### 3. Frontend Setup & Launch (Bun Preferred)

@@ -37,7 +37,8 @@ class HybridRetriever:
         self.last_retrieval_strategy = "unknown"
 
         global CrossEncoder
-        model_name = reranker_model or os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
+        from app.core.config import settings
+        model_name = reranker_model or settings.RERANKER_MODEL or "BAAI/bge-reranker-base"
         self.has_reranker = False
         self.cross_encoder = None
         try:

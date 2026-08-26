@@ -1,34 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+import api from '../services/api';
+import { useDocuments } from '../hooks/useDocuments';
 import {
-  Box,
-  Paper,
-  Typography,
   Button,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
   IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  CircularProgress,
+  Spinner,
   Alert,
   Chip,
-  LinearProgress,
-  Divider
-} from '@mui/material';
-import {
-  CloudUpload as UploadIcon,
-  Delete as DeleteIcon,
-  Description as DocumentIcon,
-  Cancel as CancelIcon,
-  Build as RebuildIcon
-} from '@mui/icons-material';
-import axios from 'axios';
-import api from '../services/api';
-import { useDocuments } from '../hooks/useDocuments';
+  Icon
+} from '../components/ui';
+import styles from './Documents.module.css';
 const documentsCache = {
   data: null,
   timestamp: 0
@@ -58,7 +44,10 @@ function Documents() {
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
   const [rebuildLoading, setRebuildLoading] = useState(false);
   const [rebuildDialog, setRebuildDialog] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const isMountedRef = useRef(true);
+  const fileInputRef = useRef(null);
+
   useEffect(() => {
     isMountedRef.current = true;
     fetchDocuments();
@@ -66,27 +55,117 @@ function Documents() {
       isMountedRef.current = false;
     };
   }, [fetchDocuments]);
-  const handleFileSelect = (event) => {
-    const files = Array.from(event.target.files || []);
-    if (!files.length) return;
-    const allowedTypes = ['text/plain', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+
+  const processFiles = (files) => {
+    if (!files || !files.length) return;
+    const allowedExtensions = [
+      '.txt', '.md', '.markdown', '.pdf', '.docx', '.pptx', '.xlsx',
+      '.csv', '.json', '.yaml', '.yml', '.xml', '.html', '.htm', '.log',
+      '.py', '.js', '.ts', '.tsx', '.jsx', '.java', '.cpp', '.c', '.sql',
+      '.sh', '.ini', '.env'
+    ];
+    const allowedTypes = [
+      'text/plain',
+      'text/markdown',
+      'text/x-markdown',
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/csv',
+      'application/csv',
+      'application/json',
+      'text/json',
+      'text/html',
+      'text/xml',
+      'application/xml',
+      'text/yaml',
+      'application/x-yaml'
+    ];
     const maxSize = 50 * 1024 * 1024;
     const accepted = [];
     for (const file of files) {
-      if (!allowedTypes.includes(file.type)) {
-        setLocalError('不支援的文件類型。請上傳 .txt, .pdf 或 .docx 文件');
+      const ext = '.' + (file.name.split('.').pop() || '').toLowerCase();
+      const isAllowed = allowedTypes.includes(file.type) || allowedExtensions.includes(ext) || file.type.startsWith('text/');
+      if (!isAllowed) {
+        setLocalError(`不支援的文件類型（${file.name}）。支援 PDF, Word, PPT, Excel, Markdown, CSV, JSON, HTML, 程式碼等文件`);
         return;
       }
       if (file.size > maxSize) {
-        setLocalError('文件大小不能超過 50MB');
+        setLocalError(`文件大小不能超過 50MB（${file.name}）`);
         return;
       }
-      accepted.push(file);
+      // 避免在同一次選擇中加入重複檔案
+      if (!selectedFiles.some(f => f.name === file.name && f.size === file.size)) {
+        accepted.push(file);
+      }
     }
-    setSelectedFiles(accepted);
+    if (!accepted.length) return;
+    setSelectedFiles((prev) => [...prev, ...accepted]);
     const items = accepted.map(createUploadItem);
-    setUploadItems(items);
+    setUploadItems((prev) => [...prev, ...items]);
     setLocalError('');
+  };
+
+  const handleFileSelect = (event) => {
+    const files = Array.from(event.target.files || []);
+    processFiles(files);
+    if (event.target) event.target.value = '';
+  };
+
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragging) setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processFiles(Array.from(e.dataTransfer.files));
+    }
+  };
+
+  const getStatusChipProps = (status, detail) => {
+    switch (status) {
+      case 'uploading':
+        return { label: '處理中', variant: 'primary', icon: <Spinner size={12} color="currentColor" /> };
+      case 'success':
+        return { label: '已入庫', variant: 'success', icon: <Icon name="check" size={12} /> };
+      case 'failed':
+        return { label: detail || '失敗', variant: 'error', icon: <Icon name="error" size={12} /> };
+      case 'duplicate':
+        return { label: '已存在', variant: 'warning', icon: <Icon name="warning" size={12} /> };
+      case 'canceled':
+        return { label: '已取消', variant: 'default' };
+      case 'ready':
+      default:
+        return { label: '待上傳', variant: 'outline' };
+    }
+  };
+
+  const getFileBadgeClass = (ext) => {
+    const e = ext.toLowerCase();
+    if (e === 'pdf') return styles.fileBadgePdf;
+    if (e === 'docx' || e === 'doc') return styles.fileBadgeDocx;
+    if (e === 'pptx' || e === 'ppt') return styles.fileBadgePptx;
+    if (e === 'xlsx' || e === 'xls' || e === 'csv') return styles.fileBadgeXlsx;
+    if (['py', 'js', 'ts', 'tsx', 'jsx', 'json', 'html', 'sql', 'sh', 'css'].includes(e)) return styles.fileBadgeCode;
+    return styles.fileBadgeText;
   };
   const uploadSingle = async (item, index) => {
     if (!item) return 'skipped';
@@ -276,17 +355,20 @@ function Documents() {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
-  const getFileTypeLabel = (contentType) => {
-    switch (contentType) {
-      case 'text/plain':
-        return 'TXT';
-      case 'application/pdf':
-        return 'PDF';
-      case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
-        return 'DOCX';
-      default:
-        return '未知';
-    }
+  const getFileTypeLabel = (contentType, filename = '') => {
+    const ext = filename ? ('.' + (filename.split('.').pop() || '').toLowerCase()) : '';
+    if (ext === '.pdf' || contentType === 'application/pdf') return 'PDF';
+    if (ext === '.docx' || contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'DOCX';
+    if (ext === '.pptx' || contentType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') return 'PPTX';
+    if (ext === '.xlsx' || contentType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') return 'XLSX';
+    if (ext === '.md' || ext === '.markdown' || contentType?.includes('markdown')) return 'MD';
+    if (ext === '.csv' || contentType?.includes('csv')) return 'CSV';
+    if (ext === '.json' || contentType?.includes('json')) return 'JSON';
+    if (ext === '.html' || ext === '.htm' || contentType?.includes('html')) return 'HTML';
+    if (['.py', '.js', '.ts', '.tsx', '.jsx', '.java', '.cpp', '.c', '.sql', '.sh'].includes(ext)) return ext.slice(1).toUpperCase();
+    if (ext === '.txt' || contentType === 'text/plain') return 'TXT';
+    if (ext) return ext.slice(1).toUpperCase();
+    return 'TXT';
   };
   const handleRebuildIndex = async () => {
     setRebuildDialog(false);
@@ -317,295 +399,377 @@ function Documents() {
   const error = localError || docError;
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-        <CircularProgress />
-      </Box>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <Spinner size={36} color="var(--color-primary)" />
+      </div>
     );
   }
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          知識庫管理
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
+    <div className={styles.container}>
+      <div className={styles.header}>
+        <h1 className={styles.title}>知識庫管理</h1>
+        <div className={styles.actions}>
           <Button
-            variant="outlined"
-            startIcon={<RebuildIcon />}
+            variant="outline"
+            startIcon={<Icon name="tune" size={16} />}
             onClick={() => setRebuildDialog(true)}
             disabled={rebuildLoading}
           >
             {rebuildLoading ? '重建中...' : '重建索引'}
           </Button>
           <Button
-            variant="contained"
-            startIcon={<UploadIcon />}
+            variant="primary"
+            startIcon={<Icon name="upload" size={16} />}
             onClick={() => setUploadDialog(true)}
           >
             上傳文檔
           </Button>
-        </Box>
-      </Box>
+        </div>
+      </div>
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setLocalError('')}>
+        <Alert severity="error" style={{ marginBottom: '16px' }} onClose={() => setLocalError('')}>
           {error}
         </Alert>
       )}
       {success && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>
+        <Alert severity="success" style={{ marginBottom: '16px' }} onClose={() => setSuccess('')}>
           {success}
         </Alert>
       )}
-      <Paper>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2, borderBottom: 1, borderColor: 'divider' }}>
-          <Typography variant="h6">
+      <div className={styles.card}>
+        <div className={styles.cardHeader}>
+          <h2 className={styles.cardTitle}>
             已上傳的文檔 ({documents.length})
-          </Typography>
-        </Box>
+          </h2>
+        </div>
         {documents.length === 0 ? (
-          <Box sx={{ p: 4, textAlign: 'center' }}>
-            <DocumentIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
-            <Typography variant="h6" color="text.secondary" gutterBottom>
-              還沒有上傳任何文檔
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              開始上傳文檔來建立您的知識庫
-            </Typography>
-          </Box>
+          <div className={styles.emptyState}>
+            <div className={styles.emptyIcon}>
+              <Icon name="description" size={64} />
+            </div>
+            <h3 className={styles.emptyTitle}>還沒有上傳任何文檔</h3>
+            <p className={styles.emptySubtitle}>開始上傳文檔來建立您的知識庫</p>
+          </div>
         ) : (
-          <List>
-            {documents.map((doc, index) => (
-              <React.Fragment key={doc.id}>
-                <ListItem>
-                  <ListItemText
-                    primary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <DocumentIcon color="primary" />
-                        <Typography variant="subtitle1">{doc.filename}</Typography>
-                        <Chip
-                          label={getFileTypeLabel(doc.file_type)}
-                          size="small"
-                          variant="outlined"
-                        />
-                        {doc.is_processed && (
-                          <Chip
-                            label="已處理"
-                            size="small"
-                            color="success"
-                            variant="outlined"
-                          />
-                        )}
-                      </Box>
-                    }
-                    secondary={
-                      <React.Fragment>
-                        <Typography variant="body2" color="text.secondary" component="span" display="block">
-                          上傳時間: {new Date(doc.created_at).toLocaleString('zh-TW')}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" component="span" display="block">
-                          文件類型: {doc.file_type}
-                        </Typography>
-                      </React.Fragment>
-                    }
-                  />
-                  <ListItemSecondaryAction>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {deletingStatus[doc.id] === 'deleting' && (
-                        <Chip label="刪除中" size="small" color="warning" />
-                      )}
-                      {deletingStatus[doc.id] === 'deleted' && (
-                        <Chip label="已刪除" size="small" color="success" />
-                      )}
-                      {deletingStatus[doc.id] === 'failed' && (
-                        <Chip label="刪除失敗" size="small" color="error" />
-                      )}
-                      <IconButton
-                        edge="end"
-                        onClick={() => handleDelete(doc.id, doc.filename)}
-                        color="error"
-                        disabled={deletingStatus[doc.id] === 'deleting'}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Box>
-                  </ListItemSecondaryAction>
-                </ListItem>
-                {index < documents.length - 1 && <Divider />}
-              </React.Fragment>
+          <div className={styles.docList}>
+            {documents.map((doc) => (
+              <div key={doc.id} className={styles.docItem}>
+                <div className={styles.docMain}>
+                  <div className={styles.docTitleRow}>
+                    <Icon name="description" size={20} color="var(--color-primary)" />
+                    <span className={styles.docFilename}>{doc.filename}</span>
+                    <Chip label={getFileTypeLabel(doc.file_type, doc.filename)} size="sm" variant="outlined" />
+                    {doc.is_processed && (
+                      <Chip label="已處理" size="sm" color="success" variant="outlined" />
+                    )}
+                  </div>
+                  {doc.description && (
+                    <div className={styles.docDescriptionBox}>
+                      <span className={styles.docDescriptionIcon}>
+                        <Icon name="lightbulb" size={15} />
+                      </span>
+                      <span className={styles.docDescriptionText}>
+                        {doc.description}
+                      </span>
+                    </div>
+                  )}
+                  <div className={styles.docMeta}>
+                    <span>上傳時間: {new Date(doc.created_at).toLocaleString('zh-TW')}</span>
+                    <span>文件類型: {doc.file_type}</span>
+                  </div>
+                </div>
+                <div className={styles.docActions}>
+                  {deletingStatus[doc.id] === 'deleting' && (
+                    <Chip label="刪除中" size="sm" color="warning" />
+                  )}
+                  {deletingStatus[doc.id] === 'deleted' && (
+                    <Chip label="已刪除" size="sm" color="success" />
+                  )}
+                  {deletingStatus[doc.id] === 'failed' && (
+                    <Chip label="刪除失敗" size="sm" color="error" />
+                  )}
+                  <IconButton
+                    size="sm"
+                    onClick={() => handleDelete(doc.id, doc.filename)}
+                    disabled={deletingStatus[doc.id] === 'deleting'}
+                    aria-label="刪除文檔"
+                  >
+                    <Icon name="delete" size={18} color="var(--color-error)" />
+                  </IconButton>
+                </div>
+              </div>
             ))}
-          </List>
+          </div>
         )}
-      </Paper>
-      { }
+      </div>
+      {/* 上傳文檔 Dialog */}
       <Dialog
         open={uploadDialog}
-        onClose={() => setUploadDialog(false)}
-        maxWidth="sm"
+        onClose={() => !uploadLoading && setUploadDialog(false)}
+        maxWidth="md"
         fullWidth
-        disableRestoreFocus
-        aria-labelledby="upload-dialog-title"
       >
-        <DialogTitle id="upload-dialog-title">上傳文檔到知識庫</DialogTitle>
+        <DialogTitle>
+          <div className={styles.dialogHeaderFlex}>
+            <div className={styles.dialogTitleWithIcon}>
+              <div className={styles.dialogIconBadge}>
+                <Icon name="upload" size={20} />
+              </div>
+              <div>
+                <div>上傳文檔到知識庫</div>
+                <div style={{ fontSize: '12px', fontWeight: 'normal', color: 'var(--text-secondary)' }}>
+                  支援將多種格式檔案分塊、向量化並存入 RAG 檢索庫
+                </div>
+              </div>
+            </div>
+            <IconButton
+              size="sm"
+              onClick={() => !uploadLoading && setUploadDialog(false)}
+              disabled={uploadLoading}
+              aria-label="關閉對話框"
+            >
+              <Icon name="close" size={18} />
+            </IconButton>
+          </div>
+        </DialogTitle>
+
         <DialogContent>
-          <Box sx={{ mt: 2 }}>
+          <div style={{ marginTop: '8px' }}>
             <input
-              accept=".txt,.pdf,.docx"
+              ref={fileInputRef}
+              accept=".txt,.md,.markdown,.pdf,.docx,.pptx,.xlsx,.csv,.json,.yaml,.yml,.xml,.html,.htm,.log,.py,.js,.ts,.tsx,.jsx,.java,.cpp,.c,.sql,.sh,.ini,.env"
               style={{ display: 'none' }}
               id="file-upload"
               type="file"
               multiple
               onChange={handleFileSelect}
             />
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <label htmlFor="file-upload" style={{ flex: 1 }}>
-                <Button
-                  variant="outlined"
-                  component="span"
-                  startIcon={<UploadIcon />}
-                  fullWidth
-                  sx={{ mb: 2 }}
-                >
-                  選擇文件
-                </Button>
-              </label>
-              <Button variant="outlined" color="inherit" onClick={removeSelectedFiles} sx={{ mb: 2 }}>
-                移除檔案
-              </Button>
-            </Box>
+
+            {/* 拖曳上傳放置區 */}
+            <div
+              className={`${styles.dropZone} ${isDragging ? styles.dropZoneActive : ''}`}
+              onClick={() => fileInputRef.current?.click()}
+              onDragEnter={handleDragEnter}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <div className={styles.dropZoneIconWrap}>
+                <Icon name="upload" size={28} />
+              </div>
+              <div className={styles.dropZoneTitle}>
+                {isDragging ? '放開以新增檔案' : '拖曳檔案至此處，或點擊瀏覽檔案'}
+              </div>
+              <div className={styles.dropZoneSubtitle}>
+                支援多檔案批次選取，單一檔案上限 50MB
+              </div>
+              <div className={styles.formatTagsWrap}>
+                <span className={styles.formatTag}>PDF</span>
+                <span className={styles.formatTag}>Word (DOCX)</span>
+                <span className={styles.formatTag}>PPT (PPTX)</span>
+                <span className={styles.formatTag}>Excel (XLSX/CSV)</span>
+                <span className={styles.formatTag}>Markdown</span>
+                <span className={styles.formatTag}>JSON</span>
+                <span className={styles.formatTag}>HTML</span>
+                <span className={styles.formatTag}>Code (.py, .js, .ts...)</span>
+              </div>
+            </div>
+
+            {/* 已選擇檔案佇列 */}
             {selectedFiles && selectedFiles.length > 0 && (
-              <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  已選擇的文件 ({selectedFiles.length}):
-                </Typography>
-                {selectedFiles.map((f, idx) => {
-                  const item = uploadItems[idx] || { progress: 0, status: 'ready', detail: null };
-                  return (
-                    <Box key={idx} sx={{ mb: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Box>
-                          <Typography variant="body2">
-                            <strong>文件名:</strong> {f.name}
-                          </Typography>
-                          <Typography variant="body2">
-                            <strong>大小:</strong> {formatFileSize(f.size)}
-                          </Typography>
-                          <Typography variant="body2">
-                            <strong>類型:</strong> {getFileTypeLabel(f.type)}
-                          </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Chip label={item.status} size="small" />
-                          <IconButton size="small" onClick={() => removeFileAt(idx)}>
-                            <DeleteIcon />
-                          </IconButton>
-                        </Box>
-                      </Box>
-                      <Box sx={{ mt: 1 }}>
-                        <LinearProgress variant="determinate" value={item.progress} />
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
-                          <Typography variant="caption">{item.progress}%</Typography>
-                          <Box>
-                            {item.status === 'uploading' && (
-                              <IconButton size="small" onClick={() => cancelUpload(idx)}>
-                                <CancelIcon />
+              <div className={styles.selectedFilesBox}>
+                <div className={styles.fileQueueHeader}>
+                  <div className={styles.fileQueueTitle}>
+                    待處理清單 ({selectedFiles.length} 個檔案，共 {formatFileSize(selectedFiles.reduce((acc, f) => acc + f.size, 0))})
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={removeSelectedFiles}
+                    disabled={uploadLoading}
+                    startIcon={<Icon name="delete" size={14} color="var(--color-error)" />}
+                  >
+                    清空清單
+                  </Button>
+                </div>
+
+                <div className={styles.fileQueueList}>
+                  {selectedFiles.map((f, idx) => {
+                    const item = uploadItems[idx] || { progress: 0, status: 'ready', detail: null };
+                    const extLabel = getFileTypeLabel(f.type, f.name);
+                    const chipProps = getStatusChipProps(item.status, item.detail);
+
+                    return (
+                      <div key={idx} className={styles.fileCard}>
+                        <div className={styles.fileCardTop}>
+                          <div className={styles.fileCardLeft}>
+                            <span className={`${styles.fileBadge} ${getFileBadgeClass(extLabel)}`}>
+                              {extLabel}
+                            </span>
+                            <div className={styles.fileInfoText}>
+                              <div className={styles.fileName} title={f.name}>{f.name}</div>
+                              <div className={styles.fileSize}>{formatFileSize(f.size)}</div>
+                            </div>
+                          </div>
+
+                          <div className={styles.fileCardRight}>
+                            <Chip
+                              label={chipProps.label}
+                              variant={chipProps.variant}
+                              icon={chipProps.icon}
+                              size="sm"
+                            />
+                            {item.status === 'uploading' ? (
+                              <IconButton
+                                size="sm"
+                                onClick={() => cancelUpload(idx)}
+                                title="取消此檔案上傳"
+                              >
+                                <Icon name="close" size={14} />
+                              </IconButton>
+                            ) : (
+                              <IconButton
+                                size="sm"
+                                onClick={() => removeFileAt(idx)}
+                                disabled={uploadLoading}
+                                title="從清單移除"
+                              >
+                                <Icon name="delete" size={14} color="var(--text-tertiary)" />
                               </IconButton>
                             )}
-                          </Box>
-                        </Box>
-                      </Box>
-                      {idx < selectedFiles.length - 1 && <Divider sx={{ my: 1 }} />}
-                    </Box>
-                  );
-                })}
-              </Paper>
+                          </div>
+                        </div>
+
+                        {/* 進度條 */}
+                        {(item.status === 'uploading' || item.progress > 0) && (
+                          <div>
+                            <div className={styles.progressBar}>
+                              <div className={styles.progressFill} style={{ width: `${item.progress}%` }} />
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                              <span>{item.status === 'uploading' ? '正在分塊與建立向量索引...' : ''}</span>
+                              <span>{item.progress}%</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             )}
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-              支援的文件格式: .txt, .pdf, .docx
-              <br />
-              最大文件大小: 50MB
-            </Typography>
-          </Box>
+          </div>
         </DialogContent>
+
         <DialogActions>
-          <Button
-            onClick={() => setUploadDialog(false)}
-            disabled={uploadLoading}
-          >
-            取消
-          </Button>
-          <Button onClick={cancelAllUploads} disabled={!uploadLoading}>
-            取消全部上傳
-          </Button>
-          <Button
-            onClick={startUpload}
-            variant="contained"
-            disabled={(!selectedFiles || selectedFiles.length === 0) || uploadLoading}
-          >
-            {uploadLoading ? '上傳中...' : '上傳'}
-          </Button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+            <div>
+              {uploadLoading && (
+                <Button variant="outline" size="sm" onClick={cancelAllUploads}>
+                  取消全部上傳
+                </Button>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Button
+                variant="secondary"
+                onClick={() => setUploadDialog(false)}
+                disabled={uploadLoading}
+              >
+                關閉
+              </Button>
+              <Button
+                variant="primary"
+                startIcon={<Icon name="upload" size={16} />}
+                onClick={startUpload}
+                disabled={(!selectedFiles || selectedFiles.length === 0) || uploadLoading}
+                loading={uploadLoading}
+              >
+                {uploadLoading ? '正在入庫處理中...' : `開始上傳 (${selectedFiles.length})`}
+              </Button>
+            </div>
+          </div>
         </DialogActions>
       </Dialog>
-      { }
+
+      {/* 清除確認 Dialog */}
       <Dialog
         open={confirmRemoveOpen}
         onClose={cancelRemove}
-        disableRestoreFocus
-        aria-labelledby="confirm-remove-dialog-title"
+        maxWidth="xs"
       >
-        <DialogTitle id="confirm-remove-dialog-title">確認移除所選檔案？</DialogTitle>
+        <DialogTitle>
+          <div className={styles.dialogTitleWithIcon}>
+            <div className={`${styles.dialogIconBadge} ${styles.dialogIconBadgeDanger}`}>
+              <Icon name="warning" size={18} />
+            </div>
+            <span>確認清空待上傳清單？</span>
+          </div>
+        </DialogTitle>
         <DialogContent>
-          <Typography>此操作將清除目前選取的檔案。確定要移除嗎？</Typography>
+          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.5, marginTop: '8px' }}>
+            此操作將清空目前已選取的 {selectedFiles.length} 個檔案。已入庫的文檔不受影響。
+          </p>
         </DialogContent>
         <DialogActions>
-          <Button onClick={cancelRemove}>取消</Button>
-          <Button onClick={confirmRemoveSelectedFiles} variant="contained" color="error">確定移除</Button>
+          <Button variant="secondary" onClick={cancelRemove}>取消</Button>
+          <Button variant="danger" onClick={confirmRemoveSelectedFiles}>確定清空</Button>
         </DialogActions>
       </Dialog>
-      { }
+
+      {/* 重建索引 Dialog */}
       <Dialog
         open={rebuildDialog}
         onClose={() => !rebuildLoading && setRebuildDialog(false)}
-        disableRestoreFocus
-        aria-labelledby="rebuild-dialog-title"
+        maxWidth="sm"
+        fullWidth
       >
-        <DialogTitle id="rebuild-dialog-title">確認重建知識庫索引？</DialogTitle>
+        <DialogTitle>
+          <div className={styles.dialogTitleWithIcon}>
+            <div className={`${styles.dialogIconBadge} ${styles.dialogIconBadgeWarning}`}>
+              <Icon name="tune" size={18} />
+            </div>
+            <span>確認重建知識庫索引？</span>
+          </div>
+        </DialogTitle>
         <DialogContent>
-          <Typography gutterBottom>
-            此操作將重新建立所有文檔的向量索引和 BM25 索引。
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            • 適用於索引損壞或不一致時
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            • 處理時間取決於文檔數量
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            • 重建期間可能影響查詢性能
-          </Typography>
-          {rebuildLoading && (
-            <Box sx={{ mt: 2 }}>
-              <LinearProgress />
-              <Typography variant="body2" sx={{ mt: 1 }} align="center">
-                正在重建索引，請稍候...
-              </Typography>
-            </Box>
-          )}
+          <div style={{ marginTop: '8px' }}>
+            <p style={{ fontSize: '14px', color: 'var(--text-primary)', marginBottom: '10px' }}>
+              此操作將依據最新切塊配置（800字/塊）重新建立所有文檔的 FAISS 向量索引和 BM25 關鍵字索引。
+            </p>
+            <div style={{ background: 'var(--bg-surface-secondary)', padding: '12px 16px', borderRadius: 'var(--radius-md)', marginBottom: '12px' }}>
+              <ul style={{ fontSize: '13px', color: 'var(--text-secondary)', paddingLeft: '16px', lineHeight: 1.7, margin: 0 }}>
+                <li>適用於切塊參數調整、索引毀損或檢索異常時</li>
+                <li>採用 Intel 多執行緒加速，重構速度極快</li>
+                <li>重建過程中背景自動執行，完成後即時生效</li>
+              </ul>
+            </div>
+            {rebuildLoading && (
+              <div style={{ marginTop: '16px', textAlign: 'center', padding: '12px' }}>
+                <Spinner size={28} color="var(--color-primary)" />
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '8px', fontWeight: 500 }}>
+                  正在重建向量庫與全文檢索索引，請稍候...
+                </p>
+              </div>
+            )}
+          </div>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setRebuildDialog(false)} disabled={rebuildLoading}>
+          <Button variant="secondary" onClick={() => setRebuildDialog(false)} disabled={rebuildLoading}>
             取消
           </Button>
           <Button
+            variant="primary"
             onClick={handleRebuildIndex}
-            variant="contained"
-            color="primary"
             disabled={rebuildLoading}
+            loading={rebuildLoading}
+            startIcon={<Icon name="refresh" size={16} />}
           >
             確認重建
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </div>
   );
 }
 export default Documents;

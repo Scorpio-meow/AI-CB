@@ -30,13 +30,22 @@ class ResearchToolRegistry:
     def set_retriever(self, retriever):
         self.retriever = retriever
 
-    async def search_knowledge_base(self, query: str, top_k: int = 3) -> Dict[str, Any]:
-        """檢索本機與企業內部知識庫（包含 FAISS 向量與 BM25 關鍵字混合檢索）"""
+    async def search_knowledge_base(self, query: str, top_k: int = 3, target_document: Optional[str] = None) -> Dict[str, Any]:
+        """檢索本機與企業內部知識庫（包含 FAISS 向量與 BM25 關鍵字混合檢索，可選限定特定文件）"""
         if not self.retriever:
             return {"error": "知識庫檢索器尚未初始化", "documents": []}
         
         try:
             doc_score_pairs = self.retriever.smart_search(query)
+            if target_document:
+                target_clean = target_document.strip().lower()
+                filtered = [
+                    (doc, score) for doc, score in doc_score_pairs
+                    if target_clean in (doc.metadata.get("source", "")).lower() or target_clean in (doc.metadata.get("original_filename", "")).lower()
+                ]
+                if filtered:
+                    doc_score_pairs = filtered
+
             selected_pairs = doc_score_pairs[:top_k]
             
             docs_info = []
@@ -50,6 +59,7 @@ class ResearchToolRegistry:
             
             return {
                 "query": query,
+                "target_document": target_document,
                 "total_found": len(doc_score_pairs),
                 "returned": len(docs_info),
                 "documents": docs_info
@@ -98,45 +108,43 @@ class ResearchToolRegistry:
                 if resp.status_code == 200:
                     results = []
                     # 解析 DuckDuckGo HTML 結果
-                    html_text = resp.text
-                    links = re.findall(r'<a class="result__url" href="([^"]+)">([\s\S]*?)</a>', html_text)
-                    titles = re.findall(r'<a class="result__snippet[^>]*>([\s\S]*?)</a>', html_text)
+                    links = re.findall(r'<a class="result__url"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)</a>', resp.text)
+                    titles = re.findall(r'<a class="result__a"[^>]*>([\s\S]*?)</a>', resp.text)
+                    snippets = re.findall(r'<a class="result__snippet"[^>]*>([\s\S]*?)</a>', resp.text)
                     
-                    for idx, (raw_url, _) in enumerate(links[:max_results]):
-                        snippet = clean_html(titles[idx]) if idx < len(titles) else ""
-                        actual_url = raw_url
-                        if 'uddg=' in raw_url:
-                            match = re.search(r'uddg=([^&]+)', raw_url)
-                            if match:
-                                import urllib.parse
-                                actual_url = urllib.parse.unquote(match.group(1))
+                    for i in range(min(len(titles), max_results)):
+                        clean_title = clean_html(titles[i]) if i < len(titles) else ""
+                        raw_link = links[i][0] if i < len(links) else ""
+                        clean_snippet = clean_html(snippets[i]) if i < len(snippets) else ""
                         
-                        results.append({
-                            "title": f"搜尋結果 {idx + 1}",
-                            "url": actual_url,
-                            "content": snippet
-                        })
-                    
-                    if results:
-                        return {
-                            "query": query,
-                            "engine": "duckduckgo",
-                            "count": len(results),
-                            "results": results
-                        }
+                        # 解析真實 URL (DuckDuckGo 包含 uddg 跳轉)
+                        actual_url = raw_link
+                        uddg_match = re.search(r'uddg=([^&]+)', raw_link)
+                        if uddg_match:
+                            import urllib.parse
+                            actual_url = urllib.parse.unquote(uddg_match.group(1))
+
+                        if clean_title and actual_url:
+                            results.append({
+                                "title": clean_title,
+                                "url": actual_url,
+                                "snippet": clean_snippet
+                            })
+
+                    return {
+                        "query": query,
+                        "engine": "duckduckgo_fallback",
+                        "count": len(results),
+                        "results": results
+                    }
+                else:
+                    return {"query": query, "error": f"搜尋失敗，狀態碼: {resp.status_code}", "results": []}
         except Exception as e:
             logger.error(f"DuckDuckGo 搜尋失敗: {e}")
-
-        return {
-            "query": query,
-            "engine": "none",
-            "count": 0,
-            "results": [],
-            "message": "未檢索到相關網頁或搜尋連線逾時"
-        }
+            return {"query": query, "error": f"外部搜尋發生錯誤: {str(e)}", "results": []}
 
     async def web_fetch(self, url: str) -> Dict[str, Any]:
-        """抓取並閱讀目標網頁的主要正文內容"""
+        """深入讀取指定網頁全文（優先使用 Ollama Web Fetch，失敗時直接 HTTP 抓取並解析 HTML）"""
         ollama_key = getattr(settings, 'OLLAMA_API_KEY', '') or ''
 
         # 1. 嘗試使用 Ollama 官方 Web Fetch API
@@ -180,20 +188,68 @@ class ResearchToolRegistry:
             logger.error(f"web_fetch 失敗 ({url}): {e}")
             return {"url": url, "error": f"無法存取該網址: {str(e)}", "content": ""}
 
+    def _generate_knowledge_base_description(self) -> str:
+        """根據知識庫收錄的每一份文件內容結構，純動態生成互不相同且專屬之主題描述（無任何硬編碼）"""
+        from app.services.document_processor import DocumentProcessor
+
+        doc_items = []
+        try:
+            from app.models.database import SessionLocal
+            from app.models import Document
+            db = SessionLocal()
+            docs = db.query(Document).all()
+            for d in docs:
+                desc = getattr(d, "description", None)
+                if not desc and d.content:
+                    desc = DocumentProcessor.generate_document_summary(d.filename, d.content, d.file_type or "")
+                doc_items.append((d.filename, desc or f"收錄內部文件《{d.filename}》。"))
+            db.close()
+        except Exception as e:
+            logger.warning(f"從資料庫讀取文件描述失敗: {e}")
+
+        # 若資料庫無記錄，嘗試從檢索器記憶體中動態推導
+        if not doc_items and self.retriever and hasattr(self.retriever, "vector_store") and hasattr(self.retriever.vector_store, "documents"):
+            seen = set()
+            for d in self.retriever.vector_store.documents:
+                src = d.metadata.get("source") or d.metadata.get("original_filename")
+                if src and src not in seen:
+                    seen.add(src)
+                    desc = DocumentProcessor.generate_document_summary(src, d.page_content)
+                    doc_items.append((src, desc))
+
+        if not doc_items:
+            return "檢索已上傳之內部知識庫與專業文件資料。當使用者提供特定網址連結、作者帳號或查詢內部檔案時必須優先調用。"
+
+        doc_descriptions = []
+        for idx, (filename, desc) in enumerate(doc_items, start=1):
+            doc_descriptions.append(f"{idx}. 《{filename}》：{desc}")
+
+        catalog_text = "\n".join(doc_descriptions)
+        return (
+            "檢索內部知識庫。目前知識庫收錄以下各具不同主題之專屬文件庫，調用時請針對相應主題檢索：\n"
+            f"{catalog_text}\n"
+            "當使用者提問涉及上述任一文件的專屬領域時，必須優先調用此工具。"
+        )
+
     def get_tool_definitions(self) -> List[Dict[str, Any]]:
-        """回傳 OpenAI / Ollama 相容之 Function Calling 工具規格清單"""
+        """回傳 OpenAI / Ollama / Azure OpenAI 相容之 Function Calling 工具規格清單"""
+        kb_desc = self._generate_knowledge_base_description()
         return [
             {
                 "type": "function",
                 "function": {
                     "name": "search_knowledge_base",
-                    "description": "檢索公司內部規章、已上傳文件與內部知識庫。當使用者詢問內部制度、請假、福利或特定文件內容時必須調用。",
+                    "description": kb_desc,
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "query": {
                                 "type": "string",
-                                "description": "要檢索的繁體中文或英文關鍵字與查詢語句"
+                                "description": "要檢索的繁體中文、英文關鍵字、作者帳號或特定網址"
+                            },
+                            "target_document": {
+                                "type": "string",
+                                "description": "可選：指定要限定搜尋的特定文件名稱（例如 'config.js' 或特定檔案名稱）。若不確定可留空檢索全庫。"
                             },
                             "top_k": {
                                 "type": "integer",
@@ -209,7 +265,7 @@ class ResearchToolRegistry:
                 "type": "function",
                 "function": {
                     "name": "web_search",
-                    "description": "執行外部網路搜尋，獲取最新公開資訊、新聞、外部技術文件或內部知識庫未涵蓋的通識知識。",
+                    "description": "執行外部網路搜尋，獲取最新公開即時資訊、時事新聞或內部知識庫未涵蓋的外部公開資料。",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -231,7 +287,7 @@ class ResearchToolRegistry:
                 "type": "function",
                 "function": {
                     "name": "web_fetch",
-                    "description": "深入閱讀與抓取指定網頁的全文內容。當 web_search 返回的摘要不足以完整回答時，可調用此工具深入閱讀特定網址。",
+                    "description": "深入閱讀與抓取指定公開網頁的全文內容。當 web_search 返回的摘要不足以完整回答時，可調用此工具深入閱讀特定網址。",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -251,7 +307,8 @@ class ResearchToolRegistry:
         if name == "search_knowledge_base":
             query = arguments.get("query", "")
             top_k = int(arguments.get("top_k", 3))
-            return await self.search_knowledge_base(query, top_k)
+            target_document = arguments.get("target_document")
+            return await self.search_knowledge_base(query, top_k, target_document)
         elif name == "web_search":
             query = arguments.get("query", "")
             max_results = int(arguments.get("max_results", 5))

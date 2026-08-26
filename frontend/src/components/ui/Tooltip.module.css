@@ -1,0 +1,76 @@
+.wrapper {
+  display: inline-flex;
+  position: relative;
+}
+
+.tooltip {
+  position: absolute;
+  z-index: var(--z-tooltip);
+  background-color: var(--neutral-900);
+  color: var(--neutral-0);
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+[data-theme="dark"] .tooltip {
+  background-color: var(--neutral-100);
+  color: var(--neutral-950);
+}
+
+.visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.placementTop {
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-4px) scale(0.95);
+  margin-bottom: 4px;
+}
+
+.placementTop.visible {
+  transform: translateX(-50%) translateY(-4px) scale(1);
+}
+
+.placementBottom {
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(4px) scale(0.95);
+  margin-top: 4px;
+}
+
+.placementBottom.visible {
+  transform: translateX(-50%) translateY(4px) scale(1);
+}
+
+.placementLeft {
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px) scale(0.95);
+  margin-right: 4px;
+}
+
+.placementLeft.visible {
+  transform: translateY(-50%) translateX(-4px) scale(1);
+}
+
+.placementRight {
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%) translateX(4px) scale(0.95);
+  margin-left: 4px;
+}
+
+.placementRight.visible {
+  transform: translateY(-50%) translateX(4px) scale(1);
+}

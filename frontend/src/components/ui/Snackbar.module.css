@@ -1,0 +1,45 @@
+.snackbar {
+  position: fixed;
+  z-index: var(--z-toast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  transition: transform var(--transition-fast), opacity var(--transition-fast);
+}
+
+.snackbar>* {
+  pointer-events: auto;
+}
+
+.bottomCenter {
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.bottomRight {
+  bottom: 24px;
+  right: 24px;
+}
+
+.bottomLeft {
+  bottom: 24px;
+  left: 24px;
+}
+
+.topCenter {
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.topRight {
+  top: 24px;
+  right: 24px;
+}
+
+.topLeft {
+  top: 24px;
+  left: 24px;
+}

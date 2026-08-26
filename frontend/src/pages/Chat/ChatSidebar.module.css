@@ -1,0 +1,158 @@
+.desktopSidebar {
+  display: none;
+  height: 100%;
+  flex-shrink: 0;
+}
+
+@media (min-width: 900px) {
+  .desktopSidebar {
+    display: block;
+  }
+}
+
+.mobileBackdrop {
+  position: fixed;
+  inset: 0;
+  background-color: var(--bg-backdrop);
+  z-index: var(--z-drawer);
+  animation: fadeIn var(--transition-fast) forwards;
+}
+
+.mobileDrawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 280px;
+  z-index: calc(var(--z-drawer) + 1);
+  background-color: var(--bg-sidebar);
+  box-shadow: var(--shadow-xl);
+  animation: slideDrawer var(--transition-fast) forwards;
+}
+
+@media (min-width: 900px) {
+
+  .mobileBackdrop,
+  .mobileDrawer {
+    display: none;
+  }
+}
+
+.sidebarInner {
+  width: 280px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-sidebar);
+  border-right: 1px solid var(--border-default);
+}
+
+.newButtonArea {
+  padding: var(--space-4);
+}
+
+.divider {
+  height: 1px;
+  background-color: var(--border-default);
+}
+
+.listArea {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: var(--space-2);
+}
+
+.sectionTitle {
+  display: block;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-tertiary);
+}
+
+.loadingCenter,
+.emptyText {
+  text-align: center;
+  padding: var(--space-8) var(--space-4);
+  color: var(--text-tertiary);
+  font-size: var(--font-size-sm);
+}
+
+.conversationItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: var(--radius-md);
+  margin-bottom: 2px;
+  padding: 0 var(--space-1);
+  transition: background-color var(--transition-fast);
+}
+
+.conversationButton {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.conversationButton:hover {
+  background-color: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.conversationSelected {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.conversationSelected:hover {
+  background-color: rgba(37, 99, 235, 0.2);
+}
+
+.conversationTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.deleteButton {
+  opacity: 0.4;
+  transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+
+.deleteButton:hover {
+  opacity: 1;
+  color: var(--color-error);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideDrawer {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}

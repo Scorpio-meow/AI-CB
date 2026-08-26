@@ -1,23 +1,13 @@
-import React, { useState } from 'react';
-import {
-  Box,
-  Paper,
-  Typography,
-  Collapse,
-  IconButton,
-  Chip,
-  Divider,
-} from '@mui/material';
-import {
-  TravelExplore,
-  MenuBook,
-  ArticleOutlined,
-  ExpandMore,
-  CheckCircleOutlined,
-  ErrorOutlined,
-  CodeOutlined,
-} from '@mui/icons-material';
-import { ResearchTraceBlockProps, ResearchTraceStep } from './types';
+import React, { useState, useEffect, useRef } from 'react';
+import { ResearchTraceStep } from './types';
+import { Collapse, Chip, Spinner, Icon } from '../../components/ui';
+import styles from './ResearchTraceBlock.module.css';
+
+export interface ResearchTraceBlockProps {
+  trace: ResearchTraceStep[];
+  hasContent?: boolean;
+  isStreaming?: boolean;
+}
 
 const getToolDisplayInfo = (toolName: string) => {
   switch (toolName) {
@@ -25,211 +15,172 @@ const getToolDisplayInfo = (toolName: string) => {
       return {
         label: '檢索內部知識庫',
         color: '#2563EB',
-        bgColor: '#EFF6FF',
-        icon: <MenuBook sx={{ fontSize: 16, color: '#2563EB' }} />,
+        bgColor: 'rgba(37, 99, 235, 0.12)',
+        icon: <Icon name="menu-book" size={16} color="#2563EB" />,
       };
     case 'web_search':
       return {
         label: '外部聯網搜尋',
         color: '#0891B2',
-        bgColor: '#ECFEFF',
-        icon: <TravelExplore sx={{ fontSize: 16, color: '#0891B2' }} />,
+        bgColor: 'rgba(8, 145, 178, 0.12)',
+        icon: <Icon name="language" size={16} color="#0891B2" />,
       };
     case 'web_fetch':
       return {
         label: '深度閱讀網頁',
         color: '#7C3AED',
-        bgColor: '#F5F3FF',
-        icon: <ArticleOutlined sx={{ fontSize: 16, color: '#7C3AED' }} />,
+        bgColor: 'rgba(124, 58, 237, 0.12)',
+        icon: <Icon name="article" size={16} color="#7C3AED" />,
       };
     default:
       return {
         label: toolName,
         color: '#64748B',
-        bgColor: '#F1F5F9',
-        icon: <CodeOutlined sx={{ fontSize: 16, color: '#64748B' }} />,
+        bgColor: 'rgba(100, 116, 139, 0.12)',
+        icon: <Icon name="code" size={16} color="#64748B" />,
       };
   }
 };
 
-export const ResearchTraceBlock: React.FC<ResearchTraceBlockProps> = ({ trace }) => {
+export const ResearchTraceBlock: React.FC<ResearchTraceBlockProps> = ({
+  trace,
+  hasContent = false,
+  isStreaming = false
+}) => {
   const [isOpen, setIsOpen] = useState(false);
+  const userInteractedRef = useRef(false);
+  const prevHasContentRef = useRef(hasContent);
+
+  const hasRunningStep = trace.some(s => s.status === 'running');
+  const isResearching = isStreaming && !hasContent;
+
+  // 檢索期間自動展開；文字串流開始時自動收合
+  useEffect(() => {
+    if (userInteractedRef.current) return;
+
+    if (isResearching || hasRunningStep) {
+      setIsOpen(true);
+    } else if (hasContent && !prevHasContentRef.current) {
+      setIsOpen(false);
+    }
+    prevHasContentRef.current = hasContent;
+  }, [isResearching, hasRunningStep, hasContent]);
 
   if (!trace || trace.length === 0) return null;
 
-  return (
-    <Paper
-      elevation={0}
-      sx={{
-        mb: 1.5,
-        borderRadius: 2,
-        border: '1px solid #E2E8F0',
-        backgroundColor: '#F8FAFC',
-        overflow: 'hidden',
-        transition: 'all 0.2s ease',
-      }}
-    >
-      {/* 標題欄 */}
-      <Box
-        onClick={() => setIsOpen(!isOpen)}
-        sx={{
-          py: 1,
-          px: 1.5,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          cursor: 'pointer',
-          userSelect: 'none',
-          '&:hover': {
-            backgroundColor: '#F1F5F9',
-          },
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <TravelExplore sx={{ fontSize: 18, color: '#2563EB' }} />
-          <Typography
-            variant="caption"
-            sx={{ fontWeight: 600, color: '#334155', fontSize: '0.8rem' }}
-          >
-            AI 自主研究歷程 ({trace.length} 個步驟)
-          </Typography>
-        </Box>
+  const handleHeaderClick = () => {
+    userInteractedRef.current = true;
+    setIsOpen(prev => !prev);
+  };
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-          <Box sx={{ display: 'flex', gap: 0.5 }}>
+  const activeStep = trace.find(s => s.status === 'running') || trace[trace.length - 1];
+  const activeToolInfo = activeStep ? getToolDisplayInfo(activeStep.tool) : null;
+
+  return (
+    <div className={`${styles.container} ${hasRunningStep ? styles.containerActive : ''}`}>
+      <div
+        className={styles.header}
+        onClick={handleHeaderClick}
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+      >
+        <div className={styles.titleArea}>
+          {hasRunningStep ? (
+            <Spinner size={16} color="var(--color-primary)" />
+          ) : (
+            <Icon name="search" size={18} color="var(--color-primary)" />
+          )}
+          <span className={styles.titleText}>
+            {hasRunningStep
+              ? `AI 自主研究中：${activeToolInfo?.label || '執行中'} (步驟 ${activeStep.step})`
+              : `AI 自主研究歷程 (${trace.length} 個步驟)`}
+          </span>
+        </div>
+
+        <div className={styles.metaArea}>
+          <div className={styles.stepsChipRow}>
             {trace.map((step, idx) => {
               const info = getToolDisplayInfo(step.tool);
+              const isStepRunning = step.status === 'running';
               return (
                 <Chip
                   key={idx}
-                  label={`S${step.step}`}
-                  size="small"
-                  sx={{
-                    height: 20,
+                  label={`S${step.step}${isStepRunning ? '...' : ''}`}
+                  size="sm"
+                  style={{
+                    color: isStepRunning ? '#FFFFFF' : info.color,
+                    backgroundColor: isStepRunning ? 'var(--color-primary)' : info.bgColor,
+                    borderColor: `${info.color}33`,
+                    height: '20px',
                     fontSize: '0.68rem',
                     fontWeight: 600,
-                    color: info.color,
-                    backgroundColor: info.bgColor,
-                    border: `1px solid ${info.color}33`,
+                    animation: isStepRunning ? 'var(--anim-pulse)' : undefined
                   }}
                 />
               );
             })}
-          </Box>
+          </div>
+          <span className={`${styles.chevron} ${isOpen ? styles.chevronOpen : ''}`}>
+            <Icon name="expand-more" size={16} />
+          </span>
+        </div>
+      </div>
 
-          <IconButton
-            size="small"
-            sx={{
-              transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-              transition: 'transform 0.2s ease',
-              p: 0.2,
-              color: '#64748B',
-            }}
-          >
-            <ExpandMore fontSize="small" />
-          </IconButton>
-        </Box>
-      </Box>
-
-      {/* 展開之時間軸步驟清單 */}
       <Collapse in={isOpen}>
-        <Divider sx={{ borderColor: '#E2E8F0' }} />
-        <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.2 }}>
+        <div className={styles.divider} />
+        <div className={styles.stepList}>
           {trace.map((step: ResearchTraceStep, index: number) => {
             const toolInfo = getToolDisplayInfo(step.tool);
             const queryParam = step.arguments?.query || step.arguments?.url || '';
+            const isStepRunning = step.status === 'running';
 
             return (
-              <Box
+              <div
                 key={index}
-                sx={{
-                  p: 1.2,
-                  borderRadius: 1.5,
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid #E2E8F0',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-                }}
+                className={`${styles.stepItem} ${isStepRunning ? styles.stepItemRunning : ''}`}
               >
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    mb: 0.8,
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                <div className={styles.stepHeader}>
+                  <div className={styles.stepTitle}>
                     {toolInfo.icon}
-                    <Typography
-                      variant="caption"
-                      sx={{ fontWeight: 600, color: '#1E293B' }}
-                    >
+                    <span>
                       步驟 {step.step}：{toolInfo.label}
-                    </Typography>
-                  </Box>
-
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    {step.duration_seconds !== undefined && (
-                      <Typography variant="caption" sx={{ color: '#94A3B8', fontSize: '0.7rem' }}>
-                        {step.duration_seconds}s
-                      </Typography>
+                      {isStepRunning && <span className={styles.runningBadge}>進行中</span>}
+                    </span>
+                  </div>
+                  <div className={styles.stepMeta}>
+                    {step.duration_seconds !== undefined && !isStepRunning && (
+                      <span className={styles.duration}>{step.duration_seconds}s</span>
                     )}
-                    {step.status === 'error' ? (
-                      <ErrorOutlined sx={{ fontSize: 14, color: '#EF4444' }} />
+                    {isStepRunning ? (
+                      <Spinner size={14} color="var(--color-primary)" />
+                    ) : step.status === 'error' ? (
+                      <Icon name="error" size={14} color="#EF4444" />
                     ) : (
-                      <CheckCircleOutlined sx={{ fontSize: 14, color: '#10B981' }} />
+                      <Icon name="check-circle" size={14} color="#10B981" />
                     )}
-                  </Box>
-                </Box>
+                  </div>
+                </div>
 
                 {queryParam && (
-                  <Box sx={{ mb: 0.6 }}>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: '#475569',
-                        backgroundColor: '#F8FAFC',
-                        px: 0.8,
-                        py: 0.3,
-                        borderRadius: 1,
-                        fontSize: '0.75rem',
-                        display: 'inline-block',
-                        wordBreak: 'break-all',
-                        border: '1px solid #E2E8F0',
-                      }}
-                    >
+                  <div className={styles.queryBox}>
+                    <span className={styles.queryText}>
                       關鍵字/目標: {queryParam}
-                    </Typography>
-                  </Box>
+                    </span>
+                  </div>
                 )}
 
                 {step.output_preview && (
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      display: 'block',
-                      color: '#64748B',
-                      fontSize: '0.72rem',
-                      lineHeight: 1.4,
-                      backgroundColor: '#F8FAFC',
-                      p: 0.8,
-                      borderRadius: 1,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'pre-wrap',
-                      maxHeight: 80,
-                      overflowY: 'auto',
-                    }}
-                  >
+                  <pre className={styles.outputPreview}>
                     {step.output_preview}
-                  </Typography>
+                  </pre>
                 )}
-              </Box>
+              </div>
             );
           })}
-        </Box>
+        </div>
       </Collapse>
-    </Paper>
+    </div>
   );
 };
 

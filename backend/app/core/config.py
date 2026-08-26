@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     )
     LLM_API_BASE: str = "http://localhost:5000"
     LLM_TIMEOUT: float = 120.0
-    MODEL_NAME: str = "gemma4:26b"
+    MODEL_NAME: Optional[str] = None
     OLLAMA_API_KEY: Optional[str] = None
     ENABLE_WEB_SEARCH: bool = True
     AGENT_MAX_TURNS: int = 5
@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     FORCE_CPU: bool = True
     USE_FP16_QUANTIZATION: bool = False
     GPU_BATCH_SIZE: int = 128
-    CPU_BATCH_SIZE: int = 32
+    CPU_BATCH_SIZE: int = 64
     USE_FAISS_GPU: bool = False
     FAISS_GPU_DEVICE: int = 0
     FAISS_GPU_TEMP_MEMORY: int = 2147483648
@@ -63,9 +63,9 @@ class Settings(BaseSettings):
     FINAL_THRESHOLD: float = 0.15
     HYBRID_ALPHA: float = 0.75
     NORMALIZATION: str = "max"
-    CHUNK_SIZE: int = 300
-    CHUNK_OVERLAP: int = 100
-    MAX_FILE_SIZE_MB: int = 10
+    CHUNK_SIZE: int = 800
+    CHUNK_OVERLAP: int = 150
+    MAX_FILE_SIZE_MB: int = 50
     UPLOAD_DIR: str = "data/uploads"
     ENABLE_AUTO_REINDEX: int = 0
     ENABLE_AUTO_REINDEX_TASK: int = 1

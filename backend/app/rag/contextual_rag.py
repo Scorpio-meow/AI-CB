@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, AsyncGenerator
 import os
 import pickle
 import logging
@@ -15,31 +15,33 @@ from .evaluator import RAGEvaluator
 logger = logging.getLogger(__name__)
 
 
+from app.core.config import settings
+
 class HybridContextualRAG:
     """
     RAG 核心門面（Facade），統整向量檢索、BM25 倒排索引、混合檢索、Cross-Encoder 重排序與生成管線。
     維持 100% 向下相容介面。
     """
     def __init__(self):
-        self.chunk_size = int(os.getenv("CHUNK_SIZE", "300"))
-        self.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "100"))
-        self.similarity_threshold = float(os.getenv("SIMILARITY_THRESHOLD", "0.25"))
-        self.top_k = int(os.getenv("TOP_K", "50"))
-        self.rerank_top_k = int(os.getenv("RERANK_TOP_K", "80"))
-        self.final_k = int(os.getenv("FINAL_K", "10"))
-        self.rerank_weight = float(os.getenv("RERANK_WEIGHT", "0.8"))
-        self.final_threshold = float(os.getenv("FINAL_THRESHOLD", "0.1"))
-        self.hybrid_alpha = float(os.getenv("HYBRID_ALPHA", "0.7"))
-        self.normalization = os.getenv("NORMALIZATION", "max").lower()
-        self.reindex_threshold_hours = int(os.getenv("REINDEX_HOURS", "24"))
-        self.llm_timeout = int(os.getenv("LLM_TIMEOUT", "120"))
-        self.model_name = os.getenv("MODEL_NAME", "")
-        self.api_base = os.getenv("LLM_API_BASE", "").strip()
-        self.data_dir = os.getenv("DATA_DIR", "data")
-        self.use_fp16 = os.getenv("USE_FP16_QUANTIZATION", "false").lower() == "true"
-        self.force_cpu = os.getenv("FORCE_CPU", "false").lower() == "true"
-        self.use_faiss_gpu = os.getenv("USE_FAISS_GPU", "false").lower() == "true"
-        self.faiss_gpu_device = int(os.getenv("FAISS_GPU_DEVICE", "0"))
+        self.chunk_size = settings.CHUNK_SIZE
+        self.chunk_overlap = settings.CHUNK_OVERLAP
+        self.similarity_threshold = settings.SIMILARITY_THRESHOLD
+        self.top_k = settings.TOP_K
+        self.rerank_top_k = settings.RERANK_TOP_K
+        self.final_k = settings.FINAL_K
+        self.rerank_weight = settings.RERANK_WEIGHT
+        self.final_threshold = settings.FINAL_THRESHOLD
+        self.hybrid_alpha = settings.HYBRID_ALPHA
+        self.normalization = settings.NORMALIZATION.lower()
+        self.reindex_threshold_hours = settings.REINDEX_HOURS
+        self.llm_timeout = settings.LLM_TIMEOUT
+        self.model_name = settings.MODEL_NAME or ""
+        self.api_base = (settings.LLM_API_BASE or "").strip()
+        self.data_dir = settings.DATA_DIR
+        self.use_fp16 = settings.USE_FP16_QUANTIZATION
+        self.force_cpu = settings.FORCE_CPU
+        self.use_faiss_gpu = settings.USE_FAISS_GPU
+        self.faiss_gpu_device = settings.FAISS_GPU_DEVICE
 
         os.makedirs(self.data_dir, exist_ok=True)
         init_domain_dictionary(self.data_dir)
@@ -178,6 +180,25 @@ class HybridContextualRAG:
             user_id=user_id,
             reasoning_effort=reasoning_effort
         )
+
+    async def generate_response_stream(
+        self,
+        query: str,
+        conversation_id: Optional[int] = None,
+        model_name: Optional[str] = None,
+        user_id: Optional[int] = None,
+        reasoning_effort: Optional[str] = "medium",
+        attachments: Optional[List[Any]] = None
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        async for event in self.pipeline.generate_response_stream(
+            query=query,
+            conversation_id=conversation_id,
+            model_name=model_name,
+            user_id=user_id,
+            reasoning_effort=reasoning_effort,
+            attachments=attachments
+        ):
+            yield event
 
     def clear_conversation_context(self, conversation_id: int, user_id: Optional[int] = None):
         self.pipeline.clear_conversation_context(conversation_id, user_id)

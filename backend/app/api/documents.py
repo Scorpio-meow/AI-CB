@@ -8,6 +8,7 @@ from app.core.jwt_auth import get_current_admin_user
 from app.services.document_processor import DocumentProcessor
 from app.core.input_validator import InputValidator
 import re
+import asyncio
 from langchain_core.documents import Document as LangChainDocument
 import os
 from typing import List
@@ -15,9 +16,9 @@ import logging
 from datetime import datetime
 logger = logging.getLogger(__name__)
 router = APIRouter()
-MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "10"))
+MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "50"))
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "data/uploads")
-ALLOWED_EXTENSIONS = {'.txt', '.pdf', '.docx'}
+ALLOWED_EXTENSIONS = DocumentProcessor.SUPPORTED_EXTENSIONS
 QA_PATTERN = re.compile(r"(?:^|\n)\s*[QＱ]\s*[：:]\s*(.*?)\s*[\r\n]+\s*[AＡ]\s*[：:]\s*(.*?)(?=(?:\n\s*[QＱ]\s*[：:]|\Z))",
                         re.DOTALL)
 def validate_filename(filename: str) -> str:
@@ -140,7 +141,7 @@ async def upload_document(
             file_hash = DocumentProcessor.calculate_file_hash(file_path)
             logger.info(f"Uploaded file hash: {file_hash}")
             try:
-                content = DocumentProcessor.extract_text_from_file(file_path, up.content_type)
+                content = await asyncio.to_thread(DocumentProcessor.extract_text_from_file, file_path, up.content_type)
             except ValueError as ve:
                 if os.path.exists(file_path):
                     os.remove(file_path)
@@ -193,10 +194,12 @@ async def upload_document(
                     "http_status": 409
                 })
                 continue
+            doc_desc = DocumentProcessor.generate_document_summary(safe_filename, content, up.content_type or "")
             document = DBDocument(
                 filename=safe_filename,
                 content=content,
                 file_type=up.content_type,
+                description=doc_desc,
                 uploaded_by=user_id
             )
             db.add(document)
@@ -210,10 +213,15 @@ async def upload_document(
                 "content_type": up.content_type,
                 "original_filename": up.filename
             }
-            langchain_docs, qa_count = process_document_for_rag(content, base_metadata, rag_system)
-            rag_system.add_documents(langchain_docs)
+            logger.info(f"正在對文件 {safe_filename} ({len(content)} 字元) 進行分塊處理...")
+            langchain_docs, qa_count = await asyncio.to_thread(
+                process_document_for_rag, content, base_metadata, rag_system
+            )
+            logger.info(f"正在將文件 {safe_filename} 提交至 RAG 引擎進行分塊與向量化...")
+            added_chunks = await asyncio.to_thread(rag_system.add_documents, langchain_docs)
             document.is_processed = True
             db.commit()
+            logger.info(f"文件 {safe_filename} 成功入庫並完成向量索引 (共 {added_chunks} 塊)")
             results.append({
                 "filename": safe_filename,
                 "status": "success",
@@ -245,6 +253,14 @@ async def get_documents(
 ):
     try:
         documents = db.query(DBDocument).all()
+        updated = False
+        for doc in documents:
+            if (not doc.description or not doc.description.strip()) and doc.content:
+                doc.description = DocumentProcessor.generate_document_summary(doc.filename, doc.content, doc.file_type or "")
+                db.add(doc)
+                updated = True
+        if updated:
+            db.commit()
         return documents
     except Exception:
         logger.exception("獲取文件列表失敗")
@@ -299,6 +315,24 @@ async def rebuild_index(
         total_qa_pairs = 0
         for doc in documents_from_db:
             try:
+                # 優先從實體檔案重新提取最新降噪處理之文本
+                file_path = os.path.join(UPLOAD_DIR, doc.filename)
+                content_to_process = doc.content
+                if os.path.exists(file_path):
+                    try:
+                        fresh_content = DocumentProcessor.extract_text_from_file(file_path, doc.file_type or "text/plain")
+                        if fresh_content and fresh_content.strip():
+                            content_to_process = fresh_content.strip()
+                    except Exception as e:
+                        logger.warning(f"重新提取檔案 {doc.filename} 失敗，使用資料庫快取: {e}")
+
+                # 自動生成並更新文件之專屬語意描述
+                doc.description = DocumentProcessor.generate_document_summary(
+                    doc.filename, content_to_process, doc.file_type or "text/plain"
+                )
+                db.add(doc)
+                db.commit()
+
                 base_metadata = {
                     "source": doc.filename,
                     "document_id": doc.id,
@@ -306,7 +340,7 @@ async def rebuild_index(
                     "content_type": doc.file_type,
                     "original_filename": doc.filename
                 }
-                langchain_docs, qa_count = process_document_for_rag(doc.content, base_metadata, rag_system)
+                langchain_docs, qa_count = process_document_for_rag(content_to_process, base_metadata, rag_system)
                 chunks_added = rag_system.add_documents(langchain_docs)
                 
                 total_chunks += chunks_added or 0

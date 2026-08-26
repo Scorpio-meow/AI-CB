@@ -1,7 +1,8 @@
 import json
 import logging
 import time
-from typing import Any, Dict, List, Optional
+import asyncio
+from typing import Any, Dict, List, Optional, AsyncGenerator
 import httpx
 from app.core.config import settings
 from app.rag.tools import ResearchToolRegistry
@@ -9,22 +10,23 @@ from app.rag.tools import ResearchToolRegistry
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """你是一個具備自主研究能力的智慧助理「AskMiao」。
-你可以根據使用者的問題，自主調用以下工具來查證內部資料或外部即時網路資訊：
-1. `search_knowledge_base`: 檢索公司規章、制度、技術文檔或內部已上傳文件。
-2. `web_search`: 搜尋外部即時新聞、公開網站資訊或外部最新知識。
+你可以根據使用者的問題，自主調用以下工具來查證知識庫文件或外部即時網路資訊：
+1. `search_knowledge_base`: 檢索已上傳之知識庫、文檔、貼文記錄、資料表或設定檔。
+2. `web_search`: 搜尋外部即時新聞、公開網站資訊或最新知識。
 3. `web_fetch`: 當搜尋結果摘要不足時，可深入閱讀特定網頁的全文。
 
 【行為規範】：
-- 當問題涉及內部政策、請假、福利或特定業務文件時，請優先調用 `search_knowledge_base`。
-- 當問題涉及外部時事、即時技術版本或內部無相關資料時，請調用 `web_search` 與 `web_fetch`。
-- 若問題僅為一般問候或無須檢索即可回答之通識問題，可直接輸出回覆，無須調用工具。
-- 彙整查得的資料後，請使用繁體中文（台灣習慣用語）給出條理清晰、客觀專業且附帶具體細節的回答。
+- 當使用者提供特定網址連結（如 Threads/IG/FB/X/特定文章網址）、帳號名、特定代碼或詢問文件內容時，請【優先調用 `search_knowledge_base`】檢索內部資料庫是否已收錄該連結或內容。
+- 若 `web_fetch` 讀取外部網頁失敗（例如遭遇登入牆、動態渲染 SPA 僅取得標題），應【立即調用 `search_knowledge_base`】以該網址或作者關鍵字查詢內部知識庫。
+- 若問題涉及外部即時新聞、時事或知識庫未收錄內容，再調用 `web_search`。
+- 若問題僅為一般問候或日常打招呼，可直接輸出回覆，無須調用工具。
+- 彙整查得的資料後，請使用繁體中文給出條理清晰、客觀專業且附帶具體細節的回答。
 - 請勿編造不存在的事實。
 """
 
 
 class ResearchAgent:
-    """多輪自主研究 Agent 控制器"""
+    """多輪自主研究 Agent 控制器 (支援 SSE 串流與即時步驟推播)"""
 
     def __init__(self, tool_registry: ResearchToolRegistry):
         self.tools = tool_registry
@@ -39,21 +41,17 @@ class ResearchAgent:
         """調用 v1 Azure OpenAI / AI Services 原生 Tool Calling"""
         endpoint = settings.AZURE_OPENAI_ENDPOINT.rstrip('/') if settings.AZURE_OPENAI_ENDPOINT else ""
         api_key = settings.AZURE_OPENAI_API_KEY or ""
-        
-        # 處理部署名稱匹配
+
         azure_deployments = [d.strip() for d in (settings.AZURE_OPENAI_DEPLOYMENT or "").split(",") if d.strip()]
-        if model_name and (model_name in azure_deployments or any(prefix in model_name.lower() for prefix in ("gpt-", "o1", "o3", "o4"))):
-            deployment = model_name
-        else:
-            deployment = azure_deployments[0] if azure_deployments else "gpt-4o"
-        
+        deployment = model_name or (azure_deployments[0] if azure_deployments else "")
+
         url = f"{endpoint}/openai/v1/chat/completions"
         headers = {
             "api-key": api_key,
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
         }
-        
+
         payload: Dict[str, Any] = {
             "model": deployment,
             "messages": messages,
@@ -61,7 +59,6 @@ class ResearchAgent:
         if tools_def:
             payload["tools"] = tools_def
             payload["tool_choice"] = "auto"
-            # 依微軟 Foundry 文件：Chat Completions 結合工具時，gpt-5.6 等模型必須設為 none
             if "gpt-5" in deployment.lower():
                 payload["reasoning_effort"] = "none"
             elif reasoning_effort and reasoning_effort in ("none", "minimal", "low", "medium", "high", "xhigh", "max"):
@@ -69,7 +66,7 @@ class ResearchAgent:
         else:
             if reasoning_effort and reasoning_effort in ("none", "minimal", "low", "medium", "high", "xhigh", "max"):
                 payload["reasoning_effort"] = reasoning_effort
-            
+
         async with httpx.AsyncClient(timeout=90.0) as client:
             resp = await client.post(url, headers=headers, json=payload)
             if resp.status_code != 200:
@@ -77,6 +74,56 @@ class ResearchAgent:
             data = resp.json()
             choice = data["choices"][0]
             return choice["message"]
+
+    async def _stream_azure_openai(
+        self,
+        messages: List[Dict[str, Any]],
+        model_name: Optional[str] = None,
+        reasoning_effort: Optional[str] = "medium"
+    ) -> AsyncGenerator[str, None]:
+        """調用 v1 Azure OpenAI 串流生成最終答案"""
+        endpoint = settings.AZURE_OPENAI_ENDPOINT.rstrip('/') if settings.AZURE_OPENAI_ENDPOINT else ""
+        api_key = settings.AZURE_OPENAI_API_KEY or ""
+
+        azure_deployments = [d.strip() for d in (settings.AZURE_OPENAI_DEPLOYMENT or "").split(",") if d.strip()]
+        deployment = model_name or (azure_deployments[0] if azure_deployments else "")
+
+        url = f"{endpoint}/openai/v1/chat/completions"
+        headers = {
+            "api-key": api_key,
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+
+        payload: Dict[str, Any] = {
+            "model": deployment,
+            "messages": messages,
+            "stream": True
+        }
+        if reasoning_effort and reasoning_effort in ("none", "minimal", "low", "medium", "high", "xhigh", "max"):
+            payload["reasoning_effort"] = reasoning_effort
+
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            async with client.stream("POST", url, headers=headers, json=payload) as resp:
+                if resp.status_code != 200:
+                    error_text = await resp.aread()
+                    raise RuntimeError(f"Azure OpenAI 串流錯誤 ({resp.status_code}): {error_text.decode('utf-8')}")
+
+                async for line in resp.aiter_lines():
+                    if not line:
+                        continue
+                    if line.startswith("data: "):
+                        line_content = line[6:].strip()
+                        if line_content == "[DONE]":
+                            break
+                        try:
+                            chunk_data = json.loads(line_content)
+                            delta = chunk_data["choices"][0].get("delta", {})
+                            content = delta.get("content")
+                            if content:
+                                yield content
+                        except Exception:
+                            continue
 
     async def _call_ollama(
         self,
@@ -86,8 +133,8 @@ class ResearchAgent:
     ) -> Dict[str, Any]:
         """調用 Ollama 原生 Tool Calling API"""
         base_url = settings.LLM_API_BASE.rstrip('/')
-        target_model = model_name or settings.MODEL_NAME or "gemma4:26b"
-        
+        target_model = model_name or settings.MODEL_NAME or ""
+
         url = f"{base_url}/api/chat"
         payload: Dict[str, Any] = {
             "model": target_model,
@@ -108,19 +155,56 @@ class ResearchAgent:
             data = resp.json()
             return data.get("message", {})
 
-    async def run_research(
+    async def _stream_ollama(
+        self,
+        messages: List[Dict[str, Any]],
+        model_name: Optional[str] = None
+    ) -> AsyncGenerator[str, None]:
+        """調用 Ollama 串流生成最終答案"""
+        base_url = settings.LLM_API_BASE.rstrip('/')
+        target_model = model_name or settings.MODEL_NAME or ""
+
+        url = f"{base_url}/api/chat"
+        payload: Dict[str, Any] = {
+            "model": target_model,
+            "messages": messages,
+            "stream": True,
+            "options": {
+                "temperature": 0.3,
+                "num_predict": 2048
+            }
+        }
+
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            async with client.stream("POST", url, json=payload) as resp:
+                if resp.status_code != 200:
+                    error_text = await resp.aread()
+                    raise RuntimeError(f"Ollama 串流錯誤 ({resp.status_code}): {error_text.decode('utf-8')}")
+                
+                async for line in resp.aiter_lines():
+                    if not line:
+                        continue
+                    try:
+                        chunk_data = json.loads(line)
+                        content = chunk_data.get("message", {}).get("content", "")
+                        if content:
+                            yield content
+                    except Exception:
+                        continue
+
+    async def stream_research(
         self,
         query: str,
         model_name: Optional[str] = None,
         conversation_history: Optional[List[Dict[str, str]]] = None,
         reasoning_effort: Optional[str] = "medium",
+        attachments: Optional[List[Any]] = None,
         max_turns: int = 5
-    ) -> Dict[str, Any]:
-        """執行自主研究與多輪工具調用"""
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """非同步生成器：即時產生研究步驟事件與文字 token 串流（支援多模態圖片與即時附加文件解析）"""
         start_time = time.time()
         tools_def = self.tools.get_tool_definitions()
 
-        # 組裝對話訊息序列
         messages: List[Dict[str, Any]] = [
             {"role": "system", "content": SYSTEM_PROMPT}
         ]
@@ -129,15 +213,53 @@ class ResearchAgent:
             for turn in conversation_history[-6:]:
                 messages.append(turn)
 
-        messages.append({"role": "user", "content": query})
+        # 1. 解析與提取附件（圖片與各類型文件）
+        doc_contexts = []
+        image_data_urls = []
 
-        research_trace: List[Dict[str, Any]] = []
-        collected_sources: List[str] = []
-        collected_sources_detail: List[Dict[str, Any]] = []
-        final_answer = ""
-        turns_used = 0
+        if attachments:
+            import base64
+            import tempfile
+            import os
+            from app.services.document_processor import DocumentProcessor
 
-        # 智慧路由：依所選模型判斷優先使用 Azure 還是 Ollama
+            for att in attachments:
+                fname = getattr(att, "filename", None) or (att.get("filename") if isinstance(att, dict) else "未知檔案")
+                ftype = getattr(att, "file_type", None) or (att.get("file_type") if isinstance(att, dict) else "")
+                data_url = getattr(att, "data_url", None) or (att.get("data_url") if isinstance(att, dict) else None)
+                content = getattr(att, "content", None) or (att.get("content") if isinstance(att, dict) else None)
+
+                if ftype.startswith("image/"):
+                    if data_url:
+                        image_data_urls.append(data_url)
+                else:
+                    extracted_text = content
+                    if not extracted_text and data_url:
+                        try:
+                            if "," in data_url:
+                                _, b64_data = data_url.split(",", 1)
+                            else:
+                                b64_data = data_url
+                            file_bytes = base64.b64decode(b64_data)
+                            suffix = os.path.splitext(fname)[1] or ".txt"
+                            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                                tmp.write(file_bytes)
+                                tmp_path = tmp.name
+                            try:
+                                extracted_text = DocumentProcessor.extract_text_from_file(tmp_path, ftype)
+                            finally:
+                                if os.path.exists(tmp_path):
+                                    os.remove(tmp_path)
+                        except Exception as e:
+                            logger.warning(f"即時解析附件 {fname} 失敗: {e}")
+
+                    if extracted_text and extracted_text.strip():
+                        doc_contexts.append(f"【附加檔案: {fname}】\n{extracted_text.strip()}")
+
+        effective_query = query
+        if doc_contexts:
+            effective_query = "\n\n".join(doc_contexts) + f"\n\n【使用者問題】\n{query}"
+
         azure_deployments = [d.strip() for d in (settings.AZURE_OPENAI_DEPLOYMENT or "").split(",") if d.strip()]
         use_azure = False
         if settings.AZURE_OPENAI_API_KEY and settings.AZURE_OPENAI_ENDPOINT:
@@ -146,6 +268,30 @@ class ResearchAgent:
                     use_azure = True
             else:
                 use_azure = True
+
+        # 組裝使用者訊息（若有圖片，採用 Vision 多模態物件格式）
+        if image_data_urls and use_azure:
+            user_content = [{"type": "text", "text": effective_query}]
+            for img_url in image_data_urls:
+                user_content.append({"type": "image_url", "image_url": {"url": img_url}})
+            messages.append({"role": "user", "content": user_content})
+        elif image_data_urls:
+            b64_list = []
+            for img_url in image_data_urls:
+                if "," in img_url:
+                    b64_list.append(img_url.split(",", 1)[1])
+                else:
+                    b64_list.append(img_url)
+            messages.append({"role": "user", "content": effective_query, "images": b64_list})
+        else:
+            messages.append({"role": "user", "content": effective_query})
+
+        research_trace: List[Dict[str, Any]] = []
+        collected_sources: List[str] = []
+        collected_sources_detail: List[Dict[str, Any]] = []
+        final_answer = ""
+        turns_used = 0
+        has_executed_tools = False
 
         for turn in range(max_turns):
             turns_used += 1
@@ -158,22 +304,29 @@ class ResearchAgent:
                     assistant_msg = await self._call_ollama(messages, tools_def, model_name)
             except Exception as e:
                 logger.error(f"模型調用失敗 (第 {turn + 1} 輪): {e}")
-                # 若為工具調用中斷，嘗試以既有資訊生成總結或拋出友好提示
                 if not final_answer and not research_trace:
-                    final_answer = f"在執行自主研究時遇到連線異常: {str(e)}"
+                    err_msg = f"在執行自主研究時遇到連線異常: {str(e)}"
+                    yield {"event": "token", "data": {"content": err_msg}}
+                    final_answer = err_msg
                 break
 
-            # 檢查是否有 tool_calls
             tool_calls = assistant_msg.get("tool_calls")
             if not tool_calls:
-                # 模型完成研究，產出最終答案
-                final_answer = assistant_msg.get("content", "")
+                # 模型判定不需要（或已完成）工具調用，若有文字則代表完成
+                content = assistant_msg.get("content", "")
+                if content and not has_executed_tools:
+                    final_answer = content
+                    # 以自然分塊串流模擬打字機
+                    chunk_size = 4
+                    for i in range(0, len(content), chunk_size):
+                        sub = content[i:i+chunk_size]
+                        yield {"event": "token", "data": {"content": sub}}
+                        await asyncio.sleep(0.015)
                 break
 
-            # 將 assistant 包含 tool_calls 的訊息加入歷史
+            has_executed_tools = True
             messages.append(assistant_msg)
 
-            # 依序執行模型要求調用的工具
             for tc in tool_calls:
                 fn = tc.get("function", {})
                 fn_name = fn.get("name", "")
@@ -190,11 +343,20 @@ class ResearchAgent:
                 step_num = len(research_trace) + 1
                 logger.info(f"🔍 [Agent Step {step_num}] 調用工具: {fn_name} 參數: {args}")
 
+                # 即時推播步驟開始事件
+                yield {
+                    "event": "step_start",
+                    "data": {
+                        "step": step_num,
+                        "tool": fn_name,
+                        "arguments": args
+                    }
+                }
+
                 tool_start = time.time()
                 tool_output = await self.tools.execute_tool(fn_name, args)
                 tool_duration = round(time.time() - tool_start, 2)
 
-                # 收集參考來源
                 if fn_name == "search_knowledge_base" and isinstance(tool_output, dict):
                     for doc in tool_output.get("documents", []):
                         src = doc.get("source", "內部文件")
@@ -228,21 +390,26 @@ class ResearchAgent:
                         "snippet": tool_output.get("content", "")[:200]
                     })
 
-                # 記錄研究足跡
                 output_preview = json.dumps(tool_output, ensure_ascii=False)
                 if len(output_preview) > 300:
                     output_preview = output_preview[:300] + "..."
 
-                research_trace.append({
+                step_info = {
                     "step": step_num,
                     "tool": fn_name,
                     "arguments": args,
                     "output_preview": output_preview,
                     "duration_seconds": tool_duration,
                     "status": "error" if "error" in tool_output else "success"
-                })
+                }
+                research_trace.append(step_info)
 
-                # 將工具執行結果反饋給模型
+                # 即時推播步驟完成事件
+                yield {
+                    "event": "step_end",
+                    "data": step_info
+                }
+
                 tool_call_id = tc.get("id") or f"call_{step_num}"
                 messages.append({
                     "role": "tool",
@@ -251,14 +418,74 @@ class ResearchAgent:
                     "content": json.dumps(tool_output, ensure_ascii=False)
                 })
 
+        # 工具調用完成後，若有執行過工具，調用串流 API 即時生成最終答案
+        if has_executed_tools and not final_answer:
+            try:
+                if use_azure:
+                    async for chunk in self._stream_azure_openai(messages, model_name, reasoning_effort=reasoning_effort):
+                        final_answer += chunk
+                        yield {"event": "token", "data": {"content": chunk}}
+                else:
+                    async for chunk in self._stream_ollama(messages, model_name):
+                        final_answer += chunk
+                        yield {"event": "token", "data": {"content": chunk}}
+            except Exception as e:
+                logger.error(f"串流生成最終答案失敗: {e}")
+                err_msg = f"\n[回答生成中斷: {str(e)}]"
+                final_answer += err_msg
+                yield {"event": "token", "data": {"content": err_msg}}
+
         total_time = round(time.time() - start_time, 2)
 
-        return {
-            "answer": final_answer,
-            "sources": collected_sources[:6],
-            "sources_detail": collected_sources_detail[:6],
-            "research_trace": research_trace,
-            "turns_used": turns_used,
-            "total_time": total_time,
+        # 推播來源與完成事件
+        yield {
+            "event": "sources",
+            "data": {
+                "sources": collected_sources[:6],
+                "sources_detail": collected_sources_detail[:6]
+            }
+        }
+
+        yield {
+            "event": "done",
+            "data": {
+                "answer": final_answer,
+                "sources": collected_sources[:6],
+                "sources_detail": collected_sources_detail[:6],
+                "research_trace": research_trace,
+                "turns_used": turns_used,
+                "total_time": total_time,
+                "retrieval_strategy": "agentic_react"
+            }
+        }
+
+    async def run_research(
+        self,
+        query: str,
+        model_name: Optional[str] = None,
+        conversation_history: Optional[List[Dict[str, str]]] = None,
+        reasoning_effort: Optional[str] = "medium",
+        attachments: Optional[List[Any]] = None,
+        max_turns: int = 5
+    ) -> Dict[str, Any]:
+        """非串流封裝（向後相容）"""
+        result: Dict[str, Any] = {
+            "answer": "",
+            "sources": [],
+            "sources_detail": [],
+            "research_trace": [],
+            "turns_used": 0,
+            "total_time": 0.0,
             "retrieval_strategy": "agentic_react"
         }
+        async for item in self.stream_research(
+            query,
+            model_name=model_name,
+            conversation_history=conversation_history,
+            reasoning_effort=reasoning_effort,
+            attachments=attachments,
+            max_turns=max_turns
+        ):
+            if item.get("event") == "done":
+                result.update(item.get("data", {}))
+        return result

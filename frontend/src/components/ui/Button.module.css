@@ -1,0 +1,114 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  vertical-align: middle;
+  user-select: none;
+  border: 1px solid transparent;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+  cursor: pointer;
+}
+
+.button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sizeSm {
+  height: 32px;
+  padding: 0 var(--space-3);
+  font-size: var(--font-size-xs);
+}
+
+.sizeMd {
+  height: 40px;
+  padding: 0 var(--space-4);
+  font-size: var(--font-size-sm);
+}
+
+.sizeLg {
+  height: 48px;
+  padding: 0 var(--space-6);
+  font-size: var(--font-size-base);
+}
+
+.variantPrimary {
+  background-color: var(--color-primary);
+  color: var(--text-on-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.variantPrimary:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.variantSecondary {
+  background-color: var(--bg-surface-secondary);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+
+.variantSecondary:hover:not(:disabled) {
+  background-color: var(--bg-surface-hover);
+  border-color: var(--border-strong);
+}
+
+.variantOutline {
+  background-color: transparent;
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.variantOutline:hover:not(:disabled) {
+  background-color: var(--color-primary-light);
+}
+
+.variantText {
+  background-color: transparent;
+  color: var(--text-primary);
+}
+
+.variantText:hover:not(:disabled) {
+  background-color: var(--bg-surface-hover);
+  color: var(--color-primary);
+}
+
+.variantDanger {
+  background-color: var(--color-error);
+  color: #ffffff;
+}
+
+.variantDanger:hover:not(:disabled) {
+  background-color: #b91c1c;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.iconOnly {
+  padding: 0;
+}
+
+.iconOnly.sizeSm {
+  width: 32px;
+}
+
+.iconOnly.sizeMd {
+  width: 40px;
+}
+
+.iconOnly.sizeLg {
+  width: 48px;
+}

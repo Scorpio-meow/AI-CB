@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Snackbar, Alert } from '@mui/material';
+import { Snackbar, Alert } from './ui';
 import networkMonitor from '../utils/networkMonitor';
 import offlineCache from '../utils/offlineCache';
 const NetworkStatus = () => {
@@ -35,7 +35,6 @@ const NetworkStatus = () => {
   };
   return (
     <>
-      { }
       <Snackbar
         open={showOfflineAlert}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
@@ -44,12 +43,10 @@ const NetworkStatus = () => {
         <Alert
           onClose={handleCloseOfflineAlert}
           severity="warning"
-          sx={{ width: '100%' }}
         >
           您目前處於離線狀態，某些功能可能不可用
         </Alert>
       </Snackbar>
-      { }
       <Snackbar
         open={showOnlineAlert}
         autoHideDuration={3000}
@@ -59,7 +56,6 @@ const NetworkStatus = () => {
         <Alert
           onClose={handleCloseOnlineAlert}
           severity="success"
-          sx={{ width: '100%' }}
         >
           {pendingRequestsCount > 0
             ? `網絡已恢復！檢測到 ${pendingRequestsCount} 個離線請求`

@@ -71,9 +71,13 @@ export interface ChatMessageListProps {
   thinkOpenArr: Record<number | string, boolean>;
   onToggleThinking: (id: number | string) => void;
   onCopyMessage: (text: string) => void;
+  onSelectPrompt?: (prompt: string) => void;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   messagesTopRef: React.RefObject<HTMLDivElement | null>;
 }
+
+export type { ChatAttachment } from '../../services/api';
+import type { ChatAttachment } from '../../services/api';
 
 export interface ChatInputAreaProps {
   value: string;
@@ -81,6 +85,9 @@ export interface ChatInputAreaProps {
   onSend: () => void;
   loading: boolean;
   disabled?: boolean;
+  attachments?: ChatAttachment[];
+  onAddAttachments?: (attachments: ChatAttachment[]) => void;
+  onRemoveAttachment?: (index: number) => void;
 }
 
 export interface SourceBadgesProps {
