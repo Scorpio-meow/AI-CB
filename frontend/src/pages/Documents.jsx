@@ -41,13 +41,16 @@ function Documents() {
   const [uploadDialog, setUploadDialog] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [deletingStatus, setDeletingStatus] = useState({});
+  const [regeneratingStatus, setRegeneratingStatus] = useState({});
+  const [editingDocId, setEditingDocId] = useState(null);
+  const [editingDesc, setEditingDesc] = useState('');
+  const [savingDesc, setSavingDesc] = useState(false);
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
   const [rebuildLoading, setRebuildLoading] = useState(false);
   const [rebuildDialog, setRebuildDialog] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const isMountedRef = useRef(true);
   const fileInputRef = useRef(null);
-
   useEffect(() => {
     isMountedRef.current = true;
     fetchDocuments();
@@ -55,7 +58,6 @@ function Documents() {
       isMountedRef.current = false;
     };
   }, [fetchDocuments]);
-
   const processFiles = (files) => {
     if (!files || !files.length) return;
     const allowedExtensions = [
@@ -95,7 +97,6 @@ function Documents() {
         setLocalError(`文件大小不能超過 50MB（${file.name}）`);
         return;
       }
-      // 避免在同一次選擇中加入重複檔案
       if (!selectedFiles.some(f => f.name === file.name && f.size === file.size)) {
         accepted.push(file);
       }
@@ -106,31 +107,26 @@ function Documents() {
     setUploadItems((prev) => [...prev, ...items]);
     setLocalError('');
   };
-
   const handleFileSelect = (event) => {
     const files = Array.from(event.target.files || []);
     processFiles(files);
     if (event.target) event.target.value = '';
   };
-
   const handleDragEnter = (e) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(true);
   };
-
   const handleDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
     if (!isDragging) setIsDragging(true);
   };
-
   const handleDragLeave = (e) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
   };
-
   const handleDrop = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -139,7 +135,6 @@ function Documents() {
       processFiles(Array.from(e.dataTransfer.files));
     }
   };
-
   const getStatusChipProps = (status, detail) => {
     switch (status) {
       case 'uploading':
@@ -157,7 +152,6 @@ function Documents() {
         return { label: '待上傳', variant: 'outline' };
     }
   };
-
   const getFileBadgeClass = (ext) => {
     const e = ext.toLowerCase();
     if (e === 'pdf') return styles.fileBadgePdf;
@@ -396,6 +390,40 @@ function Documents() {
       setRebuildLoading(false);
     }
   };
+  const handleRegenerateSummary = async (documentId, filename) => {
+    try {
+      setRegeneratingStatus((prev) => ({ ...prev, [documentId]: true }));
+      const response = await api.post(`/documents/${documentId}/regenerate-summary`);
+      const newDesc = response.data?.description;
+      if (newDesc) {
+        setSuccess(`《${filename}》AI 智能大綱已成功重新生成！`);
+        await fetchDocuments();
+      }
+    } catch (err) {
+      console.error('重新生成大綱錯誤:', err);
+      setLocalError(`重新生成大綱失敗: ${err.response?.data?.detail || err.message}`);
+    } finally {
+      setRegeneratingStatus((prev) => ({ ...prev, [documentId]: false }));
+    }
+  };
+  const handleSaveSummary = async (documentId) => {
+    if (!editingDesc || !editingDesc.trim()) {
+      setLocalError('大綱內容不能為空');
+      return;
+    }
+    try {
+      setSavingDesc(true);
+      await api.put(`/documents/${documentId}/summary`, { description: editingDesc.trim() });
+      setSuccess('大綱內容已成功更新');
+      setEditingDocId(null);
+      await fetchDocuments();
+    } catch (err) {
+      console.error('儲存大綱錯誤:', err);
+      setLocalError(`儲存大綱失敗: ${err.response?.data?.detail || err.message}`);
+    } finally {
+      setSavingDesc(false);
+    }
+  };
   const error = localError || docError;
   if (loading) {
     return (
@@ -465,12 +493,49 @@ function Documents() {
                   </div>
                   {doc.description && (
                     <div className={styles.docDescriptionBox}>
-                      <span className={styles.docDescriptionIcon}>
-                        <Icon name="lightbulb" size={15} />
-                      </span>
-                      <span className={styles.docDescriptionText}>
-                        {doc.description}
-                      </span>
+                      <div className={styles.docDescriptionHeader}>
+                        <span className={styles.docDescriptionIcon}>
+                          <Icon name="auto_awesome" size={14} />
+                        </span>
+                        <span>AI 智能大綱與摘要</span>
+                        {editingDocId !== doc.id && (
+                          <span style={{ marginLeft: 'auto', display: 'flex', gap: '4px' }}>
+                            <button
+                              type="button"
+                              className={styles.summaryActionBtn}
+                              onClick={() => {
+                                setEditingDocId(doc.id);
+                                setEditingDesc(doc.description || '');
+                              }}
+                              title="手動編輯大綱"
+                            >
+                              編輯
+                            </button>
+                          </span>
+                        )}
+                      </div>
+                      {editingDocId === doc.id ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                          <textarea
+                            value={editingDesc}
+                            onChange={(e) => setEditingDesc(e.target.value)}
+                            className={styles.summaryEditTextarea}
+                            rows={3}
+                          />
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                            <Button size="sm" variant="text" onClick={() => setEditingDocId(null)} disabled={savingDesc}>
+                              取消
+                            </Button>
+                            <Button size="sm" variant="primary" onClick={() => handleSaveSummary(doc.id)} disabled={savingDesc}>
+                              {savingDesc ? '儲存中...' : '儲存'}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className={styles.docDescriptionText}>
+                          {doc.description}
+                        </span>
+                      )}
                     </div>
                   )}
                   <div className={styles.docMeta}>
@@ -479,6 +544,19 @@ function Documents() {
                   </div>
                 </div>
                 <div className={styles.docActions}>
+                  <IconButton
+                    size="sm"
+                    onClick={() => handleRegenerateSummary(doc.id, doc.filename)}
+                    disabled={regeneratingStatus[doc.id] || deletingStatus[doc.id] === 'deleting'}
+                    aria-label="重新生成 AI 大綱"
+                    title="重新生成 AI 大綱"
+                  >
+                    {regeneratingStatus[doc.id] ? (
+                      <Spinner size={16} color="var(--color-primary)" />
+                    ) : (
+                      <Icon name="refresh" size={18} color="var(--color-primary)" />
+                    )}
+                  </IconButton>
                   {deletingStatus[doc.id] === 'deleting' && (
                     <Chip label="刪除中" size="sm" color="warning" />
                   )}
@@ -532,7 +610,6 @@ function Documents() {
             </IconButton>
           </div>
         </DialogTitle>
-
         <DialogContent>
           <div style={{ marginTop: '8px' }}>
             <input
@@ -544,7 +621,6 @@ function Documents() {
               multiple
               onChange={handleFileSelect}
             />
-
             {/* 拖曳上傳放置區 */}
             <div
               className={`${styles.dropZone} ${isDragging ? styles.dropZoneActive : ''}`}
@@ -574,7 +650,6 @@ function Documents() {
                 <span className={styles.formatTag}>Code (.py, .js, .ts...)</span>
               </div>
             </div>
-
             {/* 已選擇檔案佇列 */}
             {selectedFiles && selectedFiles.length > 0 && (
               <div className={styles.selectedFilesBox}>
@@ -592,13 +667,11 @@ function Documents() {
                     清空清單
                   </Button>
                 </div>
-
                 <div className={styles.fileQueueList}>
                   {selectedFiles.map((f, idx) => {
                     const item = uploadItems[idx] || { progress: 0, status: 'ready', detail: null };
                     const extLabel = getFileTypeLabel(f.type, f.name);
                     const chipProps = getStatusChipProps(item.status, item.detail);
-
                     return (
                       <div key={idx} className={styles.fileCard}>
                         <div className={styles.fileCardTop}>
@@ -611,7 +684,6 @@ function Documents() {
                               <div className={styles.fileSize}>{formatFileSize(f.size)}</div>
                             </div>
                           </div>
-
                           <div className={styles.fileCardRight}>
                             <Chip
                               label={chipProps.label}
@@ -639,7 +711,6 @@ function Documents() {
                             )}
                           </div>
                         </div>
-
                         {/* 進度條 */}
                         {(item.status === 'uploading' || item.progress > 0) && (
                           <div>
@@ -660,7 +731,6 @@ function Documents() {
             )}
           </div>
         </DialogContent>
-
         <DialogActions>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
             <div>
@@ -691,7 +761,6 @@ function Documents() {
           </div>
         </DialogActions>
       </Dialog>
-
       {/* 清除確認 Dialog */}
       <Dialog
         open={confirmRemoveOpen}
@@ -716,7 +785,6 @@ function Documents() {
           <Button variant="danger" onClick={confirmRemoveSelectedFiles}>確定清空</Button>
         </DialogActions>
       </Dialog>
-
       {/* 重建索引 Dialog */}
       <Dialog
         open={rebuildDialog}

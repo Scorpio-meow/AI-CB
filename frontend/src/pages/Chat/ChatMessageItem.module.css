@@ -135,84 +135,344 @@
   color: var(--color-primary);
 }
 
+.markdownBody {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+
 .markdownBody p {
-  margin: 0 0 var(--space-2) 0;
-  line-height: 1.65;
+  margin: 0 0 var(--space-3) 0;
+  line-height: 1.68;
 }
 
 .markdownBody p:last-child {
   margin-bottom: 0;
 }
 
+.markdownBody h1,
+.markdownBody h2,
+.markdownBody h3,
+.markdownBody h4 {
+  color: var(--text-primary);
+  font-weight: 600;
+  margin: var(--space-4) 0 var(--space-2) 0;
+  line-height: 1.35;
+}
+
+.markdownBody h3 {
+  font-size: 1.05rem;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.markdownBody hr {
+  border: none;
+  border-top: 1px dashed var(--border-default);
+  margin: var(--space-4) 0;
+}
+
+/* 引用區塊卡片化 (Bento Card 質感) */
+.markdownBody blockquote {
+  margin: var(--space-3) 0;
+  padding: 12px 16px;
+  border-left: 3.5px solid var(--color-primary);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(37, 99, 235, 0.01) 100%);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  color: var(--text-primary);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+}
+
+[data-theme="dark"] .markdownBody blockquote {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(59, 130, 246, 0.03) 100%);
+  border-left-color: #3b82f6;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.markdownBody blockquote p {
+  margin-bottom: var(--space-2);
+}
+
+.markdownBody blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* 程式碼區塊與行內代碼 */
 .markdownBody pre {
   background-color: var(--neutral-900);
   color: var(--neutral-50);
   padding: var(--space-3);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   overflow-x: auto;
-  margin: var(--space-2) 0;
+  margin: var(--space-3) 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .markdownBody code {
-  font-family: var(--font-mono);
-  font-size: 0.875rem;
-  background-color: rgba(0, 0, 0, 0.06);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85rem;
+  background-color: rgba(37, 99, 235, 0.06);
+  color: var(--color-primary);
   padding: 2px 6px;
-  border-radius: var(--radius-xs);
+  border-radius: 4px;
+  border: 1px solid rgba(37, 99, 235, 0.12);
 }
 
 [data-theme="dark"] .markdownBody code {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.25);
 }
 
 .markdownBody pre code {
   background-color: transparent;
+  color: inherit;
   padding: 0;
+  border: none;
 }
 
 .markdownBody ul,
 .markdownBody ol {
   padding-left: var(--space-5);
-  margin: var(--space-2) 0;
+  margin: var(--space-2) 0 var(--space-3) 0;
+}
+
+.markdownBody li {
+  margin-bottom: 4px;
+  line-height: 1.6;
+}
+
+/* 表格優化 (響應式外框 + 斑馬紋) */
+.tableContainer {
+  width: 100%;
+  overflow-x: auto;
+  margin: var(--space-3) 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
 .markdownBody table {
   border-collapse: collapse;
   width: 100%;
-  margin: var(--space-3) 0;
-}
-
-.markdownBody th,
-.markdownBody td {
-  border: 1px solid var(--border-default);
-  padding: var(--space-2);
-  font-size: 0.875rem;
+  margin: 0;
+  font-size: 0.85rem;
 }
 
 .markdownBody th {
   background-color: var(--bg-surface-secondary);
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-default);
+  white-space: nowrap;
 }
 
-.footer {
+.markdownBody td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-default);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.markdownBody tr:last-child td {
+  border-bottom: none;
+}
+
+.markdownBody tbody tr {
+  transition: background-color var(--transition-fast);
+}
+
+.markdownBody tbody tr:hover {
+  background-color: rgba(37, 99, 235, 0.035);
+}
+
+[data-theme="dark"] .markdownBody tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.035);
+}
+
+/* 連結與社群貼文按鈕膠囊 (Pill Badge) */
+.markdownLink {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 500;
+  border-bottom: 1px dashed rgba(37, 99, 235, 0.4);
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.markdownLink:hover {
+  color: var(--color-primary-hover, #1d4ed8);
+  border-bottom-style: solid;
+  border-bottom-color: var(--color-primary);
+}
+
+.postLinkBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  color: var(--color-primary) !important;
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-decoration: none !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  margin: 2px 2px;
+  vertical-align: middle;
+}
+
+[data-theme="dark"] .postLinkBadge {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #93c5fd !important;
+}
+
+.postLinkBadge:hover {
+  background: rgba(37, 99, 235, 0.18);
+  border-color: rgba(37, 99, 235, 0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(37, 99, 235, 0.2);
+}
+
+[data-theme="dark"] .postLinkBadge:hover {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: rgba(59, 130, 246, 0.6);
+  box-shadow: 0 3px 10px rgba(59, 130, 246, 0.3);
+}
+
+.externalIcon {
+  font-size: 0.75rem;
+  opacity: 0.85;
+  transition: transform 0.15s ease;
+}
+
+.postLinkBadge:hover .externalIcon {
+  transform: translate(1px, -1px);
+}
+
+/* 自動化社群貼文卡片 (自動將 pipe/列表 轉換為精緻卡片) */
+.socialPostCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 12px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  list-style: none !important;
+}
+
+.socialPostCard:hover {
+  border-color: rgba(37, 99, 235, 0.35);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.08);
+  transform: translateY(-1px);
+}
+
+[data-theme="dark"] .socialPostCard {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .socialPostCard:hover {
+  border-color: rgba(59, 130, 246, 0.45);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.socialPostHeader {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  margin-top: 4px;
-  padding: 0 var(--space-1);
+  justify-content: space-between;
+  gap: 8px;
 }
 
-.timestamp {
+.socialPostAuthorRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.postIndexBadge {
+  font-size: 0.75rem;
+  font-weight: 700;
   color: var(--text-tertiary);
-  font-size: 0.7rem;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono, monospace);
 }
 
-.copyButton {
-  color: var(--text-tertiary);
-  transition: color var(--transition-fast);
+[data-theme="dark"] .postIndexBadge {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
 }
 
-.copyButton:hover {
+.postAuthorBadge {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
   color: var(--color-primary);
+  font-size: 0.88rem;
+  font-family: var(--font-mono, monospace);
+  background: rgba(37, 99, 235, 0.08);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(37, 99, 235, 0.15);
+}
+
+[data-theme="dark"] .postAuthorBadge {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #93c5fd;
+}
+
+.socialPostTime {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  background: rgba(0, 0, 0, 0.04);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+[data-theme="dark"] .socialPostTime {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+}
+
+.socialPostContent {
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+  word-break: break-word;
+  padding: 2px 0;
+}
+
+.socialPostFooter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .socialPostFooter {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+.customListItem {
+  list-style: none;
+  margin-bottom: 6px;
 }
 
 /* Lightbox Modal */

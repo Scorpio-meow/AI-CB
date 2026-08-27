@@ -23,28 +23,27 @@ from app.core.jwt_auth import (
     validate_password_strength, sanitize_username,
     PasswordManager, revoke_token
 )
+from app.core.config import settings
 from app.core.security_logging import log_security_event
+REFRESH_COOKIE_NAME = "refresh_token"
+REFRESH_COOKIE_PATH = "/api/auth"
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 security = HTTPBearer()
 def _get_cookie_secure() -> bool:
-    override = os.getenv("COOKIE_SECURE")
-    if override is not None and override != "":
-        return override.strip().lower() in {"1", "true", "yes", "y"}
-    return os.getenv("ENVIRONMENT", "development").strip().lower() == "production"
+    if settings.COOKIE_SECURE is not None:
+        return settings.COOKIE_SECURE
+    return settings.ENVIRONMENT == "production"
 def _get_cookie_samesite() -> str:
-    override = os.getenv("COOKIE_SAMESITE")
-    if override:
-        return override.strip().lower()
-    return "lax"
+    return settings.COOKIE_SAMESITE or "lax"
 def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
     response.set_cookie(
-        key="refresh_token",
+        key=REFRESH_COOKIE_NAME,
         value=refresh_token,
         httponly=True,
         secure=_get_cookie_secure(),
         samesite=_get_cookie_samesite(),
-        max_age=7 * 24 * 60 * 60,
-        path="/api/auth",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        path=REFRESH_COOKIE_PATH,
     )
 @router.post("/register", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
 async def register(
@@ -171,7 +170,7 @@ async def refresh_token(
     db: Session = Depends(get_db)
 ):
     try:
-        refresh_token_value = request.cookies.get("refresh_token")
+        refresh_token_value = request.cookies.get(REFRESH_COOKIE_NAME)
         
         if not refresh_token_value:
             raise HTTPException(
@@ -337,13 +336,13 @@ async def logout(
             access_token = auth_header.split(" ")[1]
             revoke_token(access_token)
         
-        refresh_token_value = request.cookies.get("refresh_token")
+        refresh_token_value = request.cookies.get(REFRESH_COOKIE_NAME)
         if refresh_token_value:
             revoke_token(refresh_token_value)
         
         response.delete_cookie(
-            key="refresh_token",
-            path="/api/auth"
+            key=REFRESH_COOKIE_NAME,
+            path=REFRESH_COOKIE_PATH
         )
         
         log_security_event("USER_LOGOUT", request=request, user_id=user["user_id"], details={
@@ -356,7 +355,7 @@ async def logout(
         log_security_event("LOGOUT_ERROR", request=request, user_id=user.get("user_id"), details={
             "error": str(e)
         })
-        response.delete_cookie(key="refresh_token", path="/api/auth")
+        response.delete_cookie(key=REFRESH_COOKIE_NAME, path=REFRESH_COOKIE_PATH)
         return MessageResponse(message="登出成功")
 @router.post("/validate-token", response_model=MessageResponse)
 async def validate_token(

@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { useNavigate, Outlet } from 'react-router-dom';
+import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Avatar, Menu, MenuItem, MenuDivider, Icon } from './ui';
 import styles from './Layout.module.css';
 function Layout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout } = useAuth();
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
@@ -33,16 +34,24 @@ function Layout() {
           <div className={styles.navGroup}>
             <button
               type="button"
-              className={styles.navButton}
+              className={`${styles.navButton} ${location.pathname.startsWith('/chat') ? styles.navButtonActive : ''}`}
               onClick={() => navigate('/chat')}
             >
               <Icon name="chat" size={18} />
               <span>聊天</span>
             </button>
+            <button
+              type="button"
+              className={`${styles.navButton} ${location.pathname.startsWith('/tools') ? styles.navButtonActive : ''}`}
+              onClick={() => navigate('/tools')}
+            >
+              <Icon name="tools" size={18} />
+              <span>AI 工具</span>
+            </button>
             {user?.is_admin && (
               <button
                 type="button"
-                className={styles.navButton}
+                className={`${styles.navButton} ${location.pathname.startsWith('/documents') ? styles.navButtonActive : ''}`}
                 onClick={() => navigate('/documents')}
               >
                 <Icon name="description" size={18} />
@@ -52,7 +61,7 @@ function Layout() {
             {user?.is_admin && (
               <button
                 type="button"
-                className={styles.navButton}
+                className={`${styles.navButton} ${location.pathname.startsWith('/admin') ? styles.navButtonActive : ''}`}
                 onClick={() => navigate('/admin')}
               >
                 <Icon name="admin" size={18} />

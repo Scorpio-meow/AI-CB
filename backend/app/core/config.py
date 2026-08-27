@@ -16,17 +16,28 @@ class Settings(BaseSettings):
     MODEL_NAME: Optional[str] = None
     OLLAMA_API_KEY: Optional[str] = None
     ENABLE_WEB_SEARCH: bool = True
-    AGENT_MAX_TURNS: int = 5
+    AGENT_MAX_TURNS: Optional[int] = None
     AZURE_OPENAI_API_KEY: Optional[str] = None
     AZURE_OPENAI_ENDPOINT: Optional[str] = None
     AZURE_OPENAI_DEPLOYMENT: Optional[str] = None
     AVAILABLE_MODELS: Optional[str] = None
     OPENAI_API_KEY: Optional[str] = None
     OPENAI_API_BASE: str = "https://api.openai.com/v1"
+    OPENAI_VISION_MODEL: str = "gpt-4o"
     ANTHROPIC_API_KEY: Optional[str] = None
     ANTHROPIC_API_BASE: str = "https://api.anthropic.com"
     GEMINI_API_KEY: Optional[str] = None
     GEMINI_API_BASE: str = "https://generativelanguage.googleapis.com"
+    GEMINI_VISION_MODEL: str = "gemini-2.5-flash"
+    OLLAMA_SEARCH_ENDPOINT: str = "https://ollama.com/api/web_search"
+    OLLAMA_FETCH_ENDPOINT: str = "https://ollama.com/api/web_fetch"
+    DUCKDUCKGO_SEARCH_ENDPOINT: str = "https://html.duckduckgo.com/html/"
+    DEFAULT_CONVERSATION_TITLE: str = "新對話"
+    COOKIE_SECURE: Optional[bool] = None
+    COOKIE_SAMESITE: str = "lax"
+    EXTERNAL_TAGS_URL: str = ""
+    LLM_TAGS_TIMEOUT: float = 10.0
+    ADD_NGROK_HEADER: bool = False
     ADMIN_API_KEY: str
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "RS256"
@@ -41,6 +52,8 @@ class Settings(BaseSettings):
     DB_POOL_SIZE: int = 20
     DB_MAX_OVERFLOW: int = 40
     DB_POOL_RECYCLE: int = 3600
+    DB_POOL_PRE_PING: bool = True
+    SQLALCHEMY_ECHO: bool = False
     EMBEDDING_MODEL: str = "BAAI/bge-small-zh-v1.5"
     RERANKER_MODEL: str = "BAAI/bge-reranker-base"
     HF_HOME: str = "./data/hf_home"

@@ -13,3 +13,6 @@ build
 .env
 .pytest_cache
 *.db
+data
+modelcontextprotocol
+OpenAPI Specification

@@ -9,13 +9,17 @@ from ..types import Document
 
 logger = logging.getLogger(__name__)
 
+MAX_CPU_THREADS = 16
+MAX_INTEROP_THREADS = 4
+LARGE_BATCH_CHUNK_THRESHOLD = 500
+
 SentenceTransformer = None
 
 
 class VectorStoreManager:
     def __init__(
         self,
-        data_dir: str = "data",
+        data_dir: Optional[str] = None,
         faiss_index_path: Optional[str] = None,
         documents_path: Optional[str] = None,
         metadata_path: Optional[str] = None,
@@ -25,45 +29,45 @@ class VectorStoreManager:
         use_faiss_gpu: bool = False,
         faiss_gpu_device: int = 0,
         batch_size: Optional[int] = None,
-        similarity_threshold: float = 0.25,
-        top_k: int = 50,
+        similarity_threshold: Optional[float] = None,
+        top_k: Optional[int] = None,
     ):
-        self.data_dir = data_dir
-        self.faiss_index_path = faiss_index_path or os.path.join(self.data_dir, "faiss_index.bin")
-        self.documents_path = documents_path or os.path.join(self.data_dir, "documents.pkl")
-        self.metadata_path = metadata_path or os.path.join(self.data_dir, "index_metadata.pkl")
+        from app.core.config import settings
+
+        self.data_dir = data_dir or settings.DATA_DIR
+        self.faiss_index_path = faiss_index_path or settings.FAISS_INDEX_PATH
+        self.documents_path = documents_path or settings.DOCUMENTS_PATH
+        self.metadata_path = metadata_path or settings.METADATA_PATH
         os.makedirs(self.data_dir, exist_ok=True)
 
-        self.similarity_threshold = similarity_threshold
-        self.top_k = top_k
+        self.similarity_threshold = similarity_threshold if similarity_threshold is not None else settings.SIMILARITY_THRESHOLD
+        self.top_k = top_k if top_k is not None else settings.TOP_K
         self.documents: List[Document] = []
 
         import torch
-        from app.core.config import settings
 
         if force_cpu or not torch.cuda.is_available():
             self.device = "cpu"
             try:
-                # 針對 Intel i7-1360P (12 核 16 線程) 配置最佳 PyTorch 執行緒數
-                cpu_threads = min(16, os.cpu_count() or 8)
+ 
+                cpu_threads = min(MAX_CPU_THREADS, os.cpu_count() or 8)
                 torch.set_num_threads(cpu_threads)
-                torch.set_num_interop_threads(min(4, os.cpu_count() or 4))
-                logger.info(f"Intel Core i7-1360P CPU 多執行緒加速啟用: PyTorch 執行緒數 = {cpu_threads}")
+                torch.set_num_interop_threads(min(MAX_INTEROP_THREADS, os.cpu_count() or 4))
+                logger.info(f"CPU 多執行緒加速啟用: PyTorch 執行緒數 = {cpu_threads}")
             except Exception as e:
                 logger.debug(f"設定 PyTorch 執行緒失敗: {e}")
-            self.batch_size = batch_size or settings.CPU_BATCH_SIZE or 128
+            self.batch_size = batch_size or settings.CPU_BATCH_SIZE
         else:
             self.device = "cuda"
             gpu_name = torch.cuda.get_device_name(0)
             gpu_mem = round(torch.cuda.get_device_properties(0).total_memory / 1024**3, 2)
             logger.info(f"GPU加速已啟用: {gpu_name} ({gpu_mem}GB 顯存)")
-            self.batch_size = batch_size or settings.GPU_BATCH_SIZE or 128
+            self.batch_size = batch_size or settings.GPU_BATCH_SIZE
 
-        model_name = embedding_model or os.getenv("EMBEDDING_MODEL", "paraphrase-multilingual-MiniLM-L12-v2")
-        fallback_model = "paraphrase-multilingual-MiniLM-L12-v2"
-        self.local_embeddings = self._load_embedding_model(model_name, fallback_model)
+        model_name = embedding_model or settings.EMBEDDING_MODEL
+        self.local_embeddings = self._load_embedding_model(model_name)
         if self.local_embeddings is None:
-            raise RuntimeError("No embedding model available. Please check EMBEDDING_MODEL environment variable or install sentence-transformers.")
+            raise RuntimeError(f"無法載入嵌入模型 ({model_name})，請檢查 EMBEDDING_MODEL 設定或 sentence-transformers 套件。")
 
         self.use_fp16 = use_fp16
         if self.use_fp16 and self.device == "cuda":
@@ -79,7 +83,7 @@ class VectorStoreManager:
         elif hasattr(self.local_embeddings, "get_sentence_embedding_dimension"):
             self.embedding_dimension = self.local_embeddings.get_sentence_embedding_dimension()
         else:
-            self.embedding_dimension = 384
+            raise RuntimeError(f"無法獲取嵌入模型 ({model_name}) 之向量維度")
         logger.info(f"嵌入模型已載入至 {self.device.upper()}: {model_name} (維度: {self.embedding_dimension}, 精度: {'FP16' if self.use_fp16 else 'FP32'})")
 
         self.use_faiss_gpu = use_faiss_gpu
@@ -88,7 +92,7 @@ class VectorStoreManager:
         if self.use_faiss_gpu and hasattr(faiss, "StandardGpuResources"):
             try:
                 self.gpu_resources = faiss.StandardGpuResources()
-                gpu_temp_memory = int(os.getenv("FAISS_GPU_TEMP_MEMORY", str(2 * 1024 * 1024 * 1024)))
+                gpu_temp_memory = int(settings.FAISS_GPU_TEMP_MEMORY)
                 self.gpu_resources.setTempMemory(gpu_temp_memory)
                 logger.info(f"FAISS-GPU 資源已初始化 (設備 {self.faiss_gpu_device}, 臨時記憶體: {gpu_temp_memory / 1024**3:.1f}GB)")
             except Exception as e:
@@ -102,7 +106,7 @@ class VectorStoreManager:
         self.index = faiss.IndexFlatIP(self.embedding_dimension)
         self.load_indices()
 
-    def _load_embedding_model(self, model_name: str, fallback_model: str):
+    def _load_embedding_model(self, model_name: str):
         global SentenceTransformer
         try:
             if SentenceTransformer is None:
@@ -110,14 +114,7 @@ class VectorStoreManager:
                 SentenceTransformer = _ST
             return SentenceTransformer(model_name, device=self.device)
         except Exception as e:
-            logger.warning(f"Failed to load SentenceTransformer ({model_name}): {e}")
-            if model_name != fallback_model:
-                logger.info(f"嘗試載入備用模型: {fallback_model}")
-                try:
-                    return SentenceTransformer(fallback_model, device=self.device)
-                except Exception as e2:
-                    logger.error(f"Fallback model also failed: {e2}")
-                    return None
+            logger.error(f"載入 SentenceTransformer 模型 ({model_name}) 失敗: {e}")
             return None
 
     def load_indices(self) -> None:
@@ -214,9 +211,9 @@ class VectorStoreManager:
         chunk_texts = [chunk.page_content for chunk in chunks]
         logger.info(f"正在對 {total_chunks} 個文本塊計算向量嵌入 (Batch Size: {self.batch_size}, Device: {self.device})...")
         
-        # 若文字塊數量龐大，分批編碼並輸出進度百分比
-        if total_chunks > 500:
-            step = max(500, self.batch_size * 4)
+
+        if total_chunks > LARGE_BATCH_CHUNK_THRESHOLD:
+            step = max(LARGE_BATCH_CHUNK_THRESHOLD, self.batch_size * 4)
             all_embeddings = []
             for start_idx in range(0, total_chunks, step):
                 end_idx = min(start_idx + step, total_chunks)

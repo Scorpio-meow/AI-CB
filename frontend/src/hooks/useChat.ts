@@ -102,7 +102,6 @@ export function useChat() {
     if (!content.trim() && (!attachments || attachments.length === 0)) return;
     setLoading(true);
     setError(null);
-
     const userMsgId = Date.now();
     const userMessage: Message = {
       id: userMsgId,
@@ -111,7 +110,6 @@ export function useChat() {
       created_at: new Date().toISOString(),
       attachments: attachments || []
     };
-
     const botMsgId = userMsgId + 1;
     const botMessage: Message = {
       id: botMsgId,
@@ -124,9 +122,7 @@ export function useChat() {
       sources: [],
       sources_detail: []
     };
-
     setMessages(prev => [...prev, userMessage, botMessage]);
-
     try {
       await chatService.sendMessageStream(
         content,
@@ -217,7 +213,6 @@ export function useChat() {
               }
               return next;
             });
-
             if (doneData.conversation_id && (!currentConversation || currentConversation.id !== doneData.conversation_id)) {
               fetchConversations().then(fresh => {
                 const found = fresh.find(c => c.id === doneData.conversation_id);

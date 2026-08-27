@@ -7,10 +7,7 @@ from app.models.database import create_tables
 from app.tasks.uploads_watcher import scan_and_cleanup_uploads
 from app.tasks.index_rebuilder import start_index_rebuilder
 from app.core.rag_manager import get_rag_system
-
 logger = logging.getLogger(__name__)
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting ChatBot application...")

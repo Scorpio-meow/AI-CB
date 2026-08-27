@@ -3,7 +3,7 @@ from typing import Dict, Any, List, Optional
 try:
     from langchain_core.documents import Document
 except ImportError:
-    class Document:  # type: ignore
+    class Document:
         def __init__(self, page_content: str = "", metadata: Optional[Dict[str, Any]] = None):
             self.page_content = page_content
             self.metadata = metadata if metadata is not None else {}
@@ -15,7 +15,7 @@ except ImportError:
 try:
     from langchain_text_splitters import RecursiveCharacterTextSplitter
 except ImportError:
-    class RecursiveCharacterTextSplitter:  # type: ignore
+    class RecursiveCharacterTextSplitter:
         def __init__(
             self,
             chunk_size: int = 300,

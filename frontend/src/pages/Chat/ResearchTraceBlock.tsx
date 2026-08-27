@@ -2,13 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ResearchTraceStep } from './types';
 import { Collapse, Chip, Spinner, Icon } from '../../components/ui';
 import styles from './ResearchTraceBlock.module.css';
-
 export interface ResearchTraceBlockProps {
   trace: ResearchTraceStep[];
   hasContent?: boolean;
   isStreaming?: boolean;
 }
-
 const getToolDisplayInfo = (toolName: string) => {
   switch (toolName) {
     case 'search_knowledge_base':
@@ -17,6 +15,13 @@ const getToolDisplayInfo = (toolName: string) => {
         color: '#2563EB',
         bgColor: 'rgba(37, 99, 235, 0.12)',
         icon: <Icon name="menu-book" size={16} color="#2563EB" />,
+      };
+    case 'filter_and_count_records':
+      return {
+        label: '結構化統計與篩選',
+        color: '#059669',
+        bgColor: 'rgba(5, 150, 105, 0.12)',
+        icon: <Icon name="analytics" size={16} color="#059669" />,
       };
     case 'web_search':
       return {
@@ -41,7 +46,18 @@ const getToolDisplayInfo = (toolName: string) => {
       };
   }
 };
-
+const formatStepQueryParam = (step: ResearchTraceStep): string => {
+  const args = step.arguments || {};
+  if (step.tool === 'filter_and_count_records') {
+    const parts: string[] = [];
+    if (args.date_range) parts.push(`日期: ${args.date_range}`);
+    if (args.author) parts.push(`作者: ${args.author}`);
+    if (args.keyword) parts.push(`關鍵字: ${args.keyword}`);
+    if (args.target_document) parts.push(`文檔: ${args.target_document}`);
+    if (parts.length > 0) return parts.join(' | ');
+  }
+  return args.query || args.url || '';
+};
 export const ResearchTraceBlock: React.FC<ResearchTraceBlockProps> = ({
   trace,
   hasContent = false,
@@ -50,14 +66,10 @@ export const ResearchTraceBlock: React.FC<ResearchTraceBlockProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const userInteractedRef = useRef(false);
   const prevHasContentRef = useRef(hasContent);
-
   const hasRunningStep = trace.some(s => s.status === 'running');
   const isResearching = isStreaming && !hasContent;
-
-  // 檢索期間自動展開；文字串流開始時自動收合
   useEffect(() => {
     if (userInteractedRef.current) return;
-
     if (isResearching || hasRunningStep) {
       setIsOpen(true);
     } else if (hasContent && !prevHasContentRef.current) {
@@ -65,17 +77,13 @@ export const ResearchTraceBlock: React.FC<ResearchTraceBlockProps> = ({
     }
     prevHasContentRef.current = hasContent;
   }, [isResearching, hasRunningStep, hasContent]);
-
   if (!trace || trace.length === 0) return null;
-
   const handleHeaderClick = () => {
     userInteractedRef.current = true;
     setIsOpen(prev => !prev);
   };
-
   const activeStep = trace.find(s => s.status === 'running') || trace[trace.length - 1];
   const activeToolInfo = activeStep ? getToolDisplayInfo(activeStep.tool) : null;
-
   return (
     <div className={`${styles.container} ${hasRunningStep ? styles.containerActive : ''}`}>
       <div
@@ -97,7 +105,6 @@ export const ResearchTraceBlock: React.FC<ResearchTraceBlockProps> = ({
               : `AI 自主研究歷程 (${trace.length} 個步驟)`}
           </span>
         </div>
-
         <div className={styles.metaArea}>
           <div className={styles.stepsChipRow}>
             {trace.map((step, idx) => {
@@ -126,15 +133,13 @@ export const ResearchTraceBlock: React.FC<ResearchTraceBlockProps> = ({
           </span>
         </div>
       </div>
-
       <Collapse in={isOpen}>
         <div className={styles.divider} />
         <div className={styles.stepList}>
           {trace.map((step: ResearchTraceStep, index: number) => {
             const toolInfo = getToolDisplayInfo(step.tool);
-            const queryParam = step.arguments?.query || step.arguments?.url || '';
+            const queryParam = formatStepQueryParam(step);
             const isStepRunning = step.status === 'running';
-
             return (
               <div
                 key={index}
@@ -161,7 +166,6 @@ export const ResearchTraceBlock: React.FC<ResearchTraceBlockProps> = ({
                     )}
                   </div>
                 </div>
-
                 {queryParam && (
                   <div className={styles.queryBox}>
                     <span className={styles.queryText}>
@@ -169,7 +173,6 @@ export const ResearchTraceBlock: React.FC<ResearchTraceBlockProps> = ({
                     </span>
                   </div>
                 )}
-
                 {step.output_preview && (
                   <pre className={styles.outputPreview}>
                     {step.output_preview}
@@ -183,5 +186,4 @@ export const ResearchTraceBlock: React.FC<ResearchTraceBlockProps> = ({
     </div>
   );
 };
-
 export default ResearchTraceBlock;

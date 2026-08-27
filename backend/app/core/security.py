@@ -6,10 +6,11 @@ from fastapi import Header, HTTPException, Request, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from starlette.middleware.base import BaseHTTPMiddleware
 import logging
+from app.core.config import settings
 from app.core.security_logging import log_unauthorized_access, log_security_event, SecurityEvent
 logger = logging.getLogger(__name__)
 security = HTTPBearer()
-ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
+ADMIN_API_KEY = settings.ADMIN_API_KEY
 if not ADMIN_API_KEY or ADMIN_API_KEY == "CHANGE_THIS_TO_A_SECURE_RANDOM_STRING":
     ADMIN_API_KEY = secrets.token_urlsafe(32)
     logger.warning("=" * 80)
@@ -94,11 +95,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 def validate_api_endpoint(url: str) -> str:
     from urllib.parse import urlparse
     parsed = urlparse(url)
-    if os.getenv("ENVIRONMENT") == "production" and "ngrok" in parsed.netloc:
+    if settings.ENVIRONMENT == "production" and "ngrok" in parsed.netloc:
         raise ValueError(
             "Ngrok URLs are not allowed in production environment. "
             "Please use a proper domain name."
         )
-    if os.getenv("ENVIRONMENT") == "production" and parsed.scheme != "https":
+    if settings.ENVIRONMENT == "production" and parsed.scheme != "https":
         logger.warning(f"Using non-HTTPS URL in production: {url}")
     return url

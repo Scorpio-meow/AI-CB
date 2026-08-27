@@ -10,7 +10,6 @@ from .crud_user import (
     update_user_email,
     update_user_last_login,
 )
-
 __all__ = [
     "get_user_by_id",
     "get_user_by_username",

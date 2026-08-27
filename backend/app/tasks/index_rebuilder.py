@@ -4,9 +4,12 @@ import os
 import logging
 from datetime import datetime
 from app.core.rag_manager import get_rag_system
+from app.core.config import settings
+
 logger = logging.getLogger(__name__)
-REINDEX_HOURS = int(os.getenv("REINDEX_HOURS", "24"))
-ENABLE_AUTO_REINDEX_TASK = os.getenv("ENABLE_AUTO_REINDEX_TASK", "1") == "1"
+
+REINDEX_HOURS = settings.REINDEX_HOURS
+ENABLE_AUTO_REINDEX_TASK = bool(settings.ENABLE_AUTO_REINDEX_TASK)
 async def periodic_index_rebuild():
     if not ENABLE_AUTO_REINDEX_TASK:
         logger.info("Periodic index rebuild task is disabled (ENABLE_AUTO_REINDEX_TASK=0)")

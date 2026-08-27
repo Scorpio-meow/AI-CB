@@ -5,6 +5,7 @@ import { PrivateRoute, AdminRoute, PublicRoute } from './components/PrivateRoute
 const Chat = lazy(() => import('./pages/Chat'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const Documents = lazy(() => import('./pages/Documents'));
+const AiTools = lazy(() => import('./pages/AiTools'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
@@ -28,6 +29,10 @@ const router = createBrowserRouter([
       {
         path: 'chat',
         element: <PrivateRoute element={withSuspense(<Chat />)} />,
+      },
+      {
+        path: 'tools',
+        element: <PrivateRoute element={withSuspense(<AiTools />)} />,
       },
       {
         path: 'documents',

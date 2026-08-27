@@ -8,32 +8,29 @@ from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-import os
-from dotenv import load_dotenv
-load_dotenv()
+from app.core.config import settings
 logger = logging.getLogger(__name__)
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-this-in-production")
-ALGORITHM = os.getenv("JWT_ALGORITHM", "RS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
-REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
+SECRET_KEY = settings.JWT_SECRET_KEY
+ALGORITHM = settings.JWT_ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+REFRESH_TOKEN_EXPIRE_DAYS = settings.REFRESH_TOKEN_EXPIRE_DAYS
 try:
     from app.core.rsa_keys import rsa_manager
     USE_RSA = True
     RSA_PRIVATE_KEY = rsa_manager.get_private_key_pem()
     RSA_PUBLIC_KEY = rsa_manager.get_public_key_pem()
-    print("使用 RSA 非對稱加密進行 JWT 簽名")
+    logger.info("使用 RSA 非對稱加密進行 JWT 簽名")
 except Exception as e:
-    import os
-    if os.getenv("ENVIRONMENT") == "production":
-        print(f"生產環境 RSA 金鑰載入失敗: {e}")
+    if settings.ENVIRONMENT == "production":
+        logger.error(f"生產環境 RSA 金鑰載入失敗: {e}")
         raise RuntimeError("生產環境必須使用 RSA 金鑰進行 JWT 簽名") from e
     else:
         USE_RSA = False
         RSA_PRIVATE_KEY = None
         RSA_PUBLIC_KEY = None
         ALGORITHM = "HS256"
-        print(f"開發環境 RSA 金鑰載入失敗，暫時使用 HS256: {e}")
-        print(f"警告：請盡快修復 RSA 金鑰配置！")
+        logger.warning(f"開發環境 RSA 金鑰載入失敗，暫時使用 HS256: {e}")
+        logger.warning("警告：請盡快修復 RSA 金鑰配置！")
 try:
     from app.core.redis_client import TokenBlacklist
     USE_BLACKLIST = True
@@ -52,7 +49,6 @@ class PasswordManager:
     @staticmethod
     def hash_password(password: str) -> str:
         return pwd_context.hash(password)
-
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
         if hashed_password.startswith("$2"):
@@ -65,7 +61,6 @@ class PasswordManager:
             except ValueError:
                 return False
         return pwd_context.verify(plain_password, hashed_password)
-
     @staticmethod
     def needs_rehash(hashed_password: str) -> bool:
         return hashed_password.startswith("$2") or pwd_context.needs_update(hashed_password)

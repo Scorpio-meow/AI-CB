@@ -1,25 +1,20 @@
 const isDevelopment = import.meta.env.DEV;
-
 export const devLog = (...args: any[]): void => {
   if (isDevelopment) {
     console.log(...args);
   }
 };
-
 export const devWarn = (...args: any[]): void => {
   console.warn(...args);
 };
-
 export const devError = (...args: any[]): void => {
   console.error(...args);
 };
-
 export const devInfo = (...args: any[]): void => {
   if (isDevelopment) {
     console.info(...args);
   }
 };
-
 export const secureLog = (label: string, data: any): void => {
   if (!isDevelopment) {
     return;
@@ -39,7 +34,6 @@ export const secureLog = (label: string, data: any): void => {
   };
   console.log(label, removeSensitive(sanitized));
 };
-
 if (!isDevelopment) {
   const originalError = console.error;
   const originalWarn = console.warn;
@@ -50,7 +44,6 @@ if (!isDevelopment) {
   console.warn = originalWarn;
   console.warn('🔒 生產環境模式：調試日誌已禁用');
 }
-
 const secureLogger = {
   log: devLog,
   warn: devWarn,
@@ -58,5 +51,4 @@ const secureLogger = {
   info: devInfo,
   secure: secureLog,
 };
-
 export default secureLogger;

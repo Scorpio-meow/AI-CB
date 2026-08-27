@@ -7,6 +7,7 @@ from app.core.user_context import get_current_user_id, get_default_user_id
 from app.core.jwt_auth import get_current_admin_user
 from app.services.document_processor import DocumentProcessor
 from app.core.input_validator import InputValidator
+from pydantic import BaseModel
 import re
 import asyncio
 from langchain_core.documents import Document as LangChainDocument
@@ -14,10 +15,11 @@ import os
 from typing import List
 import logging
 from datetime import datetime
+from app.core.config import settings
 logger = logging.getLogger(__name__)
 router = APIRouter()
-MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "50"))
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "data/uploads")
+MAX_FILE_SIZE_MB = settings.MAX_FILE_SIZE_MB
+UPLOAD_DIR = settings.UPLOAD_DIR
 ALLOWED_EXTENSIONS = DocumentProcessor.SUPPORTED_EXTENSIONS
 QA_PATTERN = re.compile(r"(?:^|\n)\s*[QＱ]\s*[：:]\s*(.*?)\s*[\r\n]+\s*[AＡ]\s*[：:]\s*(.*?)(?=(?:\n\s*[QＱ]\s*[：:]|\Z))",
                         re.DOTALL)
@@ -46,8 +48,8 @@ def process_document_for_rag(content: str, metadata: dict, rag_system) -> tuple:
         qa_pairs = split_faq(content)
     except Exception:
         qa_pairs = []
-    langchain_docs = []
     if qa_pairs:
+        langchain_docs = []
         for i, (q, a) in enumerate(qa_pairs):
             chunk_content = f"Q：{q}\nA：{a}"
             qa_metadata = {
@@ -61,12 +63,32 @@ def process_document_for_rag(content: str, metadata: dict, rag_system) -> tuple:
                 metadata=qa_metadata
             ))
         logger.info(f"檢測到 {len(qa_pairs)} 個 Q&A 對，將作為完整塊處理")
-    else:
-        langchain_docs.append(LangChainDocument(
-            page_content=content,
-            metadata=metadata
-        ))
-    return langchain_docs, len(qa_pairs)
+        return langchain_docs, len(qa_pairs)
+    try:
+        structured_records = DocumentProcessor.split_structured_records(content)
+    except Exception as e:
+        logger.warning(f"結構化切分檢測失敗: {e}")
+        structured_records = []
+    if structured_records:
+        langchain_docs = []
+        for i, (chunk_text, extra_meta) in enumerate(structured_records):
+            doc_meta = {
+                **metadata,
+                **extra_meta,
+                "record_index": extra_meta.get("record_index", i + 1),
+                "preserve_whole": True
+            }
+            langchain_docs.append(LangChainDocument(
+                page_content=chunk_text,
+                metadata=doc_meta
+            ))
+        logger.info(f"檢測到 {len(structured_records)} 條結構化/JSON 記錄，已建立為獨立原子分塊 (Atomic Record Chunks)")
+        return langchain_docs, len(structured_records)
+    langchain_docs = [LangChainDocument(
+        page_content=content,
+        metadata=metadata
+    )]
+    return langchain_docs, 0
 @router.post("/upload")
 async def upload_document(
     file: List[UploadFile] = File(...),
@@ -194,7 +216,7 @@ async def upload_document(
                     "http_status": 409
                 })
                 continue
-            doc_desc = DocumentProcessor.generate_document_summary(safe_filename, content, up.content_type or "")
+            doc_desc = await DocumentProcessor.generate_document_summary_async(safe_filename, content, up.content_type or "")
             document = DBDocument(
                 filename=safe_filename,
                 content=content,
@@ -256,7 +278,7 @@ async def get_documents(
         updated = False
         for doc in documents:
             if (not doc.description or not doc.description.strip()) and doc.content:
-                doc.description = DocumentProcessor.generate_document_summary(doc.filename, doc.content, doc.file_type or "")
+                doc.description = await DocumentProcessor.generate_document_summary_async(doc.filename, doc.content, doc.file_type or "")
                 db.add(doc)
                 updated = True
         if updated:
@@ -265,6 +287,50 @@ async def get_documents(
     except Exception:
         logger.exception("獲取文件列表失敗")
         raise HTTPException(status_code=500, detail="Internal server error")
+class DocumentSummaryUpdate(BaseModel):
+    description: str
+@router.post("/{document_id}/regenerate-summary")
+async def regenerate_document_summary(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user)
+):
+    """手動或一鍵重新生成該文件的 AI 智能大綱與摘要"""
+    document = db.query(DBDocument).filter(DBDocument.id == document_id).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="文件不存在")
+    new_desc = await DocumentProcessor.generate_document_summary_async(
+        document.filename, document.content, document.file_type or "text/plain"
+    )
+    document.description = new_desc
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+    return {
+        "message": "文件大綱與摘要重新生成成功",
+        "document_id": document.id,
+        "description": new_desc
+    }
+@router.put("/{document_id}/summary")
+async def update_document_summary(
+    document_id: int,
+    payload: DocumentSummaryUpdate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user)
+):
+    """手動編輯儲存該文件的大綱描述"""
+    document = db.query(DBDocument).filter(DBDocument.id == document_id).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="文件不存在")
+    document.description = payload.description.strip()
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+    return {
+        "message": "文件大綱更新成功",
+        "document_id": document.id,
+        "description": document.description
+    }
 @router.delete("/{document_id}")
 async def delete_document(
     document_id: int,
@@ -295,7 +361,7 @@ async def rebuild_index(
     current_user: dict = Depends(get_current_admin_user)
 ):
     try:
-        logger.info(f"管理員 {current_user.get('username', 'unknown')} 觸發完整索引重建（含重新分塊）")
+        logger.info(f"管理員 {current_user.get('username', 'unknown')} 觸發完整索引重建（含重新分塊與摘要升級）")
         rag_system = get_rag_system()
         logger.info("清空現有索引...")
         rag_system.documents = []
@@ -315,7 +381,7 @@ async def rebuild_index(
         total_qa_pairs = 0
         for doc in documents_from_db:
             try:
-                # 優先從實體檔案重新提取最新降噪處理之文本
+ 
                 file_path = os.path.join(UPLOAD_DIR, doc.filename)
                 content_to_process = doc.content
                 if os.path.exists(file_path):
@@ -323,16 +389,15 @@ async def rebuild_index(
                         fresh_content = DocumentProcessor.extract_text_from_file(file_path, doc.file_type or "text/plain")
                         if fresh_content and fresh_content.strip():
                             content_to_process = fresh_content.strip()
+                            doc.content = content_to_process
                     except Exception as e:
                         logger.warning(f"重新提取檔案 {doc.filename} 失敗，使用資料庫快取: {e}")
-
-                # 自動生成並更新文件之專屬語意描述
-                doc.description = DocumentProcessor.generate_document_summary(
+ 
+                doc.description = await DocumentProcessor.generate_document_summary_async(
                     doc.filename, content_to_process, doc.file_type or "text/plain"
                 )
                 db.add(doc)
                 db.commit()
-
                 base_metadata = {
                     "source": doc.filename,
                     "document_id": doc.id,
@@ -356,7 +421,7 @@ async def rebuild_index(
         vector_count = rag_system.index.ntotal
         logger.info(f"索引重建完成: {doc_count} 個文檔 -> {vector_count} 個向量塊 (含 {total_qa_pairs} 個 Q&A 對)")
         return {
-            "message": "索引重建成功（已用新配置重新分塊，並重新檢測 QA 格式）",
+            "message": "索引重建成功（已用新配置重新分塊，並重新生成 AI 智能大綱）",
             "document_count": doc_count,
             "chunk_count": vector_count,
             "qa_pairs_detected": total_qa_pairs,

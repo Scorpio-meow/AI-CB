@@ -1,6 +1,5 @@
 const IS_PRODUCTION = import.meta.env.PROD;
 const IS_DEVELOPMENT = import.meta.env.DEV;
-
 class Logger {
   static log(...args) {
     if (IS_DEVELOPMENT) {
@@ -61,7 +60,6 @@ class Logger {
     }
   }
 }
-
 const overrideGlobalConsole = () => {
   if (IS_PRODUCTION) {
     window.console = {
@@ -74,6 +72,5 @@ const overrideGlobalConsole = () => {
     };
   }
 };
-
 export { overrideGlobalConsole };
 export default Logger;

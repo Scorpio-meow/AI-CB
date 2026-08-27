@@ -10,7 +10,6 @@ export interface ChatAttachment {
   content?: string;
   file?: File;
 }
-
 export interface Message {
   id?: number;
   content: string;
@@ -190,7 +189,6 @@ export interface StreamEvent {
   event: 'start' | 'step_start' | 'step_end' | 'token' | 'think' | 'sources' | 'done' | 'error';
   data: any;
 }
-
 export const chatService = {
   async sendMessageStream(
     content: string,
@@ -208,7 +206,6 @@ export const chatService = {
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
-
     const payloadAttachments = attachments?.map(a => ({
       filename: a.filename,
       file_type: a.file_type,
@@ -216,7 +213,6 @@ export const chatService = {
       data_url: a.data_url,
       content: a.content
     })) || [];
-
     const response = await fetch(`${API_BASE_URL}/chat/send`, {
       method: 'POST',
       headers,
@@ -229,7 +225,6 @@ export const chatService = {
       }),
       signal
     });
-
     if (!response.ok) {
       const errText = await response.text();
       let detail = errText;
@@ -237,27 +232,21 @@ export const chatService = {
         const parsed = JSON.parse(errText);
         detail = parsed.detail || errText;
       } catch (e) {
-        // ignore parse error
       }
       throw new Error(detail || `HTTP Error ${response.status}`);
     }
-
     if (!response.body) {
       throw new Error('ReadableStream not supported by browser');
     }
-
     const reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8');
     let buffer = '';
-
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
-
       const lines = buffer.split('\n');
       buffer = lines.pop() || '';
-
       let currentEvent: string = 'message';
       for (const line of lines) {
         const trimmed = line.trim();
@@ -290,7 +279,6 @@ export const chatService = {
       data_url: a.data_url,
       content: a.content
     })) || [];
-
     const response = await api.post<ChatResponse>('/chat/send', {
       content,
       conversation_id: conversationId,
@@ -310,6 +298,10 @@ export const chatService = {
   },
   async deleteConversation(conversationId: number): Promise<{ message: string }> {
     const response = await api.delete<{ message: string }>(`/chat/conversations/${conversationId}`);
+    return response.data;
+  },
+  async getTools(): Promise<{ status: string; tools: any[] }> {
+    const response = await api.get<{ status: string; tools: any[] }>('/chat/tools');
     return response.data;
   }
 };
@@ -358,6 +350,156 @@ export const adminService = {
   },
   async deleteUser(userId: number): Promise<any> {
     const response = await api.delete<any>(`/admin/users/${userId}`);
+    return response.data;
+  }
+};
+export interface CustomApiToolItem {
+  id: number;
+  name: string;
+  display_name: string;
+  description: string;
+  category: string;
+  method: string;
+  url: string;
+  base_url?: string | null;
+  path?: string | null;
+  headers?: Record<string, string> | null;
+  auth_type: string;
+  auth_config?: Record<string, any> | null;
+  parameters_schema?: Record<string, any> | null;
+  request_body_schema?: Record<string, any> | null;
+  param_locations?: Record<string, string> | null;
+  response_mapping?: string | null;
+  is_enabled: boolean;
+  timeout: number;
+  spec_version?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+export const apiToolService = {
+  async parseOpenApiSpec(spec_content_or_url: string, default_base_url?: string): Promise<{ status: string; data: any }> {
+    const response = await api.post<{ status: string; data: any }>('/api-tools/parse-spec', {
+      spec_content_or_url,
+      default_base_url,
+    });
+    return response.data;
+  },
+  async importTools(importData: {
+    tools: any[];
+    global_base_url?: string;
+    global_headers?: Record<string, string>;
+    global_auth_type?: string;
+    global_auth_config?: Record<string, any>;
+  }): Promise<{ status: string; message: string; imported: number; updated: number }> {
+    const response = await api.post<{ status: string; message: string; imported: number; updated: number }>(
+      '/api-tools/import',
+      importData
+    );
+    return response.data;
+  },
+  async getTools(params?: { category?: string; is_enabled?: boolean; search?: string }): Promise<{ status: string; total: number; tools: CustomApiToolItem[] }> {
+    const response = await api.get<{ status: string; total: number; tools: CustomApiToolItem[] }>('/api-tools', {
+      params,
+    });
+    return response.data;
+  },
+  async createTool(toolData: any): Promise<{ status: string; message: string; tool: CustomApiToolItem }> {
+    const response = await api.post<{ status: string; message: string; tool: CustomApiToolItem }>(
+      '/api-tools',
+      toolData
+    );
+    return response.data;
+  },
+  async updateTool(toolId: number, toolData: any): Promise<{ status: string; message: string; tool: CustomApiToolItem }> {
+    const response = await api.put<{ status: string; message: string; tool: CustomApiToolItem }>(
+      `/api-tools/${toolId}`,
+      toolData
+    );
+    return response.data;
+  },
+  async toggleTool(toolId: number): Promise<{ status: string; is_enabled: boolean; message: string }> {
+    const response = await api.patch<{ status: string; is_enabled: boolean; message: string }>(
+      `/api-tools/${toolId}/toggle`
+    );
+    return response.data;
+  },
+  async deleteTool(toolId: number): Promise<{ status: string; message: string }> {
+    const response = await api.delete<{ status: string; message: string }>(`/api-tools/${toolId}`);
+    return response.data;
+  },
+  async testTool(toolId: number, argumentsData: Record<string, any>): Promise<{ status: string; tool_name: string; result: any }> {
+    const response = await api.post<{ status: string; tool_name: string; result: any }>(
+      `/api-tools/${toolId}/test`,
+      { arguments: argumentsData }
+    );
+    return response.data;
+  }
+};
+export interface McpServerItem {
+  id: number;
+  name: string;
+  display_name: string;
+  description?: string | null;
+  transport_type: string;
+  command?: string | null;
+  args?: string[] | null;
+  env_vars?: Record<string, string> | null;
+  url?: string | null;
+  headers?: Record<string, string> | null;
+  is_enabled: boolean;
+  status: string;
+  last_error?: string | null;
+  discovered_tools?: any[] | null;
+  timeout: number;
+  created_at: string;
+  updated_at: string;
+}
+export const mcpService = {
+  async getPresets(): Promise<{ status: string; presets: any[] }> {
+    const response = await api.get<{ status: string; presets: any[] }>('/mcp/presets');
+    return response.data;
+  },
+  async getServers(params?: { is_enabled?: boolean }): Promise<{ status: string; total: number; servers: McpServerItem[] }> {
+    const response = await api.get<{ status: string; total: number; servers: McpServerItem[] }>('/mcp/servers', {
+      params,
+    });
+    return response.data;
+  },
+  async createServer(serverData: any): Promise<{ status: string; message: string; server: McpServerItem }> {
+    const response = await api.post<{ status: string; message: string; server: McpServerItem }>(
+      '/mcp/servers',
+      serverData
+    );
+    return response.data;
+  },
+  async updateServer(serverId: number, serverData: any): Promise<{ status: string; message: string; server: McpServerItem }> {
+    const response = await api.put<{ status: string; message: string; server: McpServerItem }>(
+      `/mcp/servers/${serverId}`,
+      serverData
+    );
+    return response.data;
+  },
+  async deleteServer(serverId: number): Promise<{ status: string; message: string }> {
+    const response = await api.delete<{ status: string; message: string }>(`/mcp/servers/${serverId}`);
+    return response.data;
+  },
+  async discoverServer(serverId: number): Promise<{ status: string; message: string; tools_count: number; tools: any[]; server: McpServerItem }> {
+    const response = await api.post<{ status: string; message: string; tools_count: number; tools: any[]; server: McpServerItem }>(
+      `/mcp/servers/${serverId}/discover`
+    );
+    return response.data;
+  },
+  async toggleServer(serverId: number): Promise<{ status: string; is_enabled: boolean; message: string }> {
+    const response = await api.patch<{ status: string; is_enabled: boolean; message: string }>(
+      `/mcp/servers/${serverId}/toggle`
+    );
+    return response.data;
+  },
+  async testTool(serverId: number, toolName: string, argumentsData: Record<string, any>): Promise<{ status: string; tool_name: string; result: any }> {
+    const response = await api.post<{ status: string; tool_name: string; result: any }>(
+      `/mcp/servers/${serverId}/tools/${toolName}/test`,
+      { arguments: argumentsData }
+    );
     return response.data;
   }
 };

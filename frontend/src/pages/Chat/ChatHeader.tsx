@@ -65,16 +65,17 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             <Icon name="expand-more" size={16} />
           </span>
         </div>
-        <Tooltip title="設定模型思考與推理深度 (Reasoning Effort)">
+        <Tooltip title="設定模型思考與推理深度 (Reasoning Effort)" placement="bottom">
           <div className={styles.selectWrapper}>
             <select
               className={styles.select}
               value={reasoningEffort}
               onChange={(e) => onSelectReasoningEffort(e.target.value)}
+              disabled={modelsLoading}
               aria-label="選擇推理程度"
             >
               {REASONING_EFFORT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
+                <option key={opt.value} value={opt.value} title={opt.label}>
                   {opt.shortLabel}
                 </option>
               ))}
@@ -84,7 +85,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             </span>
           </div>
         </Tooltip>
-        <Tooltip title="重新整理可用模型清單">
+        <Tooltip title="重新整理可用模型清單" placement="bottom">
           <IconButton
             size="sm"
             onClick={onRefreshModels}

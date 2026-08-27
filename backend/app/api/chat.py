@@ -34,7 +34,6 @@ manager = ConnectionManager()
 async def get_available_models():
     from app.core.llm_client import get_available_models as get_configured_models
     configured_models = get_configured_models()
-
     if not configured_models:
         from app.api.tags import _fetch_remote_models
         try:
@@ -43,16 +42,37 @@ async def get_available_models():
                 configured_models = remote_models
         except Exception:
             pass
-
     azure_dep = settings.AZURE_OPENAI_DEPLOYMENT.split(',')[0].strip() if settings.AZURE_OPENAI_DEPLOYMENT else None
-    default_model = os.getenv("MODEL_NAME") or azure_dep or (configured_models[0] if configured_models else "")
+    default_model = settings.MODEL_NAME or azure_dep or (configured_models[0] if configured_models else "")
     if default_model and configured_models and default_model not in configured_models:
         default_model = configured_models[0]
-
     return {
         "models": configured_models or [],
         "default": default_model
     }
+@router.get("/tools")
+async def get_available_tools():
+    """獲取 AI 系統當前已註冊並啟用的所有工具定義清單與說明"""
+    try:
+        rag_system = get_rag_system()
+        if hasattr(rag_system, "agent_coordinator") and rag_system.agent_coordinator:
+            tool_defs = rag_system.agent_coordinator.tool_registry.get_tool_definitions()
+        else:
+            from app.rag.tools import ResearchToolRegistry
+            tool_defs = ResearchToolRegistry(getattr(rag_system, "retriever", None)).get_tool_definitions()
+        return {
+            "status": "success",
+            "tools": tool_defs
+        }
+    except Exception as e:
+        logger.error(f"取得可用工具清單失敗: {e}")
+        from app.rag.tools import ResearchToolRegistry
+        tool_defs = ResearchToolRegistry().get_tool_definitions()
+        return {
+            "status": "partial",
+            "tools": tool_defs,
+            "error": str(e)
+        }
 @router.post("/send")
 async def send_message(
     message_data: MessageCreate,
@@ -64,7 +84,6 @@ async def send_message(
         user_context = json.dumps({
             "attachments": [att.dict() for att in message_data.attachments]
         }, ensure_ascii=False)
-
     user_message = await chat_service.save_message(
         db,
         user_id,
@@ -75,16 +94,13 @@ async def send_message(
         model_name=message_data.model_name,
     )
     conv_id = user_message.conversation_id
-
     async def sse_generator():
         yield f"event: start\ndata: {json.dumps({'conversation_id': conv_id, 'user_message_id': user_message.id}, ensure_ascii=False)}\n\n"
-
         rag_system = get_rag_system()
         collected_tokens = ""
         collected_sources = []
         collected_sources_detail = []
         collected_research_trace = []
-
         try:
             async for event_item in rag_system.generate_response_stream(
                 message_data.content,
@@ -96,7 +112,6 @@ async def send_message(
             ):
                 ev = event_item.get("event")
                 data = event_item.get("data", {})
-
                 if ev == "step_start":
                     yield f"event: step_start\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
                 elif ev == "step_end":
@@ -117,7 +132,6 @@ async def send_message(
                         collected_sources_detail = data.get("sources_detail", [])
                     if not collected_research_trace:
                         collected_research_trace = data.get("research_trace", [])
-
             context_payload = json.dumps({
                 "sources": collected_sources,
                 "sources_detail": collected_sources_detail,
@@ -132,7 +146,6 @@ async def send_message(
                 context_payload,
                 model_name=message_data.model_name,
             )
-
             done_payload = {
                 "message_id": bot_message.id,
                 "conversation_id": conv_id,
@@ -142,12 +155,10 @@ async def send_message(
                 "research_trace": collected_research_trace
             }
             yield f"event: done\ndata: {json.dumps(done_payload, ensure_ascii=False)}\n\n"
-
         except Exception as e:
             logger.exception("處理訊息串流時發生錯誤")
             err_payload = {"detail": f"處理訊息時發生錯誤: {str(e)}"}
             yield f"event: error\ndata: {json.dumps(err_payload, ensure_ascii=False)}\n\n"
-
     return StreamingResponse(
         sse_generator(),
         media_type="text/event-stream",

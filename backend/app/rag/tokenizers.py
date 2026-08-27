@@ -9,10 +9,10 @@ try:
     HAS_WHOOSH = True
 except ImportError:
     HAS_WHOOSH = False
-    Analyzer = object  # type: ignore
-    Tokenizer = object  # type: ignore
-    Token = None  # type: ignore
-    StandardAnalyzer = None  # type: ignore
+    Analyzer = object
+    Tokenizer = object
+    Token = None
+    StandardAnalyzer = None
 
 try:
     import jieba
@@ -71,8 +71,8 @@ if HAS_WHOOSH and HAS_JIEBA:
         def __call__(self, value, **kwargs):
             return self._tokenizer(value, **kwargs)
 else:
-    JiebaTokenizer = None  # type: ignore
-    JiebaAnalyzer = None  # type: ignore
+    JiebaTokenizer = None
+    JiebaAnalyzer = None
 
 DOMAIN_WORDS = [
     "補休", "到期", "遞延", "產檢", "育嬰留停", "免刷卡", "時刻維護", "集體異動", "調班",

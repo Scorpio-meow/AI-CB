@@ -7,9 +7,12 @@ from app.models import Document
 from app.models.database import SessionLocal
 from app.core.rag_manager import get_rag_system
 from app.api.chat import manager as ws_manager
+from app.core.config import settings
+
 logger = logging.getLogger(__name__)
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "data/uploads")
-UPLOADS_WATCHER_INTERVAL = int(os.getenv("UPLOADS_WATCHER_INTERVAL", "30"))
+
+UPLOAD_DIR = settings.UPLOAD_DIR
+UPLOADS_WATCHER_INTERVAL = settings.UPLOADS_WATCHER_INTERVAL
 def get_db_session() -> Session:
     return SessionLocal()
 async def scan_and_cleanup_uploads(interval_seconds: int = None):

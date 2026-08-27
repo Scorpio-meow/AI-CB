@@ -12,6 +12,7 @@ from .retrievers.hybrid import HybridRetriever
 
 from .tools import ResearchToolRegistry
 from .agent import ResearchAgent
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ class RAGPipeline:
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         self.llm_timeout = llm_timeout
-        self.model_name = model_name or os.getenv("MODEL_NAME", "")
+        self.model_name = model_name or settings.MODEL_NAME or ""
         self.context_memory: Dict[str, List[Dict[str, Any]]] = {}
 
         self.tool_registry = ResearchToolRegistry(retriever=self.retriever)
@@ -198,7 +199,7 @@ class RAGPipeline:
     ) -> Dict[str, Any]:
         start_time = time.time()
 
-        # 組合歷史對話紀錄
+
         history_msgs = []
         if conversation_id is not None:
             key = f"{user_id}:{conversation_id}" if user_id is not None else f"{conversation_id}"
@@ -209,13 +210,12 @@ class RAGPipeline:
                     if item.get("assistant"):
                         history_msgs.append({"role": "assistant", "content": item.get("assistant")})
 
-        # 啟動多輪自主研究 Agent
+
         research_result = await self.agent.run_research(
             query=query,
             model_name=model_name or self.model_name,
             conversation_history=history_msgs,
-            reasoning_effort=reasoning_effort,
-            max_turns=5
+            reasoning_effort=reasoning_effort
         )
 
         answer = research_result.get("answer", "")
@@ -223,7 +223,7 @@ class RAGPipeline:
         sources_detail = research_result.get("sources_detail", [])
         research_trace = research_result.get("research_trace", [])
 
-        # 若 Agent 未調用工具且回答為空（例如 fallback 情況），執行基本 Contextual 檢索回答
+
         if not answer:
             doc_score_pairs = self.retriever.smart_search(query)
             relevant_docs = [doc for doc, _ in doc_score_pairs]
@@ -243,7 +243,7 @@ class RAGPipeline:
                     for i, doc in enumerate(relevant_docs[:3])
                 ]
 
-        # 寫入上下文記憶體
+
         if conversation_id is not None:
             key = f"{user_id}:{conversation_id}" if user_id is not None else f"{conversation_id}"
             if key not in self.context_memory:
@@ -295,8 +295,7 @@ class RAGPipeline:
             model_name=model_name or self.model_name,
             conversation_history=history_msgs,
             reasoning_effort=reasoning_effort,
-            attachments=attachments,
-            max_turns=5
+            attachments=attachments
         ):
             ev = event_item.get("event")
             data = event_item.get("data", {})
@@ -312,7 +311,7 @@ class RAGPipeline:
 
             yield event_item
 
-        # 寫入上下文記憶體
+
         if conversation_id is not None and final_answer:
             key = f"{user_id}:{conversation_id}" if user_id is not None else f"{conversation_id}"
             if key not in self.context_memory:

@@ -13,17 +13,18 @@ if HAS_WHOOSH:
     from whoosh.filedb.filestore import FileStorage
     from whoosh.writing import AsyncWriter
 else:
-    fields = None  # type: ignore
-    qparser = None  # type: ignore
-    scoring = None  # type: ignore
-    FileStorage = None  # type: ignore
-    AsyncWriter = None  # type: ignore
+    fields = None
+    qparser = None
+    scoring = None
+    FileStorage = None
+    AsyncWriter = None
 
 
 class BM25StoreManager:
-    def __init__(self, data_dir: str = "data", bm25_index_dir: Optional[str] = None):
-        self.data_dir = data_dir
-        self.bm25_index_dir = bm25_index_dir or os.path.join(self.data_dir, "bm25_index")
+    def __init__(self, data_dir: Optional[str] = None, bm25_index_dir: Optional[str] = None):
+        from app.core.config import settings
+        self.data_dir = data_dir or settings.DATA_DIR
+        self.bm25_index_dir = bm25_index_dir or settings.BM25_INDEX_DIR
         self.bm25_index = None
         self.bm25_searcher = None
         if HAS_WHOOSH:

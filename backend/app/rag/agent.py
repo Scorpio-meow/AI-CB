@@ -11,11 +11,13 @@ logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """你是一個具備自主研究能力的智慧助理「AskMiao」。
 你可以根據使用者的問題，自主調用以下工具來查證知識庫文件或外部即時網路資訊：
-1. `search_knowledge_base`: 檢索已上傳之知識庫、文檔、貼文記錄、資料表或設定檔。
-2. `web_search`: 搜尋外部即時新聞、公開網站資訊或最新知識。
-3. `web_fetch`: 當搜尋結果摘要不足時，可深入閱讀特定網頁的全文。
+1. `search_knowledge_base`: 檢索已上傳之知識庫、文檔、貼文記錄、資料表或設定檔（適合語意查詢、內容查找、細節問答）。
+2. `filter_and_count_records`: 精準統計與條件篩選知識庫中的結構化貼文/記錄（可用於計算特定發布月份/日期、特定作者、關鍵字或特定文件的精確總筆數 count，並列出完整清單）。
+3. `web_search`: 搜尋外部即時新聞、公開網站資訊或最新知識。
+4. `web_fetch`: 當搜尋結果摘要不足時，可深入閱讀特定網頁的全文。
 
 【行為規範】：
+- 當使用者詢問【總共有幾則/幾篇】、【統計數量】、【列出某年某月/某日所有已收錄貼文】或【某作者的全部發文清單】等需要精確計數或大批次列出的問題時，請【優先調用 `filter_and_count_records`】，以獲得 100% 精確的 `total_count` 總數與結構化記錄清單。
 - 當使用者提供特定網址連結（如 Threads/IG/FB/X/特定文章網址）、帳號名、特定代碼或詢問文件內容時，請【優先調用 `search_knowledge_base`】檢索內部資料庫是否已收錄該連結或內容。
 - 若 `web_fetch` 讀取外部網頁失敗（例如遭遇登入牆、動態渲染 SPA 僅取得標題），應【立即調用 `search_knowledge_base`】以該網址或作者關鍵字查詢內部知識庫。
 - 若問題涉及外部即時新聞、時事或知識庫未收錄內容，再調用 `web_search`。
@@ -67,7 +69,7 @@ class ResearchAgent:
             if reasoning_effort and reasoning_effort in ("none", "minimal", "low", "medium", "high", "xhigh", "max"):
                 payload["reasoning_effort"] = reasoning_effort
 
-        async with httpx.AsyncClient(timeout=90.0) as client:
+        async with httpx.AsyncClient(timeout=settings.LLM_TIMEOUT) as client:
             resp = await client.post(url, headers=headers, json=payload)
             if resp.status_code != 200:
                 raise RuntimeError(f"v1 Azure OpenAI API 錯誤 ({resp.status_code}): {resp.text}")
@@ -103,7 +105,7 @@ class ResearchAgent:
         if reasoning_effort and reasoning_effort in ("none", "minimal", "low", "medium", "high", "xhigh", "max"):
             payload["reasoning_effort"] = reasoning_effort
 
-        async with httpx.AsyncClient(timeout=90.0) as client:
+        async with httpx.AsyncClient(timeout=settings.LLM_TIMEOUT) as client:
             async with client.stream("POST", url, headers=headers, json=payload) as resp:
                 if resp.status_code != 200:
                     error_text = await resp.aread()
@@ -148,7 +150,7 @@ class ResearchAgent:
         if tools_def:
             payload["tools"] = tools_def
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=settings.LLM_TIMEOUT) as client:
             resp = await client.post(url, json=payload)
             if resp.status_code != 200:
                 raise RuntimeError(f"Ollama API 錯誤 ({resp.status_code}): {resp.text}")
@@ -175,7 +177,7 @@ class ResearchAgent:
             }
         }
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=settings.LLM_TIMEOUT) as client:
             async with client.stream("POST", url, json=payload) as resp:
                 if resp.status_code != 200:
                     error_text = await resp.aread()
@@ -199,9 +201,9 @@ class ResearchAgent:
         conversation_history: Optional[List[Dict[str, str]]] = None,
         reasoning_effort: Optional[str] = "medium",
         attachments: Optional[List[Any]] = None,
-        max_turns: int = 5
+        max_turns: Optional[int] = None
     ) -> AsyncGenerator[Dict[str, Any], None]:
-        """非同步生成器：即時產生研究步驟事件與文字 token 串流（支援多模態圖片與即時附加文件解析）"""
+        """非同步生成器：即時產生研究步驟事件與文字 token 串流（無輪數上限，由模型自主決定研究步數）"""
         start_time = time.time()
         tools_def = self.tools.get_tool_definitions()
 
@@ -210,10 +212,10 @@ class ResearchAgent:
         ]
 
         if conversation_history:
-            for turn in conversation_history[-6:]:
-                messages.append(turn)
+            for turn_msg in conversation_history[-6:]:
+                messages.append(turn_msg)
 
-        # 1. 解析與提取附件（圖片與各類型文件）
+
         doc_contexts = []
         image_data_urls = []
 
@@ -269,7 +271,7 @@ class ResearchAgent:
             else:
                 use_azure = True
 
-        # 組裝使用者訊息（若有圖片，採用 Vision 多模態物件格式）
+
         if image_data_urls and use_azure:
             user_content = [{"type": "text", "text": effective_query}]
             for img_url in image_data_urls:
@@ -293,8 +295,12 @@ class ResearchAgent:
         turns_used = 0
         has_executed_tools = False
 
-        for turn in range(max_turns):
+        while True:
             turns_used += 1
+            if max_turns is not None and turns_used > max_turns:
+                logger.info(f"Agent 已達到手動指定的輪數上限 ({max_turns})，停止後續工具調用")
+                break
+
             try:
                 if use_azure:
                     assistant_msg = await self._call_azure_openai(
@@ -303,7 +309,7 @@ class ResearchAgent:
                 else:
                     assistant_msg = await self._call_ollama(messages, tools_def, model_name)
             except Exception as e:
-                logger.error(f"模型調用失敗 (第 {turn + 1} 輪): {e}")
+                logger.error(f"模型調用失敗 (第 {turns_used} 輪): {e}")
                 if not final_answer and not research_trace:
                     err_msg = f"在執行自主研究時遇到連線異常: {str(e)}"
                     yield {"event": "token", "data": {"content": err_msg}}
@@ -312,11 +318,11 @@ class ResearchAgent:
 
             tool_calls = assistant_msg.get("tool_calls")
             if not tool_calls:
-                # 模型判定不需要（或已完成）工具調用，若有文字則代表完成
+ 
                 content = assistant_msg.get("content", "")
                 if content and not has_executed_tools:
                     final_answer = content
-                    # 以自然分塊串流模擬打字機
+
                     chunk_size = 4
                     for i in range(0, len(content), chunk_size):
                         sub = content[i:i+chunk_size]
@@ -343,7 +349,7 @@ class ResearchAgent:
                 step_num = len(research_trace) + 1
                 logger.info(f"🔍 [Agent Step {step_num}] 調用工具: {fn_name} 參數: {args}")
 
-                # 即時推播步驟開始事件
+ 
                 yield {
                     "event": "step_start",
                     "data": {
@@ -404,7 +410,7 @@ class ResearchAgent:
                 }
                 research_trace.append(step_info)
 
-                # 即時推播步驟完成事件
+ 
                 yield {
                     "event": "step_end",
                     "data": step_info
@@ -418,7 +424,7 @@ class ResearchAgent:
                     "content": json.dumps(tool_output, ensure_ascii=False)
                 })
 
-        # 工具調用完成後，若有執行過工具，調用串流 API 即時生成最終答案
+
         if has_executed_tools and not final_answer:
             try:
                 if use_azure:
@@ -437,7 +443,7 @@ class ResearchAgent:
 
         total_time = round(time.time() - start_time, 2)
 
-        # 推播來源與完成事件
+
         yield {
             "event": "sources",
             "data": {
@@ -466,7 +472,7 @@ class ResearchAgent:
         conversation_history: Optional[List[Dict[str, str]]] = None,
         reasoning_effort: Optional[str] = "medium",
         attachments: Optional[List[Any]] = None,
-        max_turns: int = 5
+        max_turns: Optional[int] = None
     ) -> Dict[str, Any]:
         """非串流封裝（向後相容）"""
         result: Dict[str, Any] = {

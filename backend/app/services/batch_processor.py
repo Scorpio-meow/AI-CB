@@ -140,15 +140,15 @@ class EmbeddingBatchProcessor:
     
     def get_stats(self) -> dict:
         return self.accumulator.get_stats()
+from app.core.config import settings
 _batch_processor: Optional[EmbeddingBatchProcessor] = None
 def get_batch_processor(rag_system = None) -> Optional[EmbeddingBatchProcessor]:
     global _batch_processor
     
     if _batch_processor is None and rag_system is not None:
-        max_batch_size = int(os.getenv("BATCH_ACCUMULATOR_SIZE", "32"))
+        max_batch_size = settings.BATCH_ACCUMULATOR_SIZE
         _batch_processor = EmbeddingBatchProcessor(rag_system, max_batch_size)
     
     return _batch_processor
 def is_batch_processing_enabled() -> bool:
-    import os
-    return os.getenv("ENABLE_BATCH_ACCUMULATION", "false").lower() == "true"
+    return bool(settings.ENABLE_BATCH_ACCUMULATION)

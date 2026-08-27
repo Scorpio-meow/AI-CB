@@ -2,14 +2,12 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { ChatInputAreaProps, ChatAttachment } from './types';
 import { Tooltip, Spinner, Icon } from '../../components/ui';
 import styles from './ChatInputArea.module.css';
-
 const formatFileSize = (bytes?: number): string => {
   if (!bytes) return '';
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
-
 const getBadgeClass = (filename: string): { className: string; label: string } => {
   const ext = filename.split('.').pop()?.toLowerCase() || '';
   if (ext === 'pdf') return { className: styles.badgePdf, label: 'PDF' };
@@ -21,7 +19,6 @@ const getBadgeClass = (filename: string): { className: string; label: string } =
   }
   return { className: '', label: ext ? ext.toUpperCase() : 'FILE' };
 };
-
 export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
   value,
   onChange,
@@ -35,16 +32,13 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-
   const processFiles = useCallback((files: FileList | File[]) => {
     const newAttachments: ChatAttachment[] = [];
     const fileList = Array.from(files);
-
     let processedCount = 0;
     fileList.forEach((file) => {
       const isImg = file.type.startsWith('image/');
       const reader = new FileReader();
-
       reader.onload = (e) => {
         const dataUrl = e.target?.result as string;
         newAttachments.push({
@@ -60,7 +54,6 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
           onAddAttachments(newAttachments);
         }
       };
-
       if (isImg || file.size < 15 * 1024 * 1024) {
         reader.readAsDataURL(file);
       } else {
@@ -78,7 +71,6 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
       }
     });
   }, [onAddAttachments]);
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -87,11 +79,9 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
       }
     }
   };
-
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData?.items;
     if (!items) return;
-
     const pastedFiles: File[] = [];
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
@@ -102,25 +92,21 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
         }
       }
     }
-
     if (pastedFiles.length > 0) {
       e.preventDefault();
       processFiles(pastedFiles);
     }
   };
-
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!isDragging) setIsDragging(true);
   };
-
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
   };
-
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -129,22 +115,18 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
       processFiles(e.dataTransfer.files);
     }
   };
-
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       processFiles(e.target.files);
       e.target.value = '';
     }
   };
-
   useEffect(() => {
     if (!loading && textareaRef.current) {
       textareaRef.current.focus();
     }
   }, [loading]);
-
   const hasContent = Boolean(value.trim()) || attachments.length > 0;
-
   return (
     <div className={styles.container}>
       <div
@@ -159,7 +141,6 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
             {attachments.map((att, idx) => {
               const isImg = att.file_type.startsWith('image/') || Boolean(att.data_url?.startsWith('data:image/'));
               const badge = getBadgeClass(att.filename);
-
               if (isImg && att.data_url) {
                 return (
                   <div key={att.id || idx} className={styles.imagePreviewCard}>
@@ -175,7 +156,6 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
                   </div>
                 );
               }
-
               return (
                 <div key={att.id || idx} className={styles.filePreviewCard}>
                   <span className={`${styles.fileFormatBadge} ${badge.className}`}>
@@ -198,7 +178,6 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
             })}
           </div>
         )}
-
         <div className={styles.inputRow}>
           {/* 上傳檔案/圖片按鈕 */}
           <input
@@ -220,7 +199,6 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
               <Icon name="upload" size={18} />
             </button>
           </Tooltip>
-
           <textarea
             ref={textareaRef}
             rows={1}
@@ -232,7 +210,6 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
             onPaste={handlePaste}
             disabled={loading || disabled}
           />
-
           <Tooltip title="發送訊息 (Enter)">
             <button
               type="button"
@@ -250,7 +227,6 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
           </Tooltip>
         </div>
       </div>
-
       <div className={styles.hintRow}>
         <span className={styles.dragHint}>
           <Icon name="image" size={13} /> 支援圖片貼上與各類文件解析
@@ -260,5 +236,4 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
     </div>
   );
 };
-
 export default ChatInputArea;

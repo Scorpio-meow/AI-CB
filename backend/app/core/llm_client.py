@@ -27,7 +27,7 @@ DEFAULT_GEMINI_MODELS = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3-
 def is_azure_openai_enabled() -> bool:
     return bool(settings.AZURE_OPENAI_API_KEY and settings.AZURE_OPENAI_ENDPOINT)
 def get_available_models() -> List[str]:
-    available = os.getenv("AVAILABLE_MODELS", "").strip()
+    available = (settings.AVAILABLE_MODELS or "").strip()
     if available:
         return [m.strip() for m in available.split(",") if m.strip()]
     
@@ -69,6 +69,9 @@ async def call_llm(
     opt_timeout = httpx.Timeout(timeout) if timeout is not None else httpx.Timeout(settings.LLM_TIMEOUT)
     
     target_model = model_name or settings.MODEL_NAME
+    if not target_model:
+        avail = get_available_models()
+        target_model = avail[0] if avail else "default"
     
     if "claude-" in target_model and settings.ANTHROPIC_API_KEY:
         base_url = settings.ANTHROPIC_API_BASE.rstrip("/")

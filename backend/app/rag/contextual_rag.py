@@ -46,9 +46,10 @@ class HybridContextualRAG:
         os.makedirs(self.data_dir, exist_ok=True)
         init_domain_dictionary(self.data_dir)
 
-        # 1. 向量庫管理器
+
         self.vector_store = VectorStoreManager(
             data_dir=self.data_dir,
+            embedding_model=settings.EMBEDDING_MODEL,
             force_cpu=self.force_cpu,
             use_fp16=self.use_fp16,
             use_faiss_gpu=self.use_faiss_gpu,
@@ -57,10 +58,10 @@ class HybridContextualRAG:
             top_k=self.top_k,
         )
 
-        # 2. BM25 倒排索引管理器
+
         self.bm25_store = BM25StoreManager(data_dir=self.data_dir)
 
-        # 3. 混合檢索器
+
         self.retriever = HybridRetriever(
             vector_store=self.vector_store,
             bm25_store=self.bm25_store,
@@ -73,7 +74,7 @@ class HybridContextualRAG:
             use_fp16=self.use_fp16,
         )
 
-        # 4. 生成管線
+
         self.pipeline = RAGPipeline(
             vector_store=self.vector_store,
             bm25_store=self.bm25_store,
@@ -84,12 +85,12 @@ class HybridContextualRAG:
             model_name=self.model_name,
         )
 
-        # 5. 評估器
+
         self.evaluator = RAGEvaluator(self.retriever)
 
         logger.info("HybridContextualRAG 門面模組初始化完成")
 
-    # 向下相容屬性映射
+
     @property
     def documents(self) -> List[Document]:
         return self.vector_store.documents
@@ -134,7 +135,7 @@ class HybridContextualRAG:
     def bm25_searcher(self):
         return self.bm25_store.bm25_searcher
 
-    # 檢索方法委派
+
     def vector_search(self, query: str, top_k: int = None, apply_threshold: bool = True) -> List[Tuple[Document, float]]:
         return self.vector_store.search(query, top_k=top_k, apply_threshold=apply_threshold)
 
@@ -150,7 +151,7 @@ class HybridContextualRAG:
     def smart_search(self, query: str) -> List[Tuple[Document, float]]:
         return self.retriever.smart_search(query)
 
-    # 文檔與索引操作委派
+
     def add_documents(self, documents: List[Document]) -> int:
         return self.pipeline.process_and_add_documents(documents)
 
@@ -164,7 +165,7 @@ class HybridContextualRAG:
         self.bm25_store.clear()
         self.pipeline.context_memory.clear()
 
-    # 對話與生成委派
+
     async def generate_response(
         self,
         query: str,
@@ -203,14 +204,14 @@ class HybridContextualRAG:
     def clear_conversation_context(self, conversation_id: int, user_id: Optional[int] = None):
         self.pipeline.clear_conversation_context(conversation_id, user_id)
 
-    # 評估與調參委派
+
     def evaluate_retrieval(self, test_queries: List[str], gold_doc_ids: List[List[int]], k_values: List[int] = [1, 3, 5, 10]) -> Dict[str, Any]:
         return self.evaluator.evaluate_retrieval(test_queries, gold_doc_ids, k_values)
 
     def auto_tune_alpha(self, test_queries: List[str], gold_doc_ids: List[List[int]], alphas: List[float] = None) -> Dict[str, Any]:
         return self.evaluator.auto_tune_alpha(test_queries, gold_doc_ids, alphas)
 
-    # 統計與管理
+
     def get_statistics(self) -> Dict[str, Any]:
         bm25_status = "Available" if self.bm25_store.bm25_index else "Not Available"
         reranker_status = "Available" if self.retriever.has_reranker else "Not Available"

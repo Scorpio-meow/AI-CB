@@ -35,7 +35,6 @@ export const Menu: React.FC<MenuProps> = ({
       top = rect.top - menuHeight - 6;
       left = rect.right - menuWidth;
     }
-    // Viewport overflow bounds check
     const padding = 8;
     if (left + menuWidth > window.innerWidth - padding) {
       left = window.innerWidth - menuWidth - padding;

@@ -149,7 +149,6 @@ export const ChatPage: React.FC = () => {
     }
   };
   const [attachments, setAttachments] = useState<import('./types').ChatAttachment[]>([]);
-
   const handleSend = async () => {
     if (!newMessage.trim() && attachments.length === 0) return;
     const toSend = newMessage;
@@ -186,7 +185,10 @@ export const ChatPage: React.FC = () => {
     });
   }, [loadAvailableModels, fetchConversations]);
   useEffect(() => {
-    if (location.state?.conversationId) {
+    if (location.state?.prefillPrompt) {
+      setNewMessage(location.state.prefillPrompt);
+      navigate(location.pathname, { replace: true, state: {} });
+    } else if (location.state?.conversationId) {
       queueMicrotask(() => {
         handleSelectConversation(location.state.conversationId);
       });
@@ -243,7 +245,6 @@ export const ChatPage: React.FC = () => {
           onRemoveAttachment={(idx) => setAttachments((prev) => prev.filter((_, i) => i !== idx))}
         />
       </div>
-      {/* 提示通知 */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}

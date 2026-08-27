@@ -6,6 +6,7 @@ import logging
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Optional
 import requests
+from app.core.config import settings
 from app.core.llm_client import get_available_models
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -13,12 +14,13 @@ router = APIRouter()
 async def get_tags():
     configured_models = get_available_models()
     if configured_models:
-        default_model = os.getenv("MODEL_NAME") or os.getenv("AZURE_OPENAI_DEPLOYMENT") or configured_models[0]
+        azure_dep = settings.AZURE_OPENAI_DEPLOYMENT.split(',')[0].strip() if settings.AZURE_OPENAI_DEPLOYMENT else None
+        default_model = settings.MODEL_NAME or azure_dep or configured_models[0]
         if default_model not in configured_models:
             default_model = configured_models[0]
         return {"tags": configured_models, "default": default_model}
     fallback_models = _load_fallback_models()
-    configured_default = os.getenv("MODEL_NAME")
+    configured_default = settings.MODEL_NAME
     default_model: Optional[str] = configured_default
     models: list[str] = []
     try:
@@ -39,26 +41,23 @@ async def get_tags():
         default_model = models[0]
     return {"tags": models, "default": default_model}
 def _load_fallback_models() -> list[str]:
-    available = os.getenv("AVAILABLE_MODELS", "")
+    available = settings.AVAILABLE_MODELS or ""
     models = [m.strip() for m in available.split(",") if m.strip()]
     return models
 def _fetch_remote_models() -> tuple[list[str], Optional[str]]:
-    custom_url = os.getenv("EXTERNAL_TAGS_URL", "").strip()
-    base = os.getenv("LLM_API_BASE", "").strip()
+    custom_url = (settings.EXTERNAL_TAGS_URL or "").strip()
+    base = (settings.LLM_API_BASE or "").strip()
     if custom_url:
         url = custom_url
     else:
         if not base:
             raise RuntimeError(
-                "Environment variable LLM_API_BASE is required to query remote models (or set EXTERNAL_TAGS_URL)."
+                "Configuration LLM_API_BASE is required to query remote models (or set EXTERNAL_TAGS_URL)."
             )
         url = f"{base.rstrip('/')}/api/tags"
-    timeout = float(os.getenv("LLM_TAGS_TIMEOUT", "10"))
+    timeout = float(settings.LLM_TAGS_TIMEOUT)
     headers: dict[str, str] = {}
-    if (
-        "ngrok-free.app" in url
-        or os.getenv("ADD_NGROK_HEADER", "").lower() in {"1", "true", "yes", "on"}
-    ):
+    if "ngrok-free.app" in url or settings.ADD_NGROK_HEADER:
         headers["ngrok-skip-browser-warning"] = "true"
     response = requests.get(url, headers=headers, timeout=timeout)
     response.raise_for_status()
@@ -135,12 +134,13 @@ def _coerce_to_iterable(candidate: object) -> Iterable[object] | None:
 def get_external_tags():
     configured_models = get_available_models()
     if configured_models:
-        default_model = os.getenv("MODEL_NAME") or os.getenv("AZURE_OPENAI_DEPLOYMENT") or configured_models[0]
+        azure_dep = settings.AZURE_OPENAI_DEPLOYMENT.split(',')[0].strip() if settings.AZURE_OPENAI_DEPLOYMENT else None
+        default_model = settings.MODEL_NAME or azure_dep or configured_models[0]
         if default_model not in configured_models:
             default_model = configured_models[0]
         return JSONResponse(content={"tags": configured_models, "default": default_model})
-    custom_url = os.getenv("EXTERNAL_TAGS_URL", "").strip()
-    base = os.getenv("LLM_API_BASE", "").strip()
+    custom_url = (settings.EXTERNAL_TAGS_URL or "").strip()
+    base = (settings.LLM_API_BASE or "").strip()
     if custom_url:
         url = custom_url
     else:
@@ -149,12 +149,9 @@ def get_external_tags():
                 "error": "No external tags URL configured (set EXTERNAL_TAGS_URL or LLM_API_BASE)."
             })
         url = f"{base.rstrip('/')}/api/tags"
-    timeout = float(os.getenv("LLM_TAGS_TIMEOUT", "10"))
+    timeout = float(settings.LLM_TAGS_TIMEOUT)
     headers: dict[str, str] = {}
-    if (
-        "ngrok-free.app" in url
-        or os.getenv("ADD_NGROK_HEADER", "").lower() in {"1", "true", "yes", "on"}
-    ):
+    if "ngrok-free.app" in url or settings.ADD_NGROK_HEADER:
         headers["ngrok-skip-browser-warning"] = "true"
     try:
         resp = requests.get(url, headers=headers, timeout=timeout)

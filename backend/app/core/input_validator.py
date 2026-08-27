@@ -108,7 +108,6 @@ class InputValidator:
         ext = os.path.splitext(filename)[1].lower()
         if ext and ext not in allowed_extensions:
             return False, f"不允許的文件類型: {ext}"
-
         return True, ""
     
     @staticmethod
