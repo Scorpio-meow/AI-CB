@@ -227,7 +227,13 @@ class ResearchToolRegistry:
             logger.error(f"DuckDuckGo 搜尋失敗: {e}")
             return {"query": query, "error": f"外部搜尋發生錯誤: {str(e)}", "results": []}
     async def web_fetch(self, url: str) -> Dict[str, Any]:
-        """深入讀取指定網頁全文（優先使用 Ollama Web Fetch，失敗時直接 HTTP 抓取並解析 HTML）"""
+        """深入讀取指定網頁全文（優先使用 Ollama Web Fetch，失敗時使用具備 SSRF 防護之 HTTP 抓取並解析 HTML）"""
+        from app.core.ssrf_protection import safe_fetch_text, validate_url_ssrf, SSRFProtectionError
+
+        is_safe, error_msg, _ = await validate_url_ssrf(url)
+        if not is_safe:
+            return {"url": url, "error": f"安全防護拒絕存取該網址: {error_msg}", "content": ""}
+
         ollama_key = settings.OLLAMA_API_KEY or ''
 
         if ollama_key:
@@ -247,25 +253,25 @@ class ResearchToolRegistry:
                             "content": data.get("content", "")[:3500]
                         }
             except Exception as e:
-                logger.warning(f"Ollama Web Fetch 失敗: {e}，切換為直接連線讀取")
+                logger.warning(f"Ollama Web Fetch 失敗: {e}，切換為直接安全連線讀取")
 
         try:
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            raw_html = await safe_fetch_text(
+                url=url,
+                timeout=12.0,
+                max_redirects=5,
+                max_size_bytes=5 * 1024 * 1024
+            )
+            title_match = re.search(r'<title[^>]*>(.*?)</title>', raw_html, re.IGNORECASE)
+            title = title_match.group(1).strip() if title_match else url
+            clean_text = clean_html(raw_html)
+            return {
+                "url": url,
+                "title": title,
+                "content": clean_text[:3500]
             }
-            async with httpx.AsyncClient(headers=headers, timeout=12.0, follow_redirects=True) as client:
-                resp = await client.get(url)
-                if resp.status_code == 200:
-                    title_match = re.search(r'<title[^>]*>(.*?)</title>', resp.text, re.IGNORECASE)
-                    title = title_match.group(1).strip() if title_match else url
-                    clean_text = clean_html(resp.text)
-                    return {
-                        "url": url,
-                        "title": title,
-                        "content": clean_text[:3500]
-                    }
-                else:
-                    return {"url": url, "error": f"網頁讀取失敗，狀態碼: {resp.status_code}", "content": ""}
+        except (SSRFProtectionError, ValueError) as e:
+            return {"url": url, "error": f"網頁讀取失敗: {str(e)}", "content": ""}
         except Exception as e:
             logger.error(f"web_fetch 失敗 ({url}): {e}")
             return {"url": url, "error": f"無法存取該網址: {str(e)}", "content": ""}

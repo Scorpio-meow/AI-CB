@@ -3,8 +3,11 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Tuple, Union
 import yaml
-import httpx
+from app.core.ssrf_protection import safe_fetch_text, SSRFProtectionError
+
 logger = logging.getLogger(__name__)
+
+
 class OpenApiParser:
     """
     全版本 OpenAPI Specification 解析器
@@ -34,11 +37,14 @@ class OpenApiParser:
         raw_text = spec_content_or_url.strip()
         if raw_text.startswith("http://") or raw_text.startswith("https://"):
             try:
-                async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-                    resp = await client.get(raw_text)
-                    if resp.status_code != 200:
-                        raise ValueError(f"無法從該 URL 取得 OpenAPI 規格 (狀態碼 {resp.status_code})")
-                    raw_text = resp.text
+                raw_text = await safe_fetch_text(
+                    url=raw_text,
+                    timeout=15.0,
+                    max_redirects=5,
+                    max_size_bytes=10 * 1024 * 1024
+                )
+            except SSRFProtectionError as e:
+                raise ValueError(f"安全防護拒絕存取該 URL: {str(e)}")
             except Exception as e:
                 raise ValueError(f"獲取遠端 OpenAPI 規格失敗: {str(e)}")
         spec_dict = cls._parse_raw_text_to_dict(raw_text)

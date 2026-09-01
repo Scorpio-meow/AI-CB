@@ -161,16 +161,38 @@ class InputValidator:
         if not url:
             return None
         
-        if not url.startswith(('http://', 'https://')):
-            logger.warning(f"不允許的 URL 協議: {url}")
+        url_str = url.strip()
+        if not url_str.startswith(('http://', 'https://')):
+            logger.warning(f"不允許的 URL 協議: {url_str}")
             return None
         
         dangerous_chars = ['<', '>', '"', "'", '`', '{', '}', '|', '\\', '^', '[', ']']
-        if any(char in url for char in dangerous_chars):
-            logger.warning(f"URL 包含危險字符: {url}")
+        if any(char in url_str for char in dangerous_chars):
+            logger.warning(f"URL 包含危險字符: {url_str}")
             return None
         
-        return url
+        return url_str
+
+    @staticmethod
+    def validate_url_for_ssrf(url: str, allow_private_ips: bool = False) -> tuple[bool, str]:
+        from app.core.ssrf_protection import validate_url_ssrf
+        import asyncio
+        try:
+            try:
+                loop = asyncio.get_running_loop()
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    is_safe, reason, _ = executor.submit(
+                        asyncio.run, validate_url_ssrf(url, allow_private_ips=allow_private_ips)
+                    ).result()
+                    return is_safe, reason
+            except RuntimeError:
+                is_safe, reason, _ = asyncio.run(
+                    validate_url_ssrf(url, allow_private_ips=allow_private_ips)
+                )
+                return is_safe, reason
+        except Exception as e:
+            return False, f"URL SSRF 驗證失敗: {str(e)}"
     
     @staticmethod
     def rate_limit_key(ip: str, endpoint: str) -> str:

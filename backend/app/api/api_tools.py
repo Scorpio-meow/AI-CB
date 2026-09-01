@@ -134,6 +134,17 @@ async def execute_http_api_tool(tool_dict: Dict[str, Any], arguments: Dict[str, 
                 query_params[k] = v
     if "request_body" in arguments and isinstance(arguments["request_body"], dict):
         body_data = arguments["request_body"]
+    from app.core.ssrf_protection import validate_url_ssrf
+    is_safe, ssrf_err, _ = await validate_url_ssrf(path_replaced_url)
+    if not is_safe:
+        duration = round(time.time() - start_time, 3)
+        return {
+            "status_code": 403,
+            "is_success": False,
+            "duration_seconds": duration,
+            "url": path_replaced_url,
+            "error": f"安全防護拒絕連線 (SSRF 防護): {ssrf_err}"
+        }
     try:
         async with httpx.AsyncClient(timeout=float(timeout), follow_redirects=True) as client:
             req_kwargs: Dict[str, Any] = {
