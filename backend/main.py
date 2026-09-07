@@ -23,9 +23,9 @@ logging.basicConfig(
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 app = FastAPI(
-    title="ChatBot API",
-    description="ChatBot with Contextual RAG",
-    version="1.0.0",
+    title="AskMiao API",
+    description="Enterprise knowledge-base chat with Hybrid RAG and Agentic research",
+    version="2.0.0",
     lifespan=lifespan
 )
 setup_middlewares(app)
