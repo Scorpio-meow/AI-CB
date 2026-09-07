@@ -6,6 +6,8 @@
 
 Accepted - 2026-08-01
 
+> **Note (2026-09-07)**: The "Redis blacklist" and "Redis query cache" parts of this decision were replaced in 2.0.0 by a single-process in-memory implementation (see `backend/app/core/redis_client.py` and [CHANGELOG 2.0.0](../../CHANGELOG_en.md)); a pluggable blacklist backend is planned in [ADR-0002](./0002-platform-hardening-and-tool-extension-roadmap_en.md). The hybrid RAG pipeline, RSA-2048 dual-token auth, and two-layer redaction remain in effect.
+
 ---
 
 ## Context & Problem Statement
@@ -30,7 +32,7 @@ After evaluation, the engineering team adopted the following architectural solut
 - Combines **FAISS dense vector retrieval** (powered by `BAAI/bge-small-zh-v1.5`) and **Whoosh BM25 keyword search** (with `Jieba` segmentation).
 - Merges candidate passages via score normalization fusion and re-ranks Top-K contexts using a **Cross-Encoder model (`bge-reranker-base`)**.
 
-### 2. RSA-2048 Dual-Token Auth & Redis Revocation Blacklist
+### 2. RSA-2048 Dual-Token Auth & Redis Revocation Blacklist (Redis part superseded by ADR-0002)
 
 - **Access Token**: Signed with RSA-2048 private key, 30-minute expiration, transmitted via Authorization header.
 - **Refresh Token**: HttpOnly / Secure / SameSite Cookie, 7-day expiration.

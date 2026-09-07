@@ -2,46 +2,77 @@
 
 [繁體中文](llms.txt) | [English](llms_en.txt)
 
-> 基於增強型混合 RAG（檢索增強生成）與 Agentic 自主研究架構的企業級智慧知識庫對話系統。
+> 基於增強型混合 RAG（檢索增強生成）與 Agentic 自主研究架構的企業級智慧知識庫對話系統，並支援以 OpenAPI 匯入與 MCP 伺服器擴充 Agent 工具。
 
 ## 專案架構與核心檔案地圖
 
-- [backend/main.py](backend/main.py): FastAPI 後端進入點與全域路由中介軟體註冊
-- [backend/app/rag/agent.py](backend/app/rag/agent.py): ReAct 自主研究 Agent（多輪工具調用與研究思考歷程紀錄）
-- [backend/app/rag/tools.py](backend/app/rag/tools.py): 自主研究工具註冊中心（內部知識庫檢索、DuckDuckGo/Ollama 聯網搜尋、網頁深入抓取）
-- [backend/app/rag/pipeline.py](backend/app/rag/pipeline.py): RAG 執行管線、上下文組裝與 Agent 整合
+### 後端進入點與基礎設施
+- [backend/main.py](backend/main.py): FastAPI 進入點、日誌設定與七組路由掛載（auth, chat, admin, documents, api-tools, mcp, tags）
+- [backend/app/middleware.py](backend/app/middleware.py): SecurityHeaders、RateLimit、CORS 中介軟體註冊
+- [backend/app/core/lifespan.py](backend/app/core/lifespan.py): 啟動流程（建表、RAG 單例、uploads watcher、index rebuilder）
+- [backend/app/core/config.py](backend/app/core/config.py): 所有環境變數與預設值的唯一真相來源（pydantic-settings）
+- [backend/app/models/__init__.py](backend/app/models/__init__.py): SQLAlchemy 資料表（users, conversations, messages, documents, custom_api_tools, mcp_servers）與 Pydantic 請求模型
+
+### Agentic RAG 核心
 - [backend/app/rag/contextual_rag.py](backend/app/rag/contextual_rag.py): HybridContextualRAG 門面模組
+- [backend/app/rag/pipeline.py](backend/app/rag/pipeline.py): RAG 執行管線、上下文組裝與 Agent 整合
+- [backend/app/rag/agent.py](backend/app/rag/agent.py): ReAct 自主研究 Agent（多輪工具調用、串流事件與研究歷程紀錄）
+- [backend/app/rag/tools.py](backend/app/rag/tools.py): ResearchToolRegistry，聚合內建工具（search_knowledge_base, filter_and_count_records, web_search, web_fetch）、自訂 API 工具與 MCP 工具
 - [backend/app/rag/indices/vector_store.py](backend/app/rag/indices/vector_store.py): FAISS 向量儲存與相似度檢索
 - [backend/app/rag/indices/bm25_store.py](backend/app/rag/indices/bm25_store.py): Whoosh BM25 中文文字搜尋引擎
 - [backend/app/rag/retrievers/hybrid.py](backend/app/rag/retrievers/hybrid.py): 混合搜尋與 Cross-Encoder 重排序器
 - [backend/app/core/llm_client.py](backend/app/core/llm_client.py): 統一 LLM 客戶端（Azure OpenAI v1 / OpenAI / Claude / Gemini / Ollama）
-- [backend/app/core/jwt_auth.py](backend/app/core/jwt_auth.py): RSA-2048 JWT 簽署、令牌驗證與黑名單撤銷
+
+### 工具擴充（OpenAPI 與 MCP）
+- [backend/app/api/api_tools.py](backend/app/api/api_tools.py): 自訂 API 工具端點（parse-spec, import, CRUD, toggle, test）與通用 HTTP 執行器 execute_http_api_tool
+- [backend/app/services/openapi_parser.py](backend/app/services/openapi_parser.py): OpenAPI 2.0 / 3.0 / 3.1 規格解析與 $ref 展開
+- [backend/app/api/mcp.py](backend/app/api/mcp.py): MCP 伺服器端點（presets, servers CRUD, discover, toggle, tool test）
+- [backend/app/services/mcp_service.py](backend/app/services/mcp_service.py): McpStdioClient / McpHttpClient / McpManager（JSON-RPC initialize, tools/list, tools/call）
+- [backend/app/api/tags.py](backend/app/api/tags.py): 模型標籤查詢與外部標籤代理
+
+### 安全
+- [backend/app/core/jwt_auth.py](backend/app/core/jwt_auth.py): RSA-2048 JWT 簽署、令牌驗證與撤銷
+- [backend/app/core/redis_client.py](backend/app/core/redis_client.py): TokenBlacklist（目前為單程序記憶體實作，非 Redis）
 - [backend/app/core/security_logging.py](backend/app/core/security_logging.py): 敏感資料雙層脫敏日誌系統（物件遞迴與正則遮罩）
-- [backend/app/api/chat.py](backend/app/api/chat.py): 對話發送、自主研究生成與可用模型查詢端點
-- [backend/app/api/documents.py](backend/app/api/documents.py): 知識庫文件上傳、切分與管理端點
-- [frontend/src/App.jsx](frontend/src/App.jsx): React 19 頂層路由與佈局
-- [frontend/src/pages/Chat/index.tsx](frontend/src/pages/Chat/index.tsx): 對話主頁面、狀態控制與多模型/推理程度管理
+- [backend/app/core/ssrf_protection.py](backend/app/core/ssrf_protection.py): 出站 URL SSRF 驗證與 safe_fetch_text
+
+### API 端點
+- [backend/app/api/auth.py](backend/app/api/auth.py): 註冊、登入、刷新、登出、個人資料與密碼變更
+- [backend/app/api/chat.py](backend/app/api/chat.py): SSE 串流對話 /send、可用模型 /models、可用工具 /tools、對話紀錄
+- [backend/app/api/documents.py](backend/app/api/documents.py): 知識庫文件上傳、摘要、刪除與索引重建（管理員）
+- [backend/app/api/admin.py](backend/app/api/admin.py): 用戶、統計、對話、文件與向量庫管理（管理員）
+
+### 前端
+- [frontend/src/App.jsx](frontend/src/App.jsx): React 19 頂層路由（/chat, /tools, /documents, /admin, /profile）與路由守衛
+- [frontend/src/pages/Chat/index.tsx](frontend/src/pages/Chat/index.tsx): 對話主頁面、SSE 消費、多模型與推理程度管理
 - [frontend/src/pages/Chat/ResearchTraceBlock.tsx](frontend/src/pages/Chat/ResearchTraceBlock.tsx): 自主研究歷程折疊時間軸元件
 - [frontend/src/pages/Chat/SourceBadges.tsx](frontend/src/pages/Chat/SourceBadges.tsx): 內部與外部參考來源徽章元件
+- [frontend/src/pages/AiTools.jsx](frontend/src/pages/AiTools.jsx): 自訂 API 工具與 MCP 伺服器管理頁面
+- [frontend/src/components/ui/index.ts](frontend/src/components/ui/index.ts): 自製 UI 元件庫（CSS Modules + tokens.css，不使用 MUI）
+- [frontend/src/services/api.ts](frontend/src/services/api.ts): Axios 封裝與 Token 刷新攔截器
 
 ## 核心設計概念與系統約束
 
 1. **Agentic RAG 自主研究管線**：
-   - 採用 ReAct 自主研究模式，模型可根據問題自動決定調用內部知識庫檢索、外部即時聯網搜尋或網頁深度內容抓取。
-   - 每次問答產出結構化 `research_trace`（步驟、工具、參數、耗時與摘要）以及可點擊跳轉之 `sources_detail`。
+   - ReAct 模式，模型自主決定調用內部知識庫檢索、結構化統計、外部聯網搜尋、網頁抓取，或任何已註冊的自訂 API / MCP 工具。
+   - `POST /api/chat/send` 以 SSE 串流事件（start, step_start, step_end, token, sources, done, error）回傳；每次問答產出結構化 `research_trace` 與可點擊之 `sources_detail`。
 2. **多檔位推理程度 (Reasoning Effort)**：
-   - 支援 `none`, `low`, `medium`, `high`, `xhigh` 五種思考深度，透傳至 Azure OpenAI v1 / OpenAI 推理模型。
-   - 遵循微軟 Foundry 規範，於結合 Function Tools 時自動保持相容性。
+   - 支援 `none`, `low`, `medium`, `high`, `xhigh` 五種思考深度，透傳至 Azure OpenAI v1 / OpenAI 推理模型，並依 Foundry 規範處理工具調用相容性。
 3. **混合檢索與重排序 (Hybrid Retrieval)**：
-   - FAISS 稠密向量搜尋與 Whoosh BM25 稀疏文字檢索加權融合，最終經由 Cross-Encoder 加權重排序輸出高精準度上下文。
-4. **全系統安全日誌脫敏 (Security Redaction)**：
-   - 日誌記錄全面實施物件層級與正則表達式雙層遮罩，密碼、Token 與 Authorization 標頭必須強制呈現為 `[REDACTED]`。
-5. **輕量化與現代化工具鏈**：
-   - 後端預設採用 SQLite 零依賴運作，前端全面基於 React 19 + Vite 7 + Bun 建構。
+   - FAISS 稠密向量（`BAAI/bge-small-zh-v1.5`）與 Whoosh BM25（Jieba 分詞）加權融合（`HYBRID_ALPHA`），再經 Cross-Encoder（`BAAI/bge-reranker-base`）重排序；參數皆定義於 `config.py`。
+4. **工具擴充 (OpenAPI 匯入與 MCP)**：
+   - 自訂 API 工具以 `custom_api_tools.name` 作為 function name；MCP 工具命名為 `mcp_{server}_{tool}`；兩者皆由 `ResearchToolRegistry` 動態聚合，`GET /api/chat/tools` 可觀測目前啟用的工具。
+5. **出站 SSRF 防護**：
+   - 所有由用戶或模型提供的 URL（web_fetch、OpenAPI 規格載入、自訂 API 執行）必須經 `ssrf_protection.validate_url_ssrf` / `safe_fetch_text`，拒絕私有、loopback 與 link-local 位址。
+6. **全系統安全日誌脫敏 (Security Redaction)**：
+   - 日誌全面實施物件層級與正則表達式雙層遮罩，密碼、Token 與 Authorization 標頭必須呈現為 `[REDACTED]`。
+7. **輕量化與現代化工具鏈**：
+   - 後端預設 SQLite（PostgreSQL 為選用，`backend/docker-compose.yml` 對外 port 7690）；Token 黑名單為單程序記憶體實作。前端基於 React 19 + TypeScript + Vite 8 + Bun。
 
 ## 詳細文件導覽
 
-- [API 參考手冊](docs/api.md): 完整 RESTful 端點、請求回應 JSON 規格與參數說明
-- [系統架構與設計](docs/architecture.md): 模組架構圖、Agentic RAG 管線與安全架構
-- [架構決策紀錄 (ADR)](docs/adr/README.md): 專案架構演進與重大決策紀錄
+- [API 參考手冊](docs/api.md): 完整 RESTful / SSE 端點、請求回應 JSON 規格與參數說明
+- [系統架構與設計](docs/architecture.md): 分層架構圖、混合檢索、認證、Agentic 迴圈、工具擴充、安全、資料模型與部署模式
+- [架構決策紀錄 (ADR)](docs/adr/README.md): ADR-0001（混合 RAG 與安全）、ADR-0002（2.x 平台強化路線圖）
+- [AI 助手專案指引](CLAUDE.md): 建置、測試指令、慣例與常見陷阱
 - [版本變更紀錄](CHANGELOG.md): 系統版本發行歷史

@@ -9,7 +9,14 @@
 ## [Unreleased]
 
 ### Added
-- 完整更新全套系統規格文檔（`README.md`, `README_en.md`, `llms.txt`, `llms_en.txt`, `CHANGELOG.md`, `CHANGELOG_en.md`）。
+- **自訂 API 工具與 OpenAPI 匯入**：`/api/api-tools` 端點（parse-spec、import、CRUD、toggle、test）與 `services/openapi_parser.py`（OAS 2.0 / 3.0 / 3.1），匯入的端點自動成為 Agent 工具。
+- **MCP 伺服器整合**：`/api/mcp` 端點（presets、servers CRUD、discover、toggle、tool test）與 `services/mcp_service.py`（stdio / http 傳輸），探索到的工具以 `mcp_{server}_{tool}` 註冊。
+- **SSRF 出站防護**：`core/ssrf_protection.py`，套用於 `web_fetch`、OpenAPI 規格載入與自訂 API 執行。
+- 前端 `/tools`（`AiTools.jsx`）工具管理頁面；`GET /api/chat/tools` 觀測端點；`filter_and_count_records` 結構化統計工具。
+- **架構文件對齊 2.x 現況**：重寫 `docs/architecture.md`（分層架構、記憶體黑名單、工具擴充子系統、安全總覽、ER 圖、部署模式）與 `docs/api.md`（SSE 事件格式、api-tools / mcp / tags / admin 端點，移除已廢棄的 workflow 章節）。
+- 新增 [ADR-0002](docs/adr/0002-platform-hardening-and-tool-extension-roadmap.md)：2.x 平台強化與工具擴充路線圖（CI、可插拔黑名單、測試補強、Alembic、ToolProvider、TSX 收尾、可觀測性、設定治理）；ADR-0001 加註 Redis 部分已被取代。
+- 新增 `CLAUDE.md`：AI 助手與貢獻者專案指引。
+- 更新 `README.md`、`llms.txt` 與英文版本：補充工具擴充與 SSRF 功能、修正前端埠號（3001）、環境變數矩陣改以 `config.py` 預設值為準。
 
 ---
 

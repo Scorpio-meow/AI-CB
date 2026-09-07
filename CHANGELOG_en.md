@@ -12,7 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Comprehensive update across all project specification documents (`README.md`, `README_en.md`, `llms.txt`, `llms_en.txt`, `CHANGELOG.md`, `CHANGELOG_en.md`).
+- **Custom API tools and OpenAPI import**: `/api/api-tools` endpoints (parse-spec, import, CRUD, toggle, test) and `services/openapi_parser.py` (OAS 2.0 / 3.0 / 3.1); imported endpoints become agent tools automatically.
+- **MCP server integration**: `/api/mcp` endpoints (presets, servers CRUD, discover, toggle, tool test) and `services/mcp_service.py` (stdio / http transports); discovered tools are registered as `mcp_{server}_{tool}`.
+- **SSRF egress protection**: `core/ssrf_protection.py`, applied to `web_fetch`, OpenAPI spec loading, and custom API execution.
+- Frontend `/tools` page (`AiTools.jsx`); `GET /api/chat/tools` introspection endpoint; `filter_and_count_records` structured counting tool.
+- **Architecture docs aligned with 2.x**: rewrote `docs/architecture.md` (layered architecture, in-memory blacklist, tool extension subsystem, security overview, ER diagram, deployment profiles) and `docs/api.md` (SSE event format, api-tools / mcp / tags / admin endpoints, removed the obsolete workflow section).
+- Added [ADR-0002](docs/adr/0002-platform-hardening-and-tool-extension-roadmap_en.md): 2.x platform hardening and tool extension roadmap (CI, pluggable blacklist, test coverage, Alembic, ToolProvider, TSX completion, observability, configuration governance); ADR-0001 annotated to mark the Redis parts as superseded.
+- Added `CLAUDE.md`: project guide for AI assistants and contributors.
+- Updated `README.md`, `llms.txt`, and their English versions: documented tool extension and SSRF features, corrected the frontend port (3001), and based the environment matrix on `config.py` defaults.
 
 ---
 

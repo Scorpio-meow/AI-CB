@@ -6,6 +6,8 @@
 
 已通過 (Accepted) - 2026-08-01
 
+> **2026-09-07 註記**：本決策之「Redis 黑名單」與「Redis 查詢快取」部分已於 2.0.0 被單程序記憶體實作取代（見 `backend/app/core/redis_client.py` 與 [CHANGELOG 2.0.0](../../CHANGELOG.md)），並由 [ADR-0002](./0002-platform-hardening-and-tool-extension-roadmap.md) 規劃可插拔黑名單後端；混合 RAG 管道、RSA-2048 雙 Token 與雙層脫敏部分仍然有效。
+
 ---
 
 ## 背景與問題陳述
@@ -30,7 +32,7 @@ AskMiao 作為智慧對話與多 Agent 協作系統，在知識庫檢索與安�
 - 結合 **FAISS 向量檢索**（使用 `BAAI/bge-small-zh-v1.5` 模型）與 **Whoosh BM25 關鍵字檢索**（配合 `Jieba` 分詞）。
 - 採用分數歸一化融合演算法，並引入 **Cross-Encoder 模型 (`bge-reranker-base`)** 進行 Top-K 文本片段重排序。
 
-### 2. RSA-2048 雙 Token 認證與 Redis 黑名單
+### 2. RSA-2048 雙 Token 認證與 Redis 黑名單（Redis 部分已被 ADR-0002 取代）
 
 - **Access Token**：使用 RSA-2048 私鑰簽署，有效期限設定為 30 分鐘，經由 HTTP Header 傳輸。
 - **Refresh Token**：設定為 HttpOnly / Secure / SameSite 之 Cookie，有效期限為 7 天。

@@ -2,46 +2,77 @@
 
 [Traditional Chinese](llms.txt) | [English](llms_en.txt)
 
-> An enterprise-grade intelligent knowledge-base conversational system powered by Contextual Hybrid RAG (Retrieval-Augmented Generation) and Agentic Autonomous Research architectures.
+> An enterprise-grade intelligent knowledge-base conversational system powered by Contextual Hybrid RAG (Retrieval-Augmented Generation) and Agentic Autonomous Research, extensible with agent tools imported from OpenAPI specs and MCP servers.
 
 ## Core File Map & System Architecture
 
-- [backend/main.py](backend/main.py): FastAPI entry point, CORS, and global middleware registration
-- [backend/app/rag/agent.py](backend/app/rag/agent.py): ReAct autonomous ResearchAgent with multi-turn tool calling and trace logging
-- [backend/app/rag/tools.py](backend/app/rag/tools.py): ResearchToolRegistry (Internal RAG, DuckDuckGo/Ollama web search, and deep web fetch)
-- [backend/app/rag/pipeline.py](backend/app/rag/pipeline.py): Context builder, document chunking & embedding, and agent integration
+### Backend entry point and infrastructure
+- [backend/main.py](backend/main.py): FastAPI entry point, logging setup, and mounting of the seven routers (auth, chat, admin, documents, api-tools, mcp, tags)
+- [backend/app/middleware.py](backend/app/middleware.py): SecurityHeaders, RateLimit, and CORS middleware registration
+- [backend/app/core/lifespan.py](backend/app/core/lifespan.py): Startup flow (create tables, RAG singleton, uploads watcher, index rebuilder)
+- [backend/app/core/config.py](backend/app/core/config.py): Single source of truth for all environment variables and defaults (pydantic-settings)
+- [backend/app/models/__init__.py](backend/app/models/__init__.py): SQLAlchemy tables (users, conversations, messages, documents, custom_api_tools, mcp_servers) and Pydantic request models
+
+### Agentic RAG core
 - [backend/app/rag/contextual_rag.py](backend/app/rag/contextual_rag.py): HybridContextualRAG facade module
+- [backend/app/rag/pipeline.py](backend/app/rag/pipeline.py): RAG pipeline, context assembly, and agent integration
+- [backend/app/rag/agent.py](backend/app/rag/agent.py): ReAct autonomous ResearchAgent (multi-turn tool calling, streaming events, research trace)
+- [backend/app/rag/tools.py](backend/app/rag/tools.py): ResearchToolRegistry aggregating built-in tools (search_knowledge_base, filter_and_count_records, web_search, web_fetch), custom API tools, and MCP tools
 - [backend/app/rag/indices/vector_store.py](backend/app/rag/indices/vector_store.py): FAISS dense vector indexing and similarity search
 - [backend/app/rag/indices/bm25_store.py](backend/app/rag/indices/bm25_store.py): Whoosh BM25 keyword search index
 - [backend/app/rag/retrievers/hybrid.py](backend/app/rag/retrievers/hybrid.py): Hybrid search combiner and Cross-Encoder re-ranker
 - [backend/app/core/llm_client.py](backend/app/core/llm_client.py): Unified LLM client (Azure OpenAI v1 / OpenAI / Claude / Gemini / Ollama)
+
+### Tool extension (OpenAPI and MCP)
+- [backend/app/api/api_tools.py](backend/app/api/api_tools.py): Custom API tool endpoints (parse-spec, import, CRUD, toggle, test) and the generic HTTP executor execute_http_api_tool
+- [backend/app/services/openapi_parser.py](backend/app/services/openapi_parser.py): OpenAPI 2.0 / 3.0 / 3.1 spec parsing and $ref resolution
+- [backend/app/api/mcp.py](backend/app/api/mcp.py): MCP server endpoints (presets, servers CRUD, discover, toggle, tool test)
+- [backend/app/services/mcp_service.py](backend/app/services/mcp_service.py): McpStdioClient / McpHttpClient / McpManager (JSON-RPC initialize, tools/list, tools/call)
+- [backend/app/api/tags.py](backend/app/api/tags.py): Model tag lookup and external tags proxy
+
+### Security
 - [backend/app/core/jwt_auth.py](backend/app/core/jwt_auth.py): RSA-2048 JWT signing, token verification, and revocation
+- [backend/app/core/redis_client.py](backend/app/core/redis_client.py): TokenBlacklist (currently a single-process in-memory implementation, not Redis)
 - [backend/app/core/security_logging.py](backend/app/core/security_logging.py): Two-layer sensitive data redaction logging system
-- [backend/app/api/chat.py](backend/app/api/chat.py): Chat, autonomous research, and available models API endpoints
-- [backend/app/api/documents.py](backend/app/api/documents.py): Knowledge document upload, indexing, and management endpoints
-- [frontend/src/App.jsx](frontend/src/App.jsx): React 19 top-level routes and global layout
-- [frontend/src/pages/Chat/index.tsx](frontend/src/pages/Chat/index.tsx): Main chat page, model selection & reasoning effort controller
+- [backend/app/core/ssrf_protection.py](backend/app/core/ssrf_protection.py): Outbound URL SSRF validation and safe_fetch_text
+
+### API endpoints
+- [backend/app/api/auth.py](backend/app/api/auth.py): Register, login, refresh, logout, profile, and password change
+- [backend/app/api/chat.py](backend/app/api/chat.py): SSE streaming chat /send, available models /models, available tools /tools, conversation history
+- [backend/app/api/documents.py](backend/app/api/documents.py): Knowledge document upload, summary, delete, and index rebuild (admin)
+- [backend/app/api/admin.py](backend/app/api/admin.py): User, statistics, conversation, document, and vector store administration (admin)
+
+### Frontend
+- [frontend/src/App.jsx](frontend/src/App.jsx): React 19 top-level routes (/chat, /tools, /documents, /admin, /profile) and route guards
+- [frontend/src/pages/Chat/index.tsx](frontend/src/pages/Chat/index.tsx): Main chat page, SSE consumption, model selection, and reasoning effort controller
 - [frontend/src/pages/Chat/ResearchTraceBlock.tsx](frontend/src/pages/Chat/ResearchTraceBlock.tsx): Collapsible research trace timeline component
 - [frontend/src/pages/Chat/SourceBadges.tsx](frontend/src/pages/Chat/SourceBadges.tsx): Interactive reference source badge component
+- [frontend/src/pages/AiTools.jsx](frontend/src/pages/AiTools.jsx): Custom API tool and MCP server management page
+- [frontend/src/components/ui/index.ts](frontend/src/components/ui/index.ts): In-house UI kit (CSS Modules + tokens.css, no MUI)
+- [frontend/src/services/api.ts](frontend/src/services/api.ts): Axios wrapper and token refresh interceptor
 
 ## Key Architectural Invariants & Concepts
 
 1. **Agentic RAG Pipeline**:
-   - ReAct research pattern where the model dynamically calls internal knowledge search, live web search, or deep web scraping.
-   - Every response provides structured `research_trace` (steps, tools, parameters, durations, summaries) and clickable `sources_detail`.
+   - ReAct pattern where the model decides to call internal knowledge search, structured counting, live web search, web fetch, or any registered custom API / MCP tool.
+   - `POST /api/chat/send` streams SSE events (start, step_start, step_end, token, sources, done, error); every answer yields a structured `research_trace` and clickable `sources_detail`.
 2. **Reasoning Effort Multi-Tier Selection**:
-   - Supports 5 depth tiers: `none`, `low`, `medium`, `high`, and `xhigh` forwarded to Azure OpenAI v1 / OpenAI reasoning models.
-   - Enforces Microsoft Foundry tool-call compatibility rules.
-3. **Contextual Hybrid Retrieval**:
-   - FAISS dense vector search and Whoosh BM25 sparse keyword search combined and re-ranked via Cross-Encoder for high precision.
-4. **System-Wide Security Redaction**:
-   - Recursive object masking and regex-based string redaction. Passwords and bearer tokens MUST appear as `[REDACTED]` in logs.
-5. **Modern Lightweight Stack**:
-   - Zero-dependency local setup with built-in SQLite, React 19 + Vite 7 frontend built with Bun.
+   - Supports `none`, `low`, `medium`, `high`, and `xhigh`, forwarded to Azure OpenAI v1 / OpenAI reasoning models with Microsoft Foundry tool-call compatibility rules.
+3. **Hybrid Retrieval**:
+   - FAISS dense vectors (`BAAI/bge-small-zh-v1.5`) and Whoosh BM25 (Jieba segmentation) fused by `HYBRID_ALPHA`, then re-ranked by a Cross-Encoder (`BAAI/bge-reranker-base`); all parameters are defined in `config.py`.
+4. **Tool Extension (OpenAPI import and MCP)**:
+   - Custom API tools use `custom_api_tools.name` as the function name; MCP tools are named `mcp_{server}_{tool}`; both are aggregated dynamically by `ResearchToolRegistry`, and `GET /api/chat/tools` exposes the currently enabled set.
+5. **Outbound SSRF Protection**:
+   - Every URL supplied by a user or the model (web_fetch, OpenAPI spec loading, custom API execution) MUST pass `ssrf_protection.validate_url_ssrf` / `safe_fetch_text`, which rejects private, loopback, and link-local addresses.
+6. **System-Wide Security Redaction**:
+   - Recursive object masking and regex-based string redaction. Passwords, tokens, and Authorization headers MUST appear as `[REDACTED]` in logs.
+7. **Modern Lightweight Stack**:
+   - SQLite by default on the backend (PostgreSQL optional via `backend/docker-compose.yml`, host port 7690); the token blacklist is a single-process in-memory implementation. Frontend built on React 19 + TypeScript + Vite 8 + Bun.
 
 ## Documentation Index
 
-- [API Reference](docs/api_en.md): RESTful endpoints, JSON schemas, and parameters
-- [Architecture & Design](docs/architecture_en.md): High-level system modules, Agentic RAG pipeline, and security design
-- [Architecture Decision Records (ADR)](docs/adr/README_en.md): Project architecture evolution and trade-offs
+- [API Reference](docs/api_en.md): RESTful / SSE endpoints, JSON schemas, and parameters
+- [Architecture & Design](docs/architecture_en.md): Layered architecture, hybrid retrieval, auth, agentic loop, tool extension, security, data model, and deployment profiles
+- [Architecture Decision Records (ADR)](docs/adr/README_en.md): ADR-0001 (hybrid RAG and security), ADR-0002 (2.x platform hardening roadmap)
+- [AI Assistant Project Guide](CLAUDE.md): Build and test commands, conventions, and gotchas
 - [Changelog](CHANGELOG_en.md): Version release history
